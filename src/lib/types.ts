@@ -6,6 +6,7 @@ export type Product = {
   imageUrl: string;
   imageHint: string;
   category: string;
+  stock?: number;
 };
 
 export type CartItem = {

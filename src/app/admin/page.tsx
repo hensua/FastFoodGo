@@ -1,17 +1,20 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useFirestore, useMemoFirebase } from '@/firebase';
-import { collectionGroup, query, where, onSnapshot, doc, updateDoc, writeBatch } from 'firebase/firestore';
-import type { Order, OrderStatus } from '@/lib/types';
+import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { collectionGroup, query, where, onSnapshot, doc, updateDoc, writeBatch, collection, addDoc, deleteDoc } from 'firebase/firestore';
+import type { Order, OrderStatus, Product } from '@/lib/types';
 import Header from '@/components/header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { Clock, ChefHat, PackageCheck, UtensilsCrossed, Package, TrendingUp } from 'lucide-react';
+import { Clock, ChefHat, PackageCheck, UtensilsCrossed, Package, TrendingUp, Trash2, Edit, Plus, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/provider';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const statusConfig = {
   pending: {
@@ -83,11 +86,75 @@ const OrderCard = ({ order, onStatusChange }: { order: Order, onStatusChange: (o
   );
 };
 
+
+const ProductForm = ({ product, onSave, onCancel }: { product: Product | null, onSave: (product: Omit<Product, 'id'>) => void, onCancel: () => void }) => {
+  const [formData, setFormData] = useState<Omit<Product, 'id'>>(
+    product || { name: '', description: '', price: 0, imageUrl: '', imageHint: '', category: 'Otros', stock: 0 }
+  );
+
+  useEffect(() => {
+    setFormData(product || { name: '', description: '', price: 0, imageUrl: '', imageHint: '', category: 'Otros', stock: 0 });
+  }, [product]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: name === 'price' || name === 'stock' ? Number(value) : value }));
+  };
+  
+  const handleCategoryChange = (value: string) => {
+    setFormData(prev => ({ ...prev, category: value }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  return (
+    <Card className="h-fit sticky top-24">
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          {product ? 'Editar Producto' : 'Añadir Producto'}
+          <Button variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input name="name" value={formData.name} onChange={handleChange} placeholder="Nombre del producto" required />
+          <Textarea name="description" value={formData.description} onChange={handleChange} placeholder="Descripción" required />
+          <div className="grid grid-cols-2 gap-4">
+            <Input name="price" type="number" value={formData.price} onChange={handleChange} placeholder="Precio" required />
+            <Input name="stock" type="number" value={formData.stock} onChange={handleChange} placeholder="Stock" />
+          </div>
+          <Select name="category" value={formData.category} onValueChange={handleCategoryChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              {['Hamburguesas', 'Pizzas', 'Acompañamientos', 'Bebidas', 'Otros'].map(cat => (
+                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input name="imageUrl" value={formData.imageUrl} onChange={handleChange} placeholder="URL de la imagen" required />
+          <Button type="submit" className="w-full">{product ? 'Guardar Cambios' : 'Crear Producto'}</Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+};
+
+
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('kitchen');
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const firestore = useFirestore();
+
+  // Product state
+  const productsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'products') : null, [firestore]);
+  const { data: products, isLoading: productsLoading } = useCollection<Product>(productsCollection);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     if (!firestore) return;
@@ -117,6 +184,32 @@ const AdminDashboard = () => {
       await updateDoc(orderRef, { status: newStatus });
     } catch (error) {
       console.error("Error updating order status: ", error);
+    }
+  };
+
+  const handleSaveProduct = async (productData: Omit<Product, 'id'>) => {
+    if (!firestore) return;
+    try {
+      if (editingProduct) {
+        const productRef = doc(firestore, 'products', editingProduct.id);
+        await updateDoc(productRef, productData);
+      } else {
+        await addDoc(collection(firestore, 'products'), productData);
+      }
+      setEditingProduct(null);
+    } catch (error) {
+      console.error("Error saving product:", error);
+    }
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!firestore) return;
+    if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
+      try {
+        await deleteDoc(doc(firestore, 'products', productId));
+      } catch (error) {
+        console.error("Error deleting product:", error);
+      }
     }
   };
 
@@ -177,8 +270,58 @@ const AdminDashboard = () => {
           ))}
         </div>
       )}
-       {activeTab === 'inventory' && <div className="text-center p-8 bg-white rounded-lg shadow-sm">Inventario Próximamente...</div>}
-       {activeTab === 'stats' && <div className="text-center p-8 bg-white rounded-lg shadow-sm">Reportes Próximamente...</div>}
+
+      {activeTab === 'inventory' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Productos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <table className="w-full">
+                  <thead className='border-b'>
+                    <tr className='text-left text-sm text-muted-foreground'>
+                      <th className='pb-2'>Producto</th>
+                      <th className='pb-2'>Categoría</th>
+                      <th className='pb-2'>Precio</th>
+                      <th className='pb-2'>Stock</th>
+                      <th className='pb-2 text-right'>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {productsLoading ? (
+                      <tr><td colSpan={5}>Cargando...</td></tr>
+                    ) : (
+                      products?.map(p => (
+                        <tr key={p.id} className='border-b'>
+                          <td className='py-2 font-medium'>{p.name}</td>
+                          <td><Badge variant="secondary">{p.category}</Badge></td>
+                          <td>{formatCurrency(p.price)}</td>
+                          <td>{p.stock}</td>
+                          <td className='flex justify-end gap-2 py-2'>
+                            <Button variant="ghost" size="icon" onClick={() => setEditingProduct(p)}><Edit className='h-4 w-4'/></Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteProduct(p.id)}><Trash2 className='h-4 w-4 text-destructive'/></Button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          </div>
+          <div>
+            <ProductForm
+              product={editingProduct}
+              onSave={handleSaveProduct}
+              onCancel={() => setEditingProduct(null)}
+            />
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'stats' && <div className="text-center p-8 bg-white rounded-lg shadow-sm">Reportes Próximamente...</div>}
     </div>
   );
 };

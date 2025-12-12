@@ -23,7 +23,7 @@ export default function CheckoutForm() {
   const { user } = useUser();
 
   const handlePlaceOrder = async () => {
-    if (!user) {
+    if (!user || !firestore) {
       router.push('/login');
       return;
     }
@@ -33,7 +33,8 @@ export default function CheckoutForm() {
     try {
       const orderId = `FFG-${Date.now()}`;
       
-      const orderRef = doc(firestore, 'customers', user.uid, 'orders', orderId);
+      // We are creating a subcollection 'orders' under the 'customers' document.
+      const ordersCollectionRef = collection(firestore, 'customers', user.uid, 'orders');
 
       const orderData = {
         id: orderId,
@@ -46,14 +47,18 @@ export default function CheckoutForm() {
         status: 'pending',
         items: cartItems.map(item => ({
           productId: item.product.id,
-          name: item.product.name,
+          // We denormalize product data here so the order is self-contained.
+          product: {
+             name: item.product.name,
+             price: item.product.price,
+             imageUrl: item.product.imageUrl
+          },
           quantity: item.quantity,
-          price: item.product.price,
           note: item.note || null,
         })),
       };
 
-      await addDocumentNonBlocking(collection(firestore, 'customers', user.uid, 'orders'), orderData);
+      await addDocumentNonBlocking(ordersCollectionRef, orderData);
       
       router.push(`/order-confirmation?orderId=${orderId}&paymentMethod=${paymentMethod}&total=${totalPrice}`);
       
