@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { useFirestore, useMemoFirebase, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collectionGroup, query, where, onSnapshot, doc, updateDoc, writeBatch, collection, addDoc, deleteDoc } from 'firebase/firestore';
 import type { Order, OrderStatus, Product } from '@/lib/types';
 import Header from '@/components/header';
@@ -170,7 +170,12 @@ const AdminDashboard = () => {
       setOrders(fetchedOrders);
       setLoading(false);
     }, (error) => {
-      console.error("Error fetching orders:", error);
+      console.error("Original error:", error); // Keep original for reference
+      const contextualError = new FirestorePermissionError({
+        path: 'orders (collectionGroup)',
+        operation: 'list',
+      });
+      errorEmitter.emit('permission-error', contextualError);
       setLoading(false);
     });
 
@@ -184,6 +189,12 @@ const AdminDashboard = () => {
       await updateDoc(orderRef, { status: newStatus });
     } catch (error) {
       console.error("Error updating order status: ", error);
+      const contextualError = new FirestorePermissionError({
+          path: orderRef.path,
+          operation: 'update',
+          requestResourceData: { status: newStatus }
+      });
+      errorEmitter.emit('permission-error', contextualError);
     }
   };
 
