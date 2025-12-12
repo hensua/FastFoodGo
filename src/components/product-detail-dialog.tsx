@@ -17,6 +17,7 @@ import { useCart } from '@/components/cart-provider';
 import { formatCurrency } from '@/lib/utils';
 import { PlusCircle, Sparkles } from 'lucide-react';
 import SuggestedProducts from './cart/suggested-products';
+import { ScrollArea } from './ui/scroll-area';
 
 
 interface ProductDetailDialogProps {
@@ -40,11 +41,16 @@ export default function ProductDetailDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <DialogContent className="sm:max-w-4xl grid-rows-[auto_1fr_auto] p-0 max-h-[90svh]">
+        <DialogHeader className="p-6 pb-0">
+            <DialogTitle className="text-3xl font-bold">{product.name}</DialogTitle>
+            <DialogDescription className="text-base pt-2">{product.description}</DialogDescription>
+        </DialogHeader>
+
+        <ScrollArea className="grid gap-8 overflow-y-auto grid-cols-1 md:grid-cols-2 p-6">
           {/* Columna de la imagen */}
-          <div>
-            <div className="relative aspect-square w-full overflow-hidden rounded-lg">
+          <div className="flex items-start justify-center">
+            <div className="relative aspect-square w-full max-w-sm overflow-hidden rounded-lg">
               <Image
                 src={product.imageUrl}
                 alt={product.name}
@@ -56,50 +62,44 @@ export default function ProductDetailDialog({
           </div>
 
           {/* Columna de detalles y acciones */}
-          <div className="flex flex-col">
-            <DialogHeader>
-              <DialogTitle className="text-3xl font-bold">{product.name}</DialogTitle>
-              <DialogDescription className="text-base">{product.description}</DialogDescription>
-            </DialogHeader>
-            
-            <div className="py-4 flex-grow">
-               <p className="text-3xl font-bold text-primary my-4">
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="text-3xl font-bold text-primary">
                 {formatCurrency(product.price)}
               </p>
-
-              <div className="space-y-2">
-                <label htmlFor="notes" className="font-semibold text-sm">
-                  ¿Alguna instrucción especial?
-                </label>
-                <Textarea
-                  id="notes"
-                  placeholder="Ej: sin cebolla, mayonesa extra, etc."
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  className="min-h-[80px]"
-                />
-              </div>
-
-               <div className="mt-6">
-                <h4 className="flex items-center gap-2 text-lg font-semibold">
-                  <Sparkles className="h-5 w-5 text-accent" />
-                  <span>También te podría gustar...</span>
-                </h4>
-                 <div className="pr-6">
-                  {/* We pass the current product name to avoid suggesting it */}
-                  <SuggestedProducts currentProduct={product}/>
-                </div>
-              </div>
             </div>
 
-            <DialogFooter>
-              <Button size="lg" className="w-full" onClick={handleAddToCart}>
-                <PlusCircle className="mr-2 h-5 w-5" />
-                Añadir al carrito
-              </Button>
-            </DialogFooter>
+            <div className="space-y-2">
+              <label htmlFor="notes" className="font-semibold text-sm">
+                ¿Alguna instrucción especial?
+              </label>
+              <Textarea
+                id="notes"
+                placeholder="Ej: sin cebolla, mayonesa extra, etc."
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                className="min-h-[80px]"
+              />
+            </div>
+
+            <div className="mt-2">
+              <h4 className="flex items-center gap-2 text-lg font-semibold">
+                <Sparkles className="h-5 w-5 text-accent" />
+                <span>También te podría gustar...</span>
+              </h4>
+              <div className="pr-2">
+                <SuggestedProducts currentProduct={product}/>
+              </div>
+            </div>
           </div>
-        </div>
+        </ScrollArea>
+
+        <DialogFooter className="p-6 pt-0 border-t">
+          <Button size="lg" className="w-full" onClick={handleAddToCart}>
+            <PlusCircle className="mr-2 h-5 w-5" />
+            Añadir al carrito
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
