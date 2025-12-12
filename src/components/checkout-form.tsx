@@ -11,25 +11,76 @@ import { Loader2 } from 'lucide-react';
 import CartItem from './cart/cart-item';
 import { ScrollArea } from './ui/scroll-area';
 import { formatCurrency } from '@/lib/utils';
+import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase';
+import { collection, serverTimestamp } from 'firebase/firestore';
 
 export default function CheckoutForm() {
   const { cartItems, totalPrice, clearCart } = useCart();
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+  const firestore = useFirestore();
+  const { user } = useUser();
 
   const handlePlaceOrder = async () => {
-    setIsSubmitting(true);
-    // Simular una llamada a la API
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    if (!user) {
+      // Idealmente, este caso no debería ocurrir si la página está protegida,
+      // pero es una buena práctica verificarlo.
+      router.push('/login');
+      return;
+    }
 
-    const orderId = `FFG-${Date.now()}`;
+    setIsSubmitting(true);
     
-    // Redirigir a la página de confirmación
-    router.push(`/order-confirmation?orderId=${orderId}&paymentMethod=${paymentMethod}&total=${totalPrice}`);
-    
-    clearCart();
-    setIsSubmitting(false);
+    try {
+      const orderId = `FFG-${Date.now()}`;
+      
+      const ordersCollection = collection(firestore, 'customers', user.uid, 'orders');
+
+      // Crear el documento del pedido
+      const orderData = {
+        id: orderId,
+        customerId: user.uid,
+        orderDate: serverTimestamp(),
+        totalAmount: totalPrice,
+        paymentMethod: paymentMethod,
+        deliveryAddress: 'Por definir en mapa', // Placeholder
+        status: 'pending', // Estado inicial del pedido
+      };
+
+      // Guardar el pedido principal de forma no bloqueante
+      const orderPromise = addDocumentNonBlocking(ordersCollection, orderData);
+      
+      // Guardar los artículos del pedido
+      // En una implementación real, esto se haría en una transacción o batch write desde el backend
+      // para garantizar la atomicidad. Por ahora, los guardamos individualmente.
+      const orderItemsCollection = collection(firestore, 'customers', user.uid, 'orders', orderId, 'orderItems');
+
+      cartItems.forEach(item => {
+        const orderItemData = {
+          orderId: orderId,
+          productId: item.product.id,
+          quantity: item.quantity,
+          unitPrice: item.product.price,
+          productName: item.product.name // Denormalizamos para facilitar la visualización
+        };
+        addDocumentNonBlocking(orderItemsCollection, orderItemData);
+      });
+
+      // Esperar solo si es necesario, pero en este caso, la navegación puede ser inmediata
+      // await orderPromise; // Opcional
+
+      // Redirigir a la página de confirmación
+      router.push(`/order-confirmation?orderId=${orderId}&paymentMethod=${paymentMethod}&total=${totalPrice}`);
+      
+      clearCart();
+
+    } catch (error) {
+      console.error("Error al realizar el pedido:", error);
+      // Aquí podrías mostrar un toast al usuario
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -74,7 +125,7 @@ export default function CheckoutForm() {
             size="lg" 
             className="w-full"
             onClick={handlePlaceOrder}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !user}
           >
             {isSubmitting ? (
               <>
