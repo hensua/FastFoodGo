@@ -12,7 +12,7 @@ import CartItem from './cart/cart-item';
 import { ScrollArea } from './ui/scroll-area';
 import { formatCurrency } from '@/lib/utils';
 import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase';
-import { collection, serverTimestamp } from 'firebase/firestore';
+import { collection, serverTimestamp, doc } from 'firebase/firestore';
 
 export default function CheckoutForm() {
   const { cartItems, totalPrice, clearCart } = useCart();
@@ -24,8 +24,6 @@ export default function CheckoutForm() {
 
   const handlePlaceOrder = async () => {
     if (!user) {
-      // Idealmente, este caso no debería ocurrir si la página está protegida,
-      // pero es una buena práctica verificarlo.
       router.push('/login');
       return;
     }
@@ -35,49 +33,34 @@ export default function CheckoutForm() {
     try {
       const orderId = `FFG-${Date.now()}`;
       
-      const ordersCollection = collection(firestore, 'customers', user.uid, 'orders');
+      const orderRef = doc(firestore, 'customers', user.uid, 'orders', orderId);
 
-      // Crear el documento del pedido
       const orderData = {
         id: orderId,
         customerId: user.uid,
+        customerName: user.displayName || 'Cliente Anónimo',
         orderDate: serverTimestamp(),
         totalAmount: totalPrice,
         paymentMethod: paymentMethod,
-        deliveryAddress: 'Por definir en mapa', // Placeholder
-        status: 'pending', // Estado inicial del pedido
+        deliveryAddress: 'Por definir en mapa',
+        status: 'pending',
+        items: cartItems.map(item => ({
+          productId: item.product.id,
+          name: item.product.name,
+          quantity: item.quantity,
+          price: item.product.price,
+          note: item.note || null,
+        })),
       };
 
-      // Guardar el pedido principal de forma no bloqueante
-      const orderPromise = addDocumentNonBlocking(ordersCollection, orderData);
+      await addDocumentNonBlocking(collection(firestore, 'customers', user.uid, 'orders'), orderData);
       
-      // Guardar los artículos del pedido
-      // En una implementación real, esto se haría en una transacción o batch write desde el backend
-      // para garantizar la atomicidad. Por ahora, los guardamos individualmente.
-      const orderItemsCollection = collection(firestore, 'customers', user.uid, 'orders', orderId, 'orderItems');
-
-      cartItems.forEach(item => {
-        const orderItemData = {
-          orderId: orderId,
-          productId: item.product.id,
-          quantity: item.quantity,
-          unitPrice: item.product.price,
-          productName: item.product.name // Denormalizamos para facilitar la visualización
-        };
-        addDocumentNonBlocking(orderItemsCollection, orderItemData);
-      });
-
-      // Esperar solo si es necesario, pero en este caso, la navegación puede ser inmediata
-      // await orderPromise; // Opcional
-
-      // Redirigir a la página de confirmación
       router.push(`/order-confirmation?orderId=${orderId}&paymentMethod=${paymentMethod}&total=${totalPrice}`);
       
       clearCart();
 
     } catch (error) {
       console.error("Error al realizar el pedido:", error);
-      // Aquí podrías mostrar un toast al usuario
     } finally {
       setIsSubmitting(false);
     }
@@ -93,7 +76,7 @@ export default function CheckoutForm() {
           <ScrollArea className="h-[400px] pr-4">
             <div className="space-y-4">
               {cartItems.map(item => (
-                <CartItem key={item.product.id} item={item} />
+                <CartItem key={`${item.product.id}-${item.note}`} item={item} />
               ))}
             </div>
           </ScrollArea>

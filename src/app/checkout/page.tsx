@@ -5,18 +5,23 @@ import CheckoutForm from '@/components/checkout-form';
 import { useCart } from '@/components/cart-provider';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { useUser } from '@/firebase';
 
 export default function CheckoutPage() {
   const { totalItems } = useCart();
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
 
   useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
     if (totalItems === 0) {
       router.push('/');
     }
-  }, [totalItems, router]);
+  }, [totalItems, router, user, isUserLoading]);
 
-  if (totalItems === 0) {
+  if (totalItems === 0 || isUserLoading || !user) {
     return null; 
   }
   

@@ -13,3 +13,17 @@ export type CartItem = {
   quantity: number;
   note?: string;
 };
+
+export type OrderStatus = 'pending' | 'cooking' | 'ready' | 'delivered';
+
+export type Order = {
+  id: string;
+  customerId: string;
+  orderDate: any;
+  totalAmount: number;
+  paymentMethod: string;
+  deliveryAddress: string;
+  status: OrderStatus;
+  items: CartItem[];
+  customerName?: string;
+};
