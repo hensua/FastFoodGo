@@ -1,0 +1,363 @@
+{
+  "entities": {
+    "Product": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Product",
+      "type": "object",
+      "description": "Represents a food item available for purchase.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the product."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the product."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the product."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of the product image.",
+          "format": "uri"
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the product."
+        },
+        "inventory": {
+          "type": "number",
+          "description": "Current stock level of the product."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "imageUrl",
+        "price",
+        "inventory"
+      ]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents a customer order.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the order."
+        },
+        "customerId": {
+          "type": "string",
+          "description": "Reference to Customer. (Relationship: Customer 1:N Order)"
+        },
+        "orderDate": {
+          "type": "string",
+          "description": "Date and time when the order was placed.",
+          "format": "date-time"
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Total amount of the order."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Payment method used for the order (e.g., credit card, cash)."
+        },
+        "deliveryAddress": {
+          "type": "string",
+          "description": "Delivery address for the order."
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status of the order (e.g., pending, processing, delivered)."
+        }
+      },
+      "required": [
+        "id",
+        "customerId",
+        "orderDate",
+        "totalAmount",
+        "paymentMethod",
+        "deliveryAddress",
+        "status"
+      ]
+    },
+    "OrderItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OrderItem",
+      "type": "object",
+      "description": "Represents an item within an order.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the order item."
+        },
+        "orderId": {
+          "type": "string",
+          "description": "Reference to Order. (Relationship: Order 1:N OrderItem)"
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to Product. (Relationship: Product 1:N OrderItem)"
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Quantity of the product in the order item."
+        },
+        "unitPrice": {
+          "type": "number",
+          "description": "Price of one unit of the product at the time of the order."
+        }
+      },
+      "required": [
+        "id",
+        "orderId",
+        "productId",
+        "quantity",
+        "unitPrice"
+      ]
+    },
+    "Customer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Customer",
+      "type": "object",
+      "description": "Represents a customer of the restaurant.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the customer."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name of the customer."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Last name of the customer."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the customer.",
+          "format": "email"
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "Phone number of the customer."
+        },
+        "address": {
+          "type": "string",
+          "description": "Address of the customer."
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email",
+        "phoneNumber",
+        "address"
+      ]
+    },
+    "DeliveryDriver": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DeliveryDriver",
+      "type": "object",
+      "description": "Represents a delivery driver.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the delivery driver."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name of the delivery driver."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Last name of the delivery driver."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "Phone number of the delivery driver."
+        },
+        "vehicleType": {
+          "type": "string",
+          "description": "Type of vehicle used by the delivery driver (e.g., car, motorcycle)."
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "phoneNumber",
+        "vehicleType"
+      ]
+    },
+    "DeliveryAssignment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DeliveryAssignment",
+      "type": "object",
+      "description": "Represents the assignment of an order to a delivery driver.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the delivery assignment."
+        },
+        "orderId": {
+          "type": "string",
+          "description": "Reference to Order. (Relationship: Order 1:N DeliveryAssignment)"
+        },
+        "driverId": {
+          "type": "string",
+          "description": "Reference to DeliveryDriver. (Relationship: DeliveryDriver 1:N DeliveryAssignment)"
+        },
+        "assignmentDate": {
+          "type": "string",
+          "description": "Date and time when the order was assigned to the driver.",
+          "format": "date-time"
+        },
+        "estimatedDeliveryTime": {
+          "type": "string",
+          "description": "Estimated delivery time for the order.",
+          "format": "date-time"
+        },
+        "actualDeliveryTime": {
+          "type": "string",
+          "description": "Actual delivery time for the order.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "orderId",
+        "driverId",
+        "assignmentDate",
+        "estimatedDeliveryTime"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/products/{productId}",
+        "definition": {
+          "entityName": "Product",
+          "schema": {
+            "$ref": "#/backend/entities/Product"
+          },
+          "description": "Stores product information. 'productId' is the unique identifier for each product.",
+          "params": [
+            {
+              "name": "productId",
+              "description": "Unique identifier for the product."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/customers/{customerId}",
+        "definition": {
+          "entityName": "Customer",
+          "schema": {
+            "$ref": "#/backend/entities/Customer"
+          },
+          "description": "Stores customer profile information. 'customerId' is the unique identifier for each customer.",
+          "params": [
+            {
+              "name": "customerId",
+              "description": "Unique identifier for the customer."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/customers/{customerId}/orders/{orderId}",
+        "definition": {
+          "entityName": "Order",
+          "schema": {
+            "$ref": "#/backend/entities/Order"
+          },
+          "description": "Stores order information for a specific customer. 'customerId' identifies the customer who placed the order, and 'orderId' is the unique identifier for each order.",
+          "params": [
+            {
+              "name": "customerId",
+              "description": "Unique identifier for the customer."
+            },
+            {
+              "name": "orderId",
+              "description": "Unique identifier for the order."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/customers/{customerId}/orders/{orderId}/orderItems/{orderItemId}",
+        "definition": {
+          "entityName": "OrderItem",
+          "schema": {
+            "$ref": "#/backend/entities/OrderItem"
+          },
+          "description": "Stores order items for a specific order. 'customerId' identifies the customer, 'orderId' identifies the order, and 'orderItemId' is the unique identifier for each item in the order.",
+          "params": [
+            {
+              "name": "customerId",
+              "description": "Unique identifier for the customer."
+            },
+            {
+              "name": "orderId",
+              "description": "Unique identifier for the order."
+            },
+            {
+              "name": "orderItemId",
+              "description": "Unique identifier for the order item."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/deliveryDrivers/{deliveryDriverId}",
+        "definition": {
+          "entityName": "DeliveryDriver",
+          "schema": {
+            "$ref": "#/backend/entities/DeliveryDriver"
+          },
+          "description": "Stores delivery driver information. 'deliveryDriverId' is the unique identifier for each driver.",
+          "params": [
+            {
+              "name": "deliveryDriverId",
+              "description": "Unique identifier for the delivery driver."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/deliveryAssignments/{deliveryAssignmentId}",
+        "definition": {
+          "entityName": "DeliveryAssignment",
+          "schema": {
+            "$ref": "#/backend/entities/DeliveryAssignment"
+          },
+          "description": "Stores delivery assignments. 'deliveryAssignmentId' is the unique identifier for each assignment.",
+          "params": [
+            {
+              "name": "deliveryAssignmentId",
+              "description": "Unique identifier for the delivery assignment."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support the FastFoodGo application, focusing on a secure, scalable, and easily debuggable system. It prioritizes Authorization Independence, Clarity of Intent, DBAC (Database-Based Access Control), and QAPs (Rules are Not Filters). The structure segregates data based on access needs and uses consistent patterns for authorization. \n\n**Authorization Independence (Denormalization):**\nTo avoid hierarchical authorization dependencies and enable atomic operations, we denormalize authorization context where needed. For example, if access to `OrderItems` depended on the `Order` attributes, those attributes would be copied into every `OrderItem` document.\n\n**Structural Segregation (Homogeneous Security Posture):**\nCollections are structured to ensure all documents within a collection share the same security requirements. For example, products are stored in a single `products` collection.\n\n**Access Modeling:**\n*   **User-Owned Data:** Orders are placed under `/customers/{customerId}/orders/{orderId}` to establish clear ownership.\n\n**QAPs (Rules are not Filters):**\nThe structure supports secure `list` operations. By segregating data with different access requirements into different collections, we ensure that rules can be written to allow listing operations without inadvertently exposing sensitive data.\n\n**Global Roles (DBAC):** No global roles are needed for this app."
+  }
+}
