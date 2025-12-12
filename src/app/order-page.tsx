@@ -6,6 +6,7 @@ import Header from '@/components/header';
 import ProductList from '@/components/product-list';
 import CartSheet from '@/components/cart/cart-sheet';
 import { Button } from '@/components/ui/button';
+import ProductDetailDialog from '@/components/product-detail-dialog';
 
 interface OrderPageProps {
   products: Product[];
@@ -16,6 +17,7 @@ const categories = ['Todas', 'Hamburguesas', 'Pizzas', 'Acompañamientos', 'Bebi
 export default function OrderPage({ products }: OrderPageProps) {
   const [isCartOpen, setCartOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Todas');
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   const filteredProducts = useMemo(() => {
     if (selectedCategory === 'Todas') {
@@ -23,6 +25,14 @@ export default function OrderPage({ products }: OrderPageProps) {
     }
     return products.filter(product => product.category === selectedCategory);
   }, [products, selectedCategory]);
+
+  const handleProductClick = (product: Product) => {
+    setSelectedProduct(product);
+  };
+
+  const handleDialogClose = () => {
+    setSelectedProduct(null);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -42,9 +52,16 @@ export default function OrderPage({ products }: OrderPageProps) {
           />
         </div>
         
-        <ProductList products={filteredProducts} />
+        <ProductList products={filteredProducts} onProductClick={handleProductClick} />
       </main>
       <CartSheet open={isCartOpen} onOpenChange={setCartOpen} />
+      {selectedProduct && (
+        <ProductDetailDialog
+          product={selectedProduct}
+          isOpen={!!selectedProduct}
+          onOpenChange={handleDialogClose}
+        />
+      )}
     </div>
   );
 }

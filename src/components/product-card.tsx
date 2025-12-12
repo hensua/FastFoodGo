@@ -2,8 +2,6 @@
 
 import Image from "next/image";
 import type { Product } from "@/lib/types";
-import { useCart } from "@/components/cart-provider";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -12,22 +10,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { PlusCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface ProductCardProps {
   product: Product;
+  onClick: () => void;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
-  const { addToCart } = useCart();
-
-  const handleAddToCart = () => {
-    addToCart(product);
-  };
-
+export default function ProductCard({ product, onClick }: ProductCardProps) {
   return (
-    <Card className="flex h-full flex-col overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+    <Card 
+      className="flex h-full flex-col overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer"
+      onClick={onClick}
+    >
       <CardHeader className="p-0">
         <div className="relative aspect-video w-full">
           <Image
@@ -49,14 +44,9 @@ export default function ProductCard({ product }: ProductCardProps) {
         <p className="text-xl font-bold text-primary">
           {formatCurrency(product.price)}
         </p>
-        <Button
-          variant="outline"
-          className="bg-accent text-accent-foreground hover:bg-accent/90"
-          onClick={handleAddToCart}
-        >
-          <PlusCircle className="mr-2 h-5 w-5" />
-          Añadir
-        </Button>
+        <div className="text-sm font-semibold text-primary">
+          Ver detalles
+        </div>
       </CardFooter>
     </Card>
   );
