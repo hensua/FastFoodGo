@@ -15,6 +15,7 @@ import { useCart } from "@/components/cart-provider";
 import CartItem from "./cart-item";
 import SuggestedProducts from "./suggested-products";
 import { ShoppingCart } from "lucide-react";
+import Link from "next/link";
 
 interface CartSheetProps {
   open: boolean;
@@ -51,8 +52,8 @@ export default function CartSheet({ open, onOpenChange }: CartSheetProps) {
                   <span>Total:</span>
                   <span>${totalPrice.toFixed(2)}</span>
                 </div>
-                <Button size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
-                  Proceed to Checkout
+                <Button asChild size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
+                  <Link href="/checkout" onClick={() => onOpenChange(false)}>Proceed to Checkout</Link>
                 </Button>
                 <Button variant="outline" size="lg" className="w-full" onClick={() => onOpenChange(false)}>
                   Continue Shopping
