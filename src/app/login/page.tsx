@@ -35,20 +35,24 @@ export default function LoginPage() {
     },
   });
 
+  const handleRedirect = (user: any) => {
+    if (!user) return;
+    switch (user.email) {
+      case 'administrador@peter.com':
+        router.push('/admin');
+        break;
+      case 'repartidor@peter.com':
+        router.push('/delivery');
+        break;
+      default:
+        router.push('/');
+        break;
+    }
+  };
+
   useEffect(() => {
     if (!isUserLoading && user) {
-      // Redirect based on user role
-      switch (user.email) {
-        case 'administrador@peter.com':
-          router.push('/admin');
-          break;
-        case 'repartidor@peter.com':
-          router.push('/delivery');
-          break;
-        default:
-          router.push('/');
-          break;
-      }
+      handleRedirect(user);
     }
   }, [user, isUserLoading, router]);
 
@@ -56,8 +60,11 @@ export default function LoginPage() {
     if (!auth) return;
     setIsGoogleLoading(true);
     try {
-      await initiateGoogleSignIn(auth);
-      // onAuthStateChanged will handle the redirect
+      const result = await initiateGoogleSignIn(auth);
+      // Explicitly redirect after successful sign-in
+      if (result.user) {
+        handleRedirect(result.user);
+      }
     } catch (error: any) {
       // Don't show toast for user-cancelled popups
       if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
@@ -192,3 +199,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
