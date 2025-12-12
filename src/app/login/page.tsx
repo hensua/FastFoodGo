@@ -35,7 +35,18 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      router.push('/');
+      // Redirect based on user role
+      switch (user.email) {
+        case 'administrador@peter.com':
+          router.push('/admin');
+          break;
+        case 'repartidor@peter.com':
+          router.push('/delivery');
+          break;
+        default:
+          router.push('/');
+          break;
+      }
     }
   }, [user, router]);
 
@@ -43,7 +54,7 @@ export default function LoginPage() {
     try {
       await initiateGoogleSignIn(auth);
     } catch (error: any) {
-      if (error.code !== 'auth/cancelled-popup-request') {
+      if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
         toast({
           variant: "destructive",
           title: "Error de inicio de sesión",
@@ -66,9 +77,6 @@ export default function LoginPage() {
       });
        setIsEmailLoading(false);
     }
-    // Don't set loading to false here immediately, 
-    // because we want to wait for the redirect to happen.
-    // If the sign-in fails, the catch block will set it to false.
   };
 
   if (isUserLoading || user) {

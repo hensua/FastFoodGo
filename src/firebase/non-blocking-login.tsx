@@ -45,10 +45,11 @@ export async function initiateEmailSignIn(authInstance: Auth, email: string, pas
 /** Initiate Google sign-in (non-blocking). */
 export function initiateGoogleSignIn(authInstance: Auth): Promise<void> {
   const provider = new GoogleAuthProvider();
-  // CRITICAL: Call signInWithPopup directly. Do NOT use 'await signInWithPopup(...)'.
   // We return the promise to allow the caller to handle cancellations.
   return signInWithPopup(authInstance, provider).then(() => {}).catch(error => {
-    // Re-throw the error to be caught by the caller
-    throw error;
+    // Re-throw the error to be caught by the caller, unless it's a cancellation.
+    if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
+      throw error;
+    }
   });
 }
