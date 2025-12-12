@@ -5,5 +5,5 @@ export default function Home() {
   // In a real application, this data would be fetched from a database.
   const productData = products;
 
-  return <OrderPage products={productData} />;
+  return <OrderPage products={productData} loading={false} />;
 }
