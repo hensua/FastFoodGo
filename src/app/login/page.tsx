@@ -12,7 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Por favor, introduce un correo electrónico válido.' }),
@@ -61,12 +61,10 @@ export default function LoginPage() {
     setIsGoogleLoading(true);
     try {
       const result = await initiateGoogleSignIn(auth);
-      // Explicitly redirect after successful sign-in
       if (result.user) {
         handleRedirect(result.user);
       }
     } catch (error: any) {
-      // Don't show toast for user-cancelled popups
       if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
         toast({
           variant: "destructive",
@@ -84,23 +82,12 @@ export default function LoginPage() {
     setIsEmailLoading(true);
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
-      // onAuthStateChanged will handle redirect
+      // onAuthStateChanged handled by useEffect will redirect
     } catch (error: any) {
-       if (error.code === 'auth/user-not-found') {
-        // If the user doesn't exist, create them. This will only happen for the test users.
-        try {
-          await createUserWithEmailAndPassword(auth, values.email, values.password);
-          // After creation, onAuthStateChanged will automatically sign the user in and trigger the redirect.
-        } catch (creationError: any) {
-          toast({
-            variant: "destructive",
-            title: "Error de creación de cuenta",
-            description: creationError.message || "No se pudo crear la cuenta de prueba.",
-          });
-        }
-       } else {
         let description = "Ocurrió un error inesperado. Por favor, intenta de nuevo.";
-        if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        if (error.code === 'auth/user-not-found') {
+          description = "El usuario no existe. Por favor, regístrate o verifica el correo.";
+        } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
           description = "La contraseña es incorrecta. Por favor, verifica tus credenciales.";
         } else if (error.code === 'auth/too-many-requests') {
           description = "Demasiados intentos fallidos. Por favor, intenta de nuevo más tarde."
@@ -110,7 +97,6 @@ export default function LoginPage() {
           title: "Error de autenticación",
           description: description,
         });
-       }
     } finally {
       setIsEmailLoading(false);
     }
@@ -129,7 +115,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">¡Bienvenido!</CardTitle>
-          <CardDescription>Inicia sesión o crea una cuenta para continuar</CardDescription>
+          <CardDescription>Inicia sesión para continuar</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -151,7 +137,7 @@ export default function LoginPage() {
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-background px-2 text-muted-foreground">
-                  O inicia sesión (solo para pruebas)
+                  O inicia sesión con correo
                 </span>
               </div>
             </div>
@@ -188,7 +174,7 @@ export default function LoginPage() {
                   {isEmailLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : null}
-                  Iniciar sesión con correo
+                  Iniciar sesión
                 </Button>
               </form>
             </Form>
