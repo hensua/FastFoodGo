@@ -6,7 +6,7 @@ import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
   title: 'FastFoodGo',
-  description: 'The fastest way to your favorite food.',
+  description: 'La forma más rápida de llegar a tu comida favorita.',
 };
 
 export default function RootLayout({
@@ -15,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="es">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

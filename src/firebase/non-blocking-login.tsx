@@ -31,9 +31,12 @@ export function initiateEmailSignIn(authInstance: Auth, email: string, password:
 }
 
 /** Initiate Google sign-in (non-blocking). */
-export function initiateGoogleSignIn(authInstance: Auth): void {
+export function initiateGoogleSignIn(authInstance: Auth): Promise<void> {
   const provider = new GoogleAuthProvider();
   // CRITICAL: Call signInWithPopup directly. Do NOT use 'await signInWithPopup(...)'.
-  signInWithPopup(authInstance, provider);
-  // Code continues immediately. Auth state change is handled by onAuthStateChanged listener.
+  // We return the promise to allow the caller to handle cancellations.
+  return signInWithPopup(authInstance, provider).then(() => {}).catch(error => {
+    // Re-throw the error to be caught by the caller
+    throw error;
+  });
 }

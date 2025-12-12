@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PlusCircle } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
 interface ProductCardProps {
   product: Product;
@@ -46,7 +47,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       </CardContent>
       <CardFooter className="flex items-center justify-between p-4 pt-0">
         <p className="text-xl font-bold text-primary">
-          ${product.price.toFixed(2)}
+          {formatCurrency(product.price)}
         </p>
         <Button
           variant="outline"
@@ -54,7 +55,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           onClick={handleAddToCart}
         >
           <PlusCircle className="mr-2 h-5 w-5" />
-          Add
+          Añadir
         </Button>
       </CardFooter>
     </Card>

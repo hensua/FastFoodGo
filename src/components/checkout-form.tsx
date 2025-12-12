@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import CartItem from './cart/cart-item';
 import { ScrollArea } from './ui/scroll-area';
+import { formatCurrency } from '@/lib/utils';
 
 export default function CheckoutForm() {
   const { cartItems, totalPrice, clearCart } = useCart();
@@ -48,7 +49,7 @@ export default function CheckoutForm() {
         </CardContent>
         <CardFooter className="flex justify-between font-bold text-xl">
           <span>Total:</span>
-          <span>${totalPrice.toFixed(2)}</span>
+          <span>{formatCurrency(totalPrice)}</span>
         </CardFooter>
       </Card>
       

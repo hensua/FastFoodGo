@@ -6,6 +6,7 @@ import type { CartItem as CartItemType } from "@/lib/types";
 import { useCart } from "@/components/cart-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatCurrency } from "@/lib/utils";
 
 interface CartItemProps {
   item: CartItemType;
@@ -28,7 +29,7 @@ export default function CartItem({ item }: CartItemProps) {
       <div className="flex-grow">
         <p className="font-semibold">{item.product.name}</p>
         <p className="text-sm text-muted-foreground">
-          ${item.product.price.toFixed(2)}
+          {formatCurrency(item.product.price)}
         </p>
       </div>
       <div className="flex items-center gap-2">

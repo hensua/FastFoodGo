@@ -6,11 +6,13 @@ import { useAuth, useUser, initiateGoogleSignIn } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Chrome } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -18,14 +20,24 @@ export default function LoginPage() {
     }
   }, [user, router]);
 
-  const handleGoogleSignIn = () => {
-    initiateGoogleSignIn(auth);
+  const handleGoogleSignIn = async () => {
+    try {
+      await initiateGoogleSignIn(auth);
+    } catch (error: any) {
+      if (error.code !== 'auth/cancelled-popup-request') {
+        toast({
+          variant: "destructive",
+          title: "Error de inicio de sesión",
+          description: "No se pudo iniciar sesión con Google. Por favor, inténtalo de nuevo.",
+        });
+      }
+    }
   };
 
   if (isUserLoading || user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        {/* You can add a loader here */}
+        {/* Puedes agregar un spinner de carga aquí */}
       </div>
     );
   }
@@ -34,14 +46,14 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
-          <CardDescription>Sign in to continue to FastFoodGo</CardDescription>
+          <CardTitle className="text-2xl font-bold">¡Bienvenido de vuelta!</CardTitle>
+          <CardDescription>Inicia sesión para continuar en FastFoodGo</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <Button onClick={handleGoogleSignIn} className="w-full" variant="outline">
               <Chrome className="mr-2 h-4 w-4" />
-              Sign in with Google
+              Iniciar sesión con Google
             </Button>
           </div>
         </CardContent>

@@ -9,6 +9,7 @@ import type { Product } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { formatCurrency } from "@/lib/utils";
 
 export default function SuggestedProducts() {
   const { cartItems, addToCart } = useCart();
@@ -47,7 +48,7 @@ export default function SuggestedProducts() {
         <Separator className="my-4" />
         <h4 className="flex items-center gap-2 text-lg font-semibold">
           <Sparkles className="h-5 w-5 text-accent" />
-          <span>You might also like...</span>
+          <span>También te podría gustar...</span>
         </h4>
         <div className="mt-4 space-y-4">
           {[...Array(2)].map((_, i) => (
@@ -74,7 +75,7 @@ export default function SuggestedProducts() {
       <Separator className="my-4" />
       <h4 className="flex items-center gap-2 text-lg font-semibold">
         <Sparkles className="h-5 w-5 text-accent" />
-        <span>You might also like...</span>
+        <span>También te podría gustar...</span>
       </h4>
       <div className="mt-4 flex flex-col gap-4">
         {suggestions.map((product) => (
@@ -91,7 +92,7 @@ export default function SuggestedProducts() {
             <div className="flex-grow">
               <p className="font-semibold">{product.name}</p>
               <p className="text-sm text-muted-foreground">
-                ${product.price.toFixed(2)}
+                {formatCurrency(product.price)}
               </p>
             </div>
             <Button
@@ -100,7 +101,7 @@ export default function SuggestedProducts() {
               onClick={() => addToCart(product)}
             >
               <PlusCircle className="mr-2 h-4 w-4" />
-              Add
+              Añadir
             </Button>
           </div>
         ))}

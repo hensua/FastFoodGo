@@ -25,7 +25,7 @@ export default function CheckoutPage() {
       <Header onCartClick={() => {}} />
       <main className="container mx-auto px-4 py-8">
         <h1 className="text-4xl md:text-5xl font-bold font-headline mb-8 text-center text-primary drop-shadow-sm">
-          Checkout
+          Resumen de Compra
         </h1>
         <CheckoutForm />
       </main>
