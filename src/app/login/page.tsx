@@ -12,7 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Por favor, introduce un correo electrónico válido.' }),
@@ -74,24 +74,33 @@ export default function LoginPage() {
   const handleEmailSignIn = async (values: z.infer<typeof loginSchema>) => {
     setIsEmailLoading(true);
     try {
-      await initiateEmailSignIn(auth, values.email, values.password);
+      // Intenta iniciar sesión primero
+      await signInWithEmailAndPassword(auth, values.email, values.password);
     } catch (error: any) {
        if (error.code === 'auth/user-not-found') {
-        // If the user does not exist, create a new account for them
+        // Si el usuario no existe, lo crea y luego inicia sesión.
+        // Esto solo debería pasar una vez para los usuarios de prueba.
         try {
           await createUserWithEmailAndPassword(auth, values.email, values.password);
+          // El onAuthStateChanged se encargará de la redirección
         } catch (creationError: any) {
           toast({
             variant: "destructive",
             title: "Error de creación de cuenta",
-            description: creationError.message || "No se pudo crear la cuenta.",
+            description: creationError.message || "No se pudo crear la cuenta de prueba.",
           });
         }
        } else {
+        let description = "Ocurrió un error inesperado. Por favor, intenta de nuevo.";
+        if (error.code === 'auth/wrong-password') {
+          description = "La contraseña es incorrecta. Por favor, verifica tus credenciales.";
+        } else if (error.code === 'auth/invalid-credential') {
+            description = "Las credenciales son inválidas. Por favor, verifica tu correo y contraseña.";
+        }
          toast({
           variant: "destructive",
           title: "Error de autenticación",
-          description: "Correo o contraseña incorrectos. Por favor, verifica tus credenciales.",
+          description: description,
         });
        }
     } finally {
