@@ -1,11 +1,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth, useUser, initiateGoogleSignIn, initiateEmailSignIn } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Chrome } from 'lucide-react';
+import { Chrome, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -23,6 +23,7 @@ export default function LoginPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  const [isEmailLoading, setIsEmailLoading] = useState(false);
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -52,22 +53,28 @@ export default function LoginPage() {
     }
   };
 
-  const handleEmailSignIn = (values: z.infer<typeof loginSchema>) => {
+  const handleEmailSignIn = async (values: z.infer<typeof loginSchema>) => {
+    setIsEmailLoading(true);
     try {
-      initiateEmailSignIn(auth, values.email, values.password);
+      await initiateEmailSignIn(auth, values.email, values.password);
+      // The onAuthStateChanged listener in the provider will handle the redirect
     } catch (error: any) {
        toast({
         variant: "destructive",
         title: "Error de inicio de sesión",
-        description: "Credenciales incorrectas. Por favor, inténtalo de nuevo.",
+        description: error.message || "Credenciales incorrectas. Por favor, inténtalo de nuevo.",
       });
+       setIsEmailLoading(false);
     }
+    // Don't set loading to false here immediately, 
+    // because we want to wait for the redirect to happen.
+    // If the sign-in fails, the catch block will set it to false.
   };
 
   if (isUserLoading || user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        {/* Puedes agregar un spinner de carga aquí */}
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
@@ -90,7 +97,7 @@ export default function LoginPage() {
                     <FormItem>
                       <FormLabel>Correo Electrónico</FormLabel>
                       <FormControl>
-                        <Input placeholder="tu@email.com" {...field} />
+                        <Input placeholder="tu@email.com" {...field} disabled={isEmailLoading} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -103,13 +110,16 @@ export default function LoginPage() {
                     <FormItem>
                       <FormLabel>Contraseña</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="********" {...field} />
+                        <Input type="password" placeholder="********" {...field} disabled={isEmailLoading} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full">
+                <Button type="submit" className="w-full" disabled={isEmailLoading}>
+                  {isEmailLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
                   Iniciar sesión
                 </Button>
               </form>

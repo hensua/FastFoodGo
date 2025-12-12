@@ -23,12 +23,24 @@ export function initiateEmailSignUp(authInstance: Auth, email: string, password:
   // Code continues immediately. Auth state change is handled by onAuthStateChanged listener.
 }
 
-/** Initiate email/password sign-in (non-blocking). */
-export function initiateEmailSignIn(authInstance: Auth, email: string, password: string): void {
-  // CRITICAL: Call signInWithEmailAndPassword directly. Do NOT use 'await signInWithEmailAndPassword(...)'.
-  signInWithEmailAndPassword(authInstance, email, password);
-  // Code continues immediately. Auth state change is handled by onAuthStateChanged listener.
+/** 
+ * Initiate email/password sign-in (non-blocking).
+ * If the user does not exist, it creates a new user.
+ */
+export async function initiateEmailSignIn(authInstance: Auth, email: string, password: string): Promise<void> {
+  try {
+    await signInWithEmailAndPassword(authInstance, email, password);
+  } catch (error: any) {
+    if (error.code === 'auth/user-not-found') {
+      // If user doesn't exist, create them.
+      await createUserWithEmailAndPassword(authInstance, email, password);
+    } else {
+      // Re-throw other errors (e.g., wrong password) to be handled by the caller.
+      throw error;
+    }
+  }
 }
+
 
 /** Initiate Google sign-in (non-blocking). */
 export function initiateGoogleSignIn(authInstance: Auth): Promise<void> {
