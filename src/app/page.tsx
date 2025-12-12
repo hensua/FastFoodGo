@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, writeBatch } from 'firebase/firestore';
+import { collection, writeBatch, doc } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import OrderPage from './order-page';
 import { products as initialProducts } from '@/lib/data';
@@ -20,8 +20,9 @@ export default function Home() {
         console.log('No products found, seeding database...');
         const batch = writeBatch(firestore);
         initialProducts.forEach((product) => {
+          // Explicitly create a doc ref in the 'products' collection
           const docRef = doc(collection(firestore, 'products'));
-          // Firebase generates the ID, so we exclude it from the object we write.
+          // We get a generated ID from doc(), so we don't need the one from the file.
           const { id, ...productData } = product;
           batch.set(docRef, productData);
         });
@@ -36,10 +37,8 @@ export default function Home() {
       }
     };
 
-    // The check for products === null is to wait for the first query result.
-    // The check for products?.length === 0 is to see if the collection is empty.
-    if (products !== null && products.length === 0) {
-       seedDatabase();
+    if (products !== null && products.length === 0 && !isLoading) {
+      seedDatabase();
     }
   }, [products, isLoading, firestore, isSeeding]);
 

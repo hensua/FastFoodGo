@@ -129,14 +129,17 @@ service cloud.firestore {
      *   Stores the restaurant's product catalog.
      *   This data is public for anyone to read (e.g., to browse the menu),
      *   but only administrators can create, update, or delete products.
+     *   Initial seeding is allowed by any signed-in user if the collection is empty.
      * @path /products/{productId}
-     * @allow (get) Any user, signed in or not, viewing a product: `get /products/burger123`
-     * @deny (create) A non-admin user trying to add a product: `create /products/new_item`
-     * @principle Separates public read access from privileged write access.
+     * @allow (read) Any user, signed in or not, viewing a product: `get /products/burger123`
+     * @allow (create) Any signed-in user if products collection is empty (for seeding): `create /products/new_item`
+     * @deny (create) A non-admin user trying to add a product after seeding: `create /products/new_item`
+     * @principle Separates public read access from privileged write access, with a one-time seeding exception.
      */
     match /products/{productId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create: if (isSignedIn() && !exists(/databases/$(database)/documents/products/$(productId))) || isAdmin();
+      allow update, delete: if isAdmin();
     }
 
     /**
