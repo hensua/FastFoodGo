@@ -53,6 +53,7 @@ export default function LoginPage() {
   }, [user, isUserLoading, router]);
 
   const handleGoogleSignIn = async () => {
+    if (!auth) return;
     setIsGoogleLoading(true);
     try {
       await initiateGoogleSignIn(auth);
@@ -72,6 +73,7 @@ export default function LoginPage() {
   };
 
   const handleEmailSignIn = async (values: z.infer<typeof loginSchema>) => {
+    if (!auth) return;
     setIsEmailLoading(true);
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
