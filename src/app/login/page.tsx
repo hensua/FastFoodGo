@@ -91,10 +91,8 @@ export default function LoginPage() {
         }
        } else {
         let description = "Ocurrió un error inesperado. Por favor, intenta de nuevo.";
-        if (error.code === 'auth/wrong-password') {
+        if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
           description = "La contraseña es incorrecta. Por favor, verifica tus credenciales.";
-        } else if (error.code === 'auth/invalid-credential') {
-            description = "Las credenciales son inválidas. Por favor, verifica tu correo y contraseña.";
         } else if (error.code === 'auth/too-many-requests') {
           description = "Demasiados intentos fallidos. Por favor, intenta de nuevo más tarde."
         }
