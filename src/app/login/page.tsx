@@ -12,6 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Por favor, introduce un correo electrónico válido.' }),
@@ -35,7 +36,7 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    if (user) {
+    if (!isUserLoading && user) {
       // Redirect based on user role
       switch (user.email) {
         case 'administrador@peter.com':
@@ -49,13 +50,15 @@ export default function LoginPage() {
           break;
       }
     }
-  }, [user, router]);
+  }, [user, isUserLoading, router]);
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     try {
       await initiateGoogleSignIn(auth);
+      // onAuthStateChanged will handle the redirect
     } catch (error: any) {
+      // Don't show toast for user-cancelled popups
       if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
         toast({
           variant: "destructive",
@@ -72,13 +75,25 @@ export default function LoginPage() {
     setIsEmailLoading(true);
     try {
       await initiateEmailSignIn(auth, values.email, values.password);
-      // The onAuthStateChanged listener in the provider will handle the redirect
     } catch (error: any) {
-       toast({
-        variant: "destructive",
-        title: "Error de inicio de sesión",
-        description: error.message || "Credenciales incorrectas. Por favor, inténtalo de nuevo.",
-      });
+       if (error.code === 'auth/user-not-found') {
+        // If the user does not exist, create a new account for them
+        try {
+          await createUserWithEmailAndPassword(auth, values.email, values.password);
+        } catch (creationError: any) {
+          toast({
+            variant: "destructive",
+            title: "Error de creación de cuenta",
+            description: creationError.message || "No se pudo crear la cuenta.",
+          });
+        }
+       } else {
+         toast({
+          variant: "destructive",
+          title: "Error de autenticación",
+          description: "Correo o contraseña incorrectos. Por favor, verifica tus credenciales.",
+        });
+       }
     } finally {
       setIsEmailLoading(false);
     }
