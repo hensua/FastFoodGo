@@ -4,7 +4,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Product",
       "type": "object",
-      "description": "Represents a food item available for purchase.",
+      "description": "Represents a food item available in the restaurant's menu.",
       "properties": {
         "id": {
           "type": "string",
@@ -18,26 +18,31 @@
           "type": "string",
           "description": "Detailed description of the product."
         },
+        "price": {
+          "type": "number",
+          "description": "Price of the product."
+        },
         "imageUrl": {
           "type": "string",
           "description": "URL of the product image.",
           "format": "uri"
         },
-        "price": {
-          "type": "number",
-          "description": "Price of the product."
+        "category": {
+          "type": "string",
+          "description": "Category of the product (e.g., burger, drink, side)."
         },
         "inventory": {
           "type": "number",
-          "description": "Current stock level of the product."
+          "description": "The amount of the product currently in stock."
         }
       },
       "required": [
         "id",
         "name",
         "description",
-        "imageUrl",
         "price",
+        "imageUrl",
+        "category",
         "inventory"
       ]
     },
@@ -75,6 +80,10 @@
         "status": {
           "type": "string",
           "description": "Current status of the order (e.g., pending, processing, delivered)."
+        },
+        "driverId": {
+          "type": "string",
+          "description": "Reference to Driver. (Relationship: Driver 1:N Order)"
         }
       },
       "required": [
@@ -109,9 +118,9 @@
           "type": "number",
           "description": "Quantity of the product in the order item."
         },
-        "unitPrice": {
+        "itemPrice": {
           "type": "number",
-          "description": "Price of one unit of the product at the time of the order."
+          "description": "Price of the individual item at the time of order."
         }
       },
       "required": [
@@ -119,7 +128,7 @@
         "orderId",
         "productId",
         "quantity",
-        "unitPrice"
+        "itemPrice"
       ]
     },
     "Customer": {
@@ -149,9 +158,12 @@
           "type": "string",
           "description": "Phone number of the customer."
         },
-        "address": {
-          "type": "string",
-          "description": "Address of the customer."
+        "deliveryAddresses": {
+          "type": "array",
+          "description": "Delivery addresses associated with the customer.",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
@@ -159,35 +171,38 @@
         "firstName",
         "lastName",
         "email",
-        "phoneNumber",
-        "address"
+        "phoneNumber"
       ]
     },
-    "DeliveryDriver": {
+    "Driver": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "DeliveryDriver",
+      "title": "Driver",
       "type": "object",
       "description": "Represents a delivery driver.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the delivery driver."
+          "description": "Unique identifier for the driver."
         },
         "firstName": {
           "type": "string",
-          "description": "First name of the delivery driver."
+          "description": "First name of the driver."
         },
         "lastName": {
           "type": "string",
-          "description": "Last name of the delivery driver."
+          "description": "Last name of the driver."
         },
         "phoneNumber": {
           "type": "string",
-          "description": "Phone number of the delivery driver."
+          "description": "Phone number of the driver."
         },
-        "vehicleType": {
+        "available": {
+          "type": "boolean",
+          "description": "Indicates if the driver is currently available for deliveries."
+        },
+        "currentLocation": {
           "type": "string",
-          "description": "Type of vehicle used by the delivery driver (e.g., car, motorcycle)."
+          "description": "Current location coordinates of the driver."
         }
       },
       "required": [
@@ -195,57 +210,49 @@
         "firstName",
         "lastName",
         "phoneNumber",
-        "vehicleType"
+        "available"
       ]
     },
-    "DeliveryAssignment": {
+    "SuggestedProduct": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "DeliveryAssignment",
+      "title": "SuggestedProduct",
       "type": "object",
-      "description": "Represents the assignment of an order to a delivery driver.",
+      "description": "Represents a product suggested to a customer, based on the items in their cart.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the delivery assignment."
+          "description": "Unique identifier for the suggested product."
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to the Product being suggested. (Relationship: Product 1:N SuggestedProduct)"
         },
         "orderId": {
           "type": "string",
-          "description": "Reference to Order. (Relationship: Order 1:N DeliveryAssignment)"
+          "description": "Reference to the Order for which the product is suggested. (Relationship: Order 1:N SuggestedProduct)"
         },
-        "driverId": {
+        "suggestionReason": {
           "type": "string",
-          "description": "Reference to DeliveryDriver. (Relationship: DeliveryDriver 1:N DeliveryAssignment)"
+          "description": "The AI derived reason for suggesting this product."
         },
-        "assignmentDate": {
-          "type": "string",
-          "description": "Date and time when the order was assigned to the driver.",
-          "format": "date-time"
-        },
-        "estimatedDeliveryTime": {
-          "type": "string",
-          "description": "Estimated delivery time for the order.",
-          "format": "date-time"
-        },
-        "actualDeliveryTime": {
-          "type": "string",
-          "description": "Actual delivery time for the order.",
-          "format": "date-time"
+        "suggestionScore": {
+          "type": "number",
+          "description": "AI derived relevancy score of the suggestion."
         }
       },
       "required": [
         "id",
+        "productId",
         "orderId",
-        "driverId",
-        "assignmentDate",
-        "estimatedDeliveryTime"
+        "suggestionReason",
+        "suggestionScore"
       ]
     }
   },
   "auth": {
     "providers": [
       "password",
-      "anonymous",
-      "google.com"
+      "anonymous"
     ]
   },
   "firestore": {
@@ -257,7 +264,7 @@
           "schema": {
             "$ref": "#/backend/entities/Product"
           },
-          "description": "Stores product information. 'productId' is the unique identifier for each product.",
+          "description": "Stores information about each product offered by the restaurant.",
           "params": [
             {
               "name": "productId",
@@ -267,33 +274,33 @@
         }
       },
       {
-        "path": "/customers/{customerId}",
+        "path": "/users/{userId}/customer_profile",
         "definition": {
           "entityName": "Customer",
           "schema": {
             "$ref": "#/backend/entities/Customer"
           },
-          "description": "Stores customer profile information. 'customerId' is the unique identifier for each customer.",
+          "description": "Stores customer profile information. Path-based ownership.",
           "params": [
             {
-              "name": "customerId",
-              "description": "Unique identifier for the customer."
+              "name": "userId",
+              "description": "Unique identifier for the user (customer)."
             }
           ]
         }
       },
       {
-        "path": "/customers/{customerId}/orders/{orderId}",
+        "path": "/users/{userId}/orders/{orderId}",
         "definition": {
           "entityName": "Order",
           "schema": {
             "$ref": "#/backend/entities/Order"
           },
-          "description": "Stores order information for a specific customer. 'customerId' identifies the customer who placed the order, and 'orderId' is the unique identifier for each order.",
+          "description": "Stores order information. Includes denormalized 'customerId' for authorization independence.",
           "params": [
             {
-              "name": "customerId",
-              "description": "Unique identifier for the customer."
+              "name": "userId",
+              "description": "Unique identifier for the user (customer)."
             },
             {
               "name": "orderId",
@@ -303,17 +310,17 @@
         }
       },
       {
-        "path": "/customers/{customerId}/orders/{orderId}/orderItems/{orderItemId}",
+        "path": "/users/{userId}/orders/{orderId}/order_items/{orderItemId}",
         "definition": {
           "entityName": "OrderItem",
           "schema": {
             "$ref": "#/backend/entities/OrderItem"
           },
-          "description": "Stores order items for a specific order. 'customerId' identifies the customer, 'orderId' identifies the order, and 'orderItemId' is the unique identifier for each item in the order.",
+          "description": "Stores individual items within an order.",
           "params": [
             {
-              "name": "customerId",
-              "description": "Unique identifier for the customer."
+              "name": "userId",
+              "description": "Unique identifier for the user (customer)."
             },
             {
               "name": "orderId",
@@ -327,38 +334,62 @@
         }
       },
       {
-        "path": "/deliveryDrivers/{deliveryDriverId}",
+        "path": "/users/{userId}/orders/{orderId}/suggested_products/{suggestedProductId}",
         "definition": {
-          "entityName": "DeliveryDriver",
+          "entityName": "SuggestedProduct",
           "schema": {
-            "$ref": "#/backend/entities/DeliveryDriver"
+            "$ref": "#/backend/entities/SuggestedProduct"
           },
-          "description": "Stores delivery driver information. 'deliveryDriverId' is the unique identifier for each driver.",
+          "description": "Stores AI derived suggestions for products related to the users cart.",
           "params": [
             {
-              "name": "deliveryDriverId",
-              "description": "Unique identifier for the delivery driver."
+              "name": "userId",
+              "description": "Unique identifier for the user (customer)."
+            },
+            {
+              "name": "orderId",
+              "description": "Unique identifier for the order."
+            },
+            {
+              "name": "suggestedProductId",
+              "description": "Unique identifier for the suggested product."
             }
           ]
         }
       },
       {
-        "path": "/deliveryAssignments/{deliveryAssignmentId}",
+        "path": "/drivers/{driverId}",
         "definition": {
-          "entityName": "DeliveryAssignment",
+          "entityName": "Driver",
           "schema": {
-            "$ref": "#/backend/entities/DeliveryAssignment"
+            "$ref": "#/backend/entities/Driver"
           },
-          "description": "Stores delivery assignments. 'deliveryAssignmentId' is the unique identifier for each assignment.",
+          "description": "Stores driver information.",
           "params": [
             {
-              "name": "deliveryAssignmentId",
-              "description": "Unique identifier for the delivery assignment."
+              "name": "driverId",
+              "description": "Unique identifier for the driver."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "roles_admin",
+          "schema": {
+            "$ref": "#/backend/entities/Customer"
+          },
+          "description": "Collection used to grant admin privileges. Document existence determines admin role.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user."
             }
           ]
         }
       }
     ],
-    "reasoning": "The Firestore data structure is designed to support the FastFoodGo application, focusing on a secure, scalable, and easily debuggable system. It prioritizes Authorization Independence, Clarity of Intent, DBAC (Database-Based Access Control), and QAPs (Rules are Not Filters). The structure segregates data based on access needs and uses consistent patterns for authorization. \n\n**Authorization Independence (Denormalization):**\nTo avoid hierarchical authorization dependencies and enable atomic operations, we denormalize authorization context where needed. For example, if access to `OrderItems` depended on the `Order` attributes, those attributes would be copied into every `OrderItem` document.\n\n**Structural Segregation (Homogeneous Security Posture):**\nCollections are structured to ensure all documents within a collection share the same security requirements. For example, products are stored in a single `products` collection.\n\n**Access Modeling:**\n*   **User-Owned Data:** Orders are placed under `/customers/{customerId}/orders/{orderId}` to establish clear ownership.\n\n**QAPs (Rules are not Filters):**\nThe structure supports secure `list` operations. By segregating data with different access requirements into different collections, we ensure that rules can be written to allow listing operations without inadvertently exposing sensitive data.\n\n**Global Roles (DBAC):** No global roles are needed for this app."
+    "reasoning": "This Firestore structure is designed for the FastFoodGo application, prioritizing security, scalability, and ease of debugging, following the principles of Authorization Independence, Clarity of Intent, DBAC, and QAPs. It incorporates denormalization for authorization and structural segregation to streamline security rules.\n\n*   **Products:** The `products` collection stores the restaurant's menu items. This collection has a flat structure and uniform access control needs (admin only), so structural segregation is not needed.\n*   **Customers & Orders:** Customer data is stored under `/users/{userId}/customer_profile`. Orders, OrderItems and SuggestedProducts are nested under the customer. This structure allows for simple path-based ownership for the customer's data. The denormalization occurs with the order objects, which contain the customerId. This allows for listing orders not dependent on the user.\n*   **Drivers & Orders:** Driver data is stored in the `/drivers/{driverId}` collection. Similar to Customers, Orders are also nested under drivers with the driverId as a denormalized field on the Order object. This pattern enables simple read/write rules for drivers to only access orders assigned to them. Orders are assigned to drivers by writing the driverId to the Order document.\n*   **Admin Roles:** The `/roles_admin/{uid}` collection grants administrative privileges based on document existence (DBAC).\n\n**Authorization Independence (Denormalization):**\n*   The key denormalization strategy involves including the `customerId` and `driverId` within the `Order` documents. This allows for rules that validate that the `customerId` matches the `request.auth.uid` when creating an order or for the driver to validate that the `driverId` matches their `uid`. Rules do NOT need to perform `get()` operations to validate a parent object, enabling atomic operations and enhanced security.\n\n**QAPs (Rules are not Filters):**\n*   Structural segregation is used to separate concerns. Customer data is stored under the user, Driver data under the Driver Id. This segregation means rules do not act as filters. List operations do not need to filter based on user role, as the path structure itself enforces this separation."
   }
 }

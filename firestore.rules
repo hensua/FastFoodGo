@@ -1,231 +1,245 @@
-/**
- * @file firestore.rules
- * @description Firestore Security Rules for the FastFoodGo application.
- *
- * @section Core Philosophy
- * This ruleset enforces a strict user-ownership model for all customer-related data.
- * A signed-in user is considered a "customer" and can only access data within their
- * own dedicated document tree. This ensures strong data privacy and prevents users
- * from accessing or even knowing about other users' information. Data intended for
- * public consumption, like the product catalog, is explicitly marked as readable by anyone.
- *
- * @section Data Structure
- * The data is organized into several top-level collections:
- * - `/products`: A public collection of all food items available.
- * - `/customers`: A collection where each document represents a user's profile.
- * - `/customers/{customerId}`: All private, user-owned data (like orders) is nested
- *   under this path, making ownership checks simple and performant.
- * - `/deliveryDrivers`, `/deliveryAssignments`: Collections intended for backend or
- *   administrative use, which are locked down from client-side access by default.
- *
- * @section Key Security Decisions
- * - User Isolation: A user can only interact with `/customers/{their_own_uid}` and its
- *   subcollections. Listing the top-level `/customers` collection is forbidden to
- *   prevent user enumeration.
- * - Public Menu: The `/products` collection is publicly readable, allowing anyone
- *   (including unauthenticated users) to browse the menu. Product management is
- *   assumed to be an admin-only task, and writes are disabled from the client side.
- * - Locked Internal Collections: Collections like `/deliveryDrivers` and `/deliveryAssignments`
- *   are completely inaccessible to clients. This is a secure default, assuming they
- *   are managed by a trusted server environment.
- *
- * @section Denormalization for Authorization
- * The ruleset leverages the data structure for efficient authorization. By placing
- * all of a user's orders under `/customers/{customerId}/orders`, we can secure the
- * entire data tree with a single, fast check (`isOwner(customerId)`), which simply
- * compares the path parameter to the user's authenticated UID. This avoids costly
- * `get()` calls to other documents for authorization checks.
- *
- * @section Structural Segregation
- * The design separates public data (`/products`) from private, user-specific data
- * (`/customers/{customerId}`). This clear separation allows for simple and highly
- * performant rules for list operations, preventing accidental data leaks that can
- * occur when mixing public and private documents in the same collection.
- */
 rules_version = '2';
+
+/**
+ * @fileoverview Firestore Security Rules for the FastFoodGo application.
+ *
+ * @description
+ * This ruleset enforces a multi-role security model for a food delivery app,
+ * catering to Customers, Drivers, and Admins. The rules are designed for
+ * rapid prototyping, focusing on strict authorization while maintaining
+ * flexibility in data schemas.
+ *
+ * Core Philosophy:
+ * The security model is built on strict data ownership and role-based access.
+ * Customers have complete control over their personal data tree, drivers manage
+ * their own profiles, and admins have global oversight. Publicly accessible
+ * data, like the product catalog, is read-only for regular users.
+ *
+ * Data Structure:
+ * - /users/{userId}/...: A user-specific data tree containing a customer's
+ *   profile, orders, and order-specific data. This structure ensures that a
+ *   user's private information is securely isolated by path.
+ * - /products/{productId}: A top-level collection for the public menu.
+ * - /drivers/{driverId}: A top-level collection for driver profiles.
+ * - /roles_admin/{userId}: A restricted collection where the existence of a
+ *   document grants a user administrative privileges.
+ *
+ * Key Security Decisions:
+ * - User Data Isolation: All customer-related data is nested under `/users/{userId}`,
+ *   allowing for simple and highly secure path-based ownership rules. Listing
+ *   other users' data is impossible.
+ * - Admin Privileges: Admin access is granted via Document-Based Access Control
+ *   (DBAC) in the `/roles_admin` collection. This collection is write-protected
+ *   by security rules and must be managed from a trusted server environment.
+ * - Driver Access: Drivers can only manage their own profile in `/drivers/{driverId}`.
+ *   They are granted read-only access to specific orders across different users
+ *   if their `driverId` is present on the order document. They cannot list or
+ *   modify orders.
+ * - Public Data: The `/products` collection is publicly readable by anyone but
+ *   can only be modified by admins.
+ *
+ * Denormalization for Authorization:
+ * - The `Order` document contains a `customerId` field. On creation, this field
+ *   is validated against the user's authenticated UID to securely establish
+ *   ownership.
+ * - The `Order` document also contains a `driverId` field. This allows a simple
+ *   rule to grant a specific driver read access to that order without needing slow
+ *   or impossible cross-collection queries.
+ *
+ * Structural Segregation:
+ * - Private user data (`/users`) is structurally separated from public data
+ *   (`/products`) and role-specific data (`/drivers`). This segregation simplifies
+ *   rules for list operations, making queries safer and more performant.
+ */
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // -------------------------------------------------------------------------
-    // Helper Functions
-    // -------------------------------------------------------------------------
+    /*********************************************************************
+     *                                                                   *
+     *                      HELPER FUNCTIONS                             *
+     *                                                                   *
+     *********************************************************************/
 
     /**
-     * Checks if a user is authenticated.
+     * The user is authenticated.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * Validates if the requesting user is the owner of a document.
-     * Compares the provided userId from the path with the user's auth UID.
+     * The authenticated user's UID matches the provided userId.
+     * This is the foundation of the ownership model.
      */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
     /**
-     * Verifies that a document exists before an update or delete operation.
-     * CRITICAL: Prevents modifying or deleting non-existent data.
+     * The document being accessed already exists in Firestore.
+     * Crucial for protecting against writes to non-existent paths.
      */
     function isExistingDoc() {
       return resource != null;
     }
 
     /**
-     * Combines ownership check with an existence check for update/delete operations.
+     * A combination of isOwner and isExistingDoc for secure updates and deletes.
      */
     function isExistingOwner(userId) {
       return isOwner(userId) && isExistingDoc();
     }
-    
-    /**
-     * Validates that the ID of a new Customer document matches the creating user's UID.
-     */
-    function isCreatingSelf(userId) {
-      return isOwner(userId) && request.resource.data.id == userId;
-    }
-    
-    /**
-     * Enforces immutability for a specific field during an update.
-     */
-    function isImmutable(field) {
-      return request.resource.data[field] == resource.data[field];
-    }
-    
-    /**
-     * On order creation, ensures the customerId in the document body
-     * matches the customerId in the document path.
-     */
-    function hasValidOrderData(customerId) {
-      return request.resource.data.customerId == customerId;
-    }
-    
-    /**
-     * On order item creation, ensures the orderId in the document body
-     * matches the orderId in the document path.
-     */
-    function hasValidOrderItemData(orderId) {
-      return request.resource.data.orderId == orderId;
-    }
-
-    // -------------------------------------------------------------------------
-    // Collection: products
-    // -------------------------------------------------------------------------
 
     /**
-     * @description Controls access to the public product catalog.
+     * The user has administrative privileges.
+     * Access is granted if a document with the user's UID exists in the
+     * /roles_admin collection.
+     */
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+
+    /*********************************************************************
+     *                                                                   *
+     *                        TOP-LEVEL COLLECTIONS                      *
+     *                                                                   *
+     *********************************************************************/
+
+    /**
+     * @description
+     *   Manages admin roles. Document existence grants privileges.
+     *   This collection is locked down; it can only be modified by a trusted
+     *   server using Admin SDK credentials, not by any client.
+     * @path /roles_admin/{userId}
+     * @allow (get) An admin checking their own role: `get /roles_admin/admin_user_id`
+     * @deny (create) Any user trying to make themselves an admin: `create /roles_admin/some_user_id`
+     * @principle Prevents privilege escalation by making roles read-only from clients.
+     */
+    match /roles_admin/{userId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description
+     *   Stores the restaurant's product catalog.
+     *   This data is public for anyone to read (e.g., to browse the menu),
+     *   but only administrators can create, update, or delete products.
      * @path /products/{productId}
-     * @allow (get, list) by ANYONE, including unauthenticated users, to browse the menu.
-     * @deny (create, update, delete) by ALL users. Product management is an admin function.
-     * @principle Public read access for catalog data, with writes locked down.
+     * @allow (get) Any user, signed in or not, viewing a product: `get /products/burger123`
+     * @deny (create) A non-admin user trying to add a product: `create /products/new_item`
+     * @principle Separates public read access from privileged write access.
      */
     match /products/{productId} {
-      allow get, list: if true;
-      // CRITICAL: Cannot implement owner-only writes. The 'Product' entity is missing an 'ownerId' or 'adminId' field.
-      // Writes are disabled until the schema is updated to support an authorization model.
-      allow create: if false; // TODO: Add admin/owner validation once the schema is updated.
-      allow update: if false; // TODO: Add admin/owner validation once the schema is updated.
-      allow delete: if false; // TODO: Add admin/owner validation once the schema is updated.
+      allow get: if true;
+      allow list: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin() && isExistingDoc();
+      allow delete: if isAdmin() && isExistingDoc();
     }
 
-    // -------------------------------------------------------------------------
-    // Collection: customers
-    // -------------------------------------------------------------------------
+    /**
+     * @description
+     *   Stores profiles for delivery drivers.
+     *   A driver can create and manage their own profile, but cannot see or
+     *   edit the profiles of other drivers.
+     * @path /drivers/{driverId}
+     * @allow (create) A new driver signing up: `create /drivers/driver_abc` by driver_abc
+     * @deny (get) A driver trying to view another's profile: `get /drivers/driver_xyz` by driver_abc
+     * @principle Enforces strict document ownership for sensitive user data.
+     */
+    match /drivers/{driverId} {
+      allow get: if isOwner(driverId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(driverId) && request.resource.data.id == driverId;
+      allow update: if isExistingOwner(driverId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(driverId);
+    }
 
     /**
-     * @description Controls access to individual customer profiles.
-     * @path /customers/{customerId}
-     * @allow (create) a new profile if the document ID matches the user's own UID.
-     * @allow (get, update, delete) for a user on their own profile document.
-     * @deny (list) of the entire `/customers` collection to prevent user enumeration.
-     * @deny ANY access by a user to another user's profile.
-     * @principle Enforces strict data ownership and privacy.
+     * @description
+     *   This is the root for all data related to a specific customer.
+     *   Direct creation of documents here is disallowed to enforce a structured
+     *   data hierarchy (e.g., customer_profile, orders).
+     * @path /users/{userId}
      */
-    match /customers/{customerId} {
-      allow get: if isOwner(customerId);
-      allow list: if false;
-      allow create: if isCreatingSelf(customerId);
-      allow update: if isExistingOwner(customerId) && isImmutable('id');
-      allow delete: if isExistingOwner(customerId);
-
-      // -----------------------------------------------------------------------
-      // Subcollection: orders
-      // -----------------------------------------------------------------------
+    match /users/{userId} {
+      // Disallow creation of arbitrary documents directly under a user's ID.
+      allow read, write: if false;
 
       /**
-       * @description Controls access to a customer's orders.
-       * @path /customers/{customerId}/orders/{orderId}
-       * @allow (get, list, create, update, delete) by the customer who owns the data.
-       * @deny ANY access by other customers.
-       * @principle Inherits ownership from the parent document path for all operations.
+       * @description
+       *   Stores a customer's profile information.
+       *   A customer can create and manage their own profile document.
+       * @path /users/{userId}/customer_profile/{profileId}
+       * @allow (create) A user creating their own profile: `create /users/user_abc/customer_profile/main` by user_abc
+       * @deny (update) A user trying to edit another's profile: `update /users/user_xyz/customer_profile/main` by user_abc
+       * @principle Restricts access to a user's own data tree.
+       */
+      match /customer_profile/{profileId} {
+        allow get: if isOwner(userId) || isAdmin();
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && request.resource.data.id == userId;
+        allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+        allow delete: if isExistingOwner(userId);
+      }
+
+      /**
+       * @description
+       *   Stores a customer's orders.
+       *   Customers can manage their own orders. Drivers assigned to an order
+       *   can read its details, but cannot list all of a user's orders or modify them.
+       * @path /users/{userId}/orders/{orderId}
+       * @allow (get) An assigned driver viewing order details: `get /users/user_abc/orders/order123` by driver_xyz
+       * @deny (update) An assigned driver trying to change order status: `update /users/user_abc/orders/order123` by driver_xyz
+       * @principle Combines user ownership with role-based read access for collaborators (drivers).
        */
       match /orders/{orderId} {
-        allow get, list: if isOwner(customerId);
-        allow create: if isOwner(customerId) && hasValidOrderData(customerId);
-        allow update: if isExistingOwner(customerId) && isImmutable('customerId');
-        allow delete: if isExistingOwner(customerId);
-
-        // ---------------------------------------------------------------------
-        // Subcollection: orderItems
-        // ---------------------------------------------------------------------
-
-        /**
-         * @description Controls access to the items within a customer's order.
-         * @path /customers/{customerId}/orders/{orderId}/orderItems/{orderItemId}
-         * @allow (get, list) by the customer who owns the parent order.
-         * @deny (create, update, delete) Client-side modification of order items is denied for data integrity.
-         * @principle Inherits ownership and enforces stricter write controls.
-         */
-        match /orderItems/{orderItemId} {
-          allow get, list: if isOwner(customerId);
-          // In a real application, order items are typically created atomically with the order
-          // via a backend function. For prototyping flexibility, we allow creation but enforce
-          // relational integrity. Update/delete are disabled to prevent data corruption.
-          allow create: if isOwner(customerId) && hasValidOrderItemData(orderId);
-          allow update: if false;
-          allow delete: if false;
-        }
+        allow get: if isOwner(userId) || isAdmin() || (isSignedIn() && isExistingDoc() && resource.data.driverId == request.auth.uid);
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && request.resource.data.customerId == userId;
+        allow update: if (isExistingOwner(userId) || isAdmin()) && request.resource.data.customerId == resource.data.customerId;
+        allow delete: if isExistingOwner(userId) || isAdmin();
       }
-    }
 
-    // -------------------------------------------------------------------------
-    // Collection: deliveryDrivers
-    // -------------------------------------------------------------------------
+      /**
+       * @description
+       *   Stores the individual items within a specific order.
+       *   Access is inherited from the parent order, meaning only the customer
+       *   who owns the order can manage its items.
+       * @path /users/{userId}/orders/{orderId}/order_items/{orderItemId}
+       * @allow (list) A user listing items in their own order: `list /users/user_abc/orders/order123/order_items` by user_abc
+       * @deny (get) Any other user trying to see order items: `get /users/user_xyz/orders/order456/order_items/item1` by user_abc
+       * @principle Enforces cascaded ownership through path-based security.
+       */
+      match /orders/{orderId}/order_items/{orderItemId} {
+        allow get: if isOwner(userId) || isAdmin();
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) || isAdmin();
+        allow update: if isExistingOwner(userId) || isAdmin();
+        allow delete: if isExistingOwner(userId) || isAdmin();
+      }
 
-    /**
-     * @description Secures delivery driver information.
-     * @path /deliveryDrivers/{deliveryDriverId}
-     * @allow NO client access. This data must be managed by a trusted backend.
-     * @deny ALL client-side reads and writes.
-     * @principle Secure by default; denies access to internal-only data.
-     */
-    match /deliveryDrivers/{deliveryDriverId} {
-      allow get: if false;
-      allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-    }
-
-    // -------------------------------------------------------------------------
-    // Collection: deliveryAssignments
-    // -------------------------------------------------------------------------
-
-    /**
-     * @description Secures delivery assignment records.
-     * @path /deliveryAssignments/{deliveryAssignmentId}
-     * @allow NO client access. This data must be managed by a trusted backend.
-     * @deny ALL client-side reads and writes.
-     * @principle Secure by default; denies access to internal-only data.
-     */
-    match /deliveryAssignments/{deliveryAssignmentId} {
-      allow get: if false;
-      allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      /**
+       * @description
+       *   Stores AI-generated product suggestions related to an order.
+       *   Access is inherited from the parent order, restricted to the owner.
+       * @path /users/{userId}/orders/{orderId}/suggested_products/{suggestedProductId}
+       * @allow (get) A user viewing suggestions for their order: `get /users/user_abc/orders/order123/suggested_products/sugg1` by user_abc
+       * @deny (list) Another user trying to list suggestions: `list /users/user_xyz/orders/order456/suggested_products` by user_abc
+       * @principle Enforces cascaded ownership through path-based security.
+       */
+      match /orders/{orderId}/suggested_products/{suggestedProductId} {
+        allow get: if isOwner(userId) || isAdmin();
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) || isAdmin();
+        allow update: if isExistingOwner(userId) || isAdmin();
+        allow delete: if isExistingOwner(userId) || isAdmin();
+      }
     }
   }
 }
