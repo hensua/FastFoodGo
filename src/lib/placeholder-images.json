@@ -1,3 +1,52 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "classic-burger",
+      "description": "A juicy beef burger with lettuce, tomato, and cheese.",
+      "imageUrl": "https://images.unsplash.com/photo-1672099260380-4ba66eead8ed?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxiZWVmJTIwYnVyZ2VyfGVufDB8fHx8MTc2NTQ2NjM5MHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "beef burger"
+    },
+    {
+      "id": "crispy-fries",
+      "description": "Golden crispy french fries, lightly salted.",
+      "imageUrl": "https://images.unsplash.com/photo-1518013431117-eb1465fa5752?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxmcmVuY2glMjBmcmllc3xlbnwwfHx8fDE3NjU1MzIzMTV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "french fries"
+    },
+    {
+      "id": "cheese-pizza",
+      "description": "A classic slice of cheese pizza with a tangy tomato sauce.",
+      "imageUrl": "https://images.unsplash.com/photo-1732223229355-95a1433404bf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjaGVlc2UlMjBwaXp6YXxlbnwwfHx8fDE3NjU1NTYyNjB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "cheese pizza"
+    },
+    {
+      "id": "chicken-nuggets",
+      "description": "Bite-sized pieces of tender white meat chicken.",
+      "imageUrl": "https://images.unsplash.com/photo-1605291581926-df4bf7ee3e89?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8Y2hpY2tlbiUyMG51Z2dldHN8ZW58MHx8fHwxNzY1NDk5OTEwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "chicken nuggets"
+    },
+    {
+      "id": "ice-cold-soda",
+      "description": "A refreshing and bubbly soft drink.",
+      "imageUrl": "https://images.unsplash.com/photo-1716800586014-fea19e9453fb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxzb2RhJTIwY2FufGVufDB8fHx8MTc2NTQ2MTczOXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "soda can"
+    },
+    {
+      "id": "chocolate-milkshake",
+      "description": "A thick and creamy milkshake made with real chocolate.",
+      "imageUrl": "https://images.unsplash.com/photo-1572490122747-3968b75cc699?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjaG9jb2xhdGUlMjBtaWxrc2hha2V8ZW58MHx8fHwxNzY1NDgyMzk5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "chocolate milkshake"
+    },
+    {
+      "id": "classic-hotdog",
+      "description": "A grilled hot dog on a soft, warm bun.",
+      "imageUrl": "https://images.unsplash.com/photo-1612392062422-ef19b42f74df?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxob3QlMjBkb2d8ZW58MHx8fHwxNzY1NTU2MjYwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "hot dog"
+    },
+    {
+      "id": "onion-rings",
+      "description": "Crispy, golden-fried onion rings.",
+      "imageUrl": "https://images.unsplash.com/photo-1652209911920-2700fcbd5011?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxvbmlvbiUyMHJpbmdzfGVufDB8fHx8MTc2NTUzNzIwOXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "onion rings"
+    }
+  ]
 }
