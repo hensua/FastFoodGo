@@ -75,13 +75,13 @@ export default function LoginPage() {
     setIsEmailLoading(true);
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
+      // onAuthStateChanged will handle redirect
     } catch (error: any) {
        if (error.code === 'auth/user-not-found') {
-        // Si el usuario no existe, lo crea y luego inicia sesión.
-        // Esto solo debería pasar una vez para los usuarios de prueba.
+        // If the user doesn't exist, create them. This will only happen for the test users.
         try {
           await createUserWithEmailAndPassword(auth, values.email, values.password);
-          // El onAuthStateChanged se encargará de la redirección
+          // After creation, onAuthStateChanged will automatically sign the user in and trigger the redirect.
         } catch (creationError: any) {
           toast({
             variant: "destructive",
@@ -93,7 +93,7 @@ export default function LoginPage() {
         let description = "Ocurrió un error inesperado. Por favor, intenta de nuevo.";
         if (error.code === 'auth/wrong-password') {
           description = "La contraseña es incorrecta. Por favor, verifica tus credenciales.";
-        } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-email') {
+        } else if (error.code === 'auth/invalid-credential') {
             description = "Las credenciales son inválidas. Por favor, verifica tu correo y contraseña.";
         } else if (error.code === 'auth/too-many-requests') {
           description = "Demasiados intentos fallidos. Por favor, intenta de nuevo más tarde."
