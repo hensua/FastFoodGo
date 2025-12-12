@@ -12,12 +12,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import { LogOut } from 'lucide-react';
+import { LogOut, Shield } from 'lucide-react';
 import Link from 'next/link';
+import { useRole } from '@/hooks/use-role';
 
 export default function AuthButton() {
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
+  const { isAdmin } = useRole();
 
   if (isUserLoading) {
     return <Skeleton className="h-10 w-10 rounded-full" />;
@@ -58,6 +60,14 @@ export default function AuthButton() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {isAdmin && (
+          <DropdownMenuItem asChild>
+            <Link href="/admin">
+              <Shield className="mr-2 h-4 w-4" />
+              <span>Panel de Control</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onClick={() => auth.signOut()}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Cerrar Sesión</span>

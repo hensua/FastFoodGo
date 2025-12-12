@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useAuth, useUser, initiateGoogleSignIn } from '@/firebase';
+import { useAuth, useUser } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Chrome, Loader2 } from 'lucide-react';
@@ -12,7 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword } from 'firebase/auth';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Por favor, introduce un correo electrónico válido.' }),
@@ -35,35 +35,24 @@ export default function LoginPage() {
     },
   });
 
-  const handleRedirect = (user: any) => {
-    if (!user) return;
-    switch (user.email) {
-      case 'administrador@peter.com':
-        router.push('/admin');
-        break;
-      case 'repartidor@peter.com':
-        router.push('/delivery');
-        break;
-      default:
-        router.push('/');
-        break;
-    }
+  const handleRedirect = () => {
+    const intendedPath = router.query.redirect as string || '/';
+    router.push(intendedPath);
   };
 
   useEffect(() => {
     if (!isUserLoading && user) {
-      handleRedirect(user);
+       handleRedirect();
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading]);
 
   const handleGoogleSignIn = async () => {
     if (!auth) return;
     setIsGoogleLoading(true);
+    const provider = new GoogleAuthProvider();
     try {
-      const result = await initiateGoogleSignIn(auth);
-      if (result.user) {
-        handleRedirect(result.user);
-      }
+      await signInWithPopup(auth, provider);
+      handleRedirect();
     } catch (error: any) {
       if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
         toast({
@@ -85,10 +74,10 @@ export default function LoginPage() {
       // onAuthStateChanged handled by useEffect will redirect
     } catch (error: any) {
         let description = "Ocurrió un error inesperado. Por favor, intenta de nuevo.";
-        if (error.code === 'auth/user-not-found') {
-          description = "El usuario no existe. Por favor, regístrate o verifica el correo.";
-        } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-          description = "La contraseña es incorrecta. Por favor, verifica tus credenciales.";
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+          description = "Correo o contraseña incorrectos. Por favor, verifica tus credenciales.";
+        } else if (error.code === 'auth/wrong-password') {
+           description = "La contraseña es incorrecta. Por favor, verifica tus credenciales.";
         } else if (error.code === 'auth/too-many-requests') {
           description = "Demasiados intentos fallidos. Por favor, intenta de nuevo más tarde."
         }

@@ -2,16 +2,17 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useFirestore, useMemoFirebase, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collectionGroup, query, where, onSnapshot, doc, updateDoc, writeBatch, collection, addDoc, deleteDoc } from 'firebase/firestore';
+import { collectionGroup, query, where, onSnapshot, doc, updateDoc, addDoc, deleteDoc, collection } from 'firebase/firestore';
 import type { Order, OrderStatus, Product } from '@/lib/types';
 import Header from '@/components/header';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { Clock, ChefHat, PackageCheck, UtensilsCrossed, Package, TrendingUp, Trash2, Edit, Plus, X } from 'lucide-react';
+import { Clock, ChefHat, PackageCheck, UtensilsCrossed, Package, TrendingUp, Trash2, Edit, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/provider';
+import { useRole } from '@/hooks/use-role';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -86,7 +87,6 @@ const OrderCard = ({ order, onStatusChange }: { order: Order, onStatusChange: (o
   );
 };
 
-
 const ProductForm = ({ product, onSave, onCancel }: { product: Product | null, onSave: (product: Omit<Product, 'id'>) => void, onCancel: () => void }) => {
   const [formData, setFormData] = useState<Omit<Product, 'id'>>(
     product || { name: '', description: '', price: 0, imageUrl: '', imageHint: '', category: 'Otros', stock: 0 }
@@ -147,40 +147,24 @@ const ProductForm = ({ product, onSave, onCancel }: { product: Product | null, o
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('kitchen');
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
   const firestore = useFirestore();
+  const { isAdmin } = useRole();
 
   // Product state
   const productsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'products') : null, [firestore]);
   const { data: products, isLoading: productsLoading } = useCollection<Product>(productsCollection);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
-  useEffect(() => {
-    if (!firestore) return;
-    setLoading(true);
-
-    const q = query(
+  // Orders state
+  const ordersQuery = useMemoFirebase(() => {
+    if (!firestore || !isAdmin) return null; // Wait until admin status is confirmed
+    return query(
       collectionGroup(firestore, 'orders'),
       where('status', 'in', ['pending', 'cooking', 'ready'])
     );
+  }, [firestore, isAdmin]);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedOrders = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as Order);
-      setOrders(fetchedOrders);
-      setLoading(false);
-    }, (error) => {
-      console.error("Original error:", error); // Keep original for reference
-      const contextualError = new FirestorePermissionError({
-        path: 'orders (collectionGroup)',
-        operation: 'list',
-      });
-      errorEmitter.emit('permission-error', contextualError);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [firestore]);
+  const { data: orders, isLoading: ordersLoading, error: ordersError } = useCollection<Order>(ordersQuery);
 
   const handleStatusChange = async (orderId: string, customerId: string, newStatus: OrderStatus) => {
     if (!firestore) return;
@@ -225,9 +209,9 @@ const AdminDashboard = () => {
   };
 
   const ordersByStatus = useMemo(() => ({
-    pending: orders.filter(o => o.status === 'pending'),
-    cooking: orders.filter(o => o.status === 'cooking'),
-    ready: orders.filter(o => o.status === 'ready'),
+    pending: orders?.filter(o => o.status === 'pending') || [],
+    cooking: orders?.filter(o => o.status === 'cooking') || [],
+    ready: orders?.filter(o => o.status === 'ready') || [],
   }), [orders]);
 
   return (
@@ -267,7 +251,7 @@ const AdminDashboard = () => {
                 <span className="bg-white px-2 py-1 rounded-full text-xs shadow-sm">{ordersByStatus[statusKey].length}</span>
               </h3>
               <div className="space-y-4">
-                {loading ? (
+                {ordersLoading ? (
                   <p>Cargando pedidos...</p>
                 ) : ordersByStatus[statusKey].length > 0 ? (
                   ordersByStatus[statusKey].map(order => (
@@ -340,17 +324,18 @@ const AdminDashboard = () => {
 
 export default function AdminPage() {
   const { user, isUserLoading } = useUser();
+  const { isAdmin, isRoleLoading } = useRole();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isUserLoading) {
-      if (!user || user.email !== 'administrador@peter.com') {
+    if (!isUserLoading && !isRoleLoading) {
+      if (!isAdmin) {
         router.push('/login');
       }
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, isAdmin, isRoleLoading, router]);
 
-  if (isUserLoading || !user) {
+  if (isUserLoading || isRoleLoading || !isAdmin) {
     return <div className="h-screen flex items-center justify-center">Cargando...</div>;
   }
 
