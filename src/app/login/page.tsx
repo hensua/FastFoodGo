@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useAuth, useUser, initiateGoogleSignIn, initiateEmailSignIn } from '@/firebase';
+import { useAuth, useUser, initiateGoogleSignIn } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Chrome, Loader2 } from 'lucide-react';
@@ -74,7 +74,6 @@ export default function LoginPage() {
   const handleEmailSignIn = async (values: z.infer<typeof loginSchema>) => {
     setIsEmailLoading(true);
     try {
-      // Intenta iniciar sesión primero
       await signInWithEmailAndPassword(auth, values.email, values.password);
     } catch (error: any) {
        if (error.code === 'auth/user-not-found') {
@@ -94,8 +93,10 @@ export default function LoginPage() {
         let description = "Ocurrió un error inesperado. Por favor, intenta de nuevo.";
         if (error.code === 'auth/wrong-password') {
           description = "La contraseña es incorrecta. Por favor, verifica tus credenciales.";
-        } else if (error.code === 'auth/invalid-credential') {
+        } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-email') {
             description = "Las credenciales son inválidas. Por favor, verifica tu correo y contraseña.";
+        } else if (error.code === 'auth/too-many-requests') {
+          description = "Demasiados intentos fallidos. Por favor, intenta de nuevo más tarde."
         }
          toast({
           variant: "destructive",
