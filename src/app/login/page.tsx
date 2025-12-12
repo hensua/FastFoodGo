@@ -24,6 +24,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isEmailLoading, setIsEmailLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -51,6 +52,7 @@ export default function LoginPage() {
   }, [user, router]);
 
   const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
     try {
       await initiateGoogleSignIn(auth);
     } catch (error: any) {
@@ -61,6 +63,8 @@ export default function LoginPage() {
           description: "No se pudo iniciar sesión con Google. Por favor, inténtalo de nuevo.",
         });
       }
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -75,7 +79,8 @@ export default function LoginPage() {
         title: "Error de inicio de sesión",
         description: error.message || "Credenciales incorrectas. Por favor, inténtalo de nuevo.",
       });
-       setIsEmailLoading(false);
+    } finally {
+      setIsEmailLoading(false);
     }
   };
 
@@ -91,11 +96,34 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">¡Bienvenido de vuelta!</CardTitle>
-          <CardDescription>Inicia sesión para continuar en FastFoodGo</CardDescription>
+          <CardTitle className="text-2xl font-bold">¡Bienvenido!</CardTitle>
+          <CardDescription>Inicia sesión o crea una cuenta para continuar</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
+            <Button onClick={handleGoogleSignIn} className="w-full" variant="outline" disabled={isGoogleLoading || isEmailLoading}>
+              {isGoogleLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Chrome className="mr-2 h-4 w-4" />
+              )}
+              Continuar con Google
+            </Button>
+             <p className="text-center text-sm text-muted-foreground">
+              ¿Eres un nuevo usuario? Usa Google para crear tu cuenta.
+            </p>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  O inicia sesión (solo para pruebas)
+                </span>
+              </div>
+            </div>
+
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleEmailSignIn)} className="space-y-4">
                 <FormField
@@ -105,7 +133,7 @@ export default function LoginPage() {
                     <FormItem>
                       <FormLabel>Correo Electrónico</FormLabel>
                       <FormControl>
-                        <Input placeholder="tu@email.com" {...field} disabled={isEmailLoading} />
+                        <Input placeholder="usuario@peter.com" {...field} disabled={isEmailLoading || isGoogleLoading} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -118,36 +146,21 @@ export default function LoginPage() {
                     <FormItem>
                       <FormLabel>Contraseña</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="********" {...field} disabled={isEmailLoading} />
+                        <Input type="password" placeholder="********" {...field} disabled={isEmailLoading || isGoogleLoading} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isEmailLoading}>
+                <Button type="submit" className="w-full" disabled={isEmailLoading || isGoogleLoading}>
                   {isEmailLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : null}
-                  Iniciar sesión
+                  Iniciar sesión con correo
                 </Button>
               </form>
             </Form>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  O continúa con
-                </span>
-              </div>
-            </div>
-
-            <Button onClick={handleGoogleSignIn} className="w-full" variant="outline">
-              <Chrome className="mr-2 h-4 w-4" />
-              Iniciar sesión con Google
-            </Button>
           </div>
         </CardContent>
       </Card>
