@@ -96,8 +96,8 @@ service cloud.firestore {
         match /messages/{messageId} {
             // A participant (customer, assigned driver, or admin) can read messages.
             allow get, list: if isParticipant(userId, orderId);
-            // A participant can create messages.
-            allow create: if isParticipant(userId, orderId) && request.resource.data.senderId == request.auth.uid;
+            // A participant can create messages. Admins can create messages on behalf of the system.
+            allow create: if (isParticipant(userId, orderId) && request.resource.data.senderId == request.auth.uid) || isAdmin();
             // Messages are immutable.
             allow update, delete: if false;
         }

@@ -185,20 +185,26 @@ export function OrderList() {
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
 
   const sendAutoChatMessage = async (order: Order) => {
-    if (!firestore || !order.customerName) return;
+    if (!firestore || !userDoc || !order.customerName) return;
 
     const messageData: Omit<ChatMessage, 'timestamp'> = {
       text: `Hola ${order.customerName}, ¿deseas agregar una nota general de tu pedido?`,
-      senderId: 'system',
-      senderName: 'FastFoodGo',
+      senderId: userDoc.uid, // Use admin's UID
+      senderName: 'FastFoodGo', // But display as system
       senderRole: 'admin',
     };
     
     const messagesCol = collection(firestore, 'users', order.customerId, 'orders', order.id, 'messages');
-    await addDoc(messagesCol, {
-        ...messageData,
-        timestamp: serverTimestamp()
-    });
+    try {
+        await addDoc(messagesCol, {
+            ...messageData,
+            timestamp: serverTimestamp()
+        });
+    } catch (error) {
+        // This error will now be caught by the main try-catch block
+        // Re-throw it to be caught and displayed to the user.
+        throw error;
+    }
   };
 
   const handleStatusChange = async (order: Order, newStatus: OrderStatus, reason?: string) => {
@@ -300,6 +306,7 @@ export function OrderList() {
               user={userDoc}
               isOpen={!!chatOrder}
               onOpenChange={() => setChatOrder(null)}
+              onMessageSent={() => {}}
           />
       )}
     </>
