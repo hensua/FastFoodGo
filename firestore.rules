@@ -37,6 +37,15 @@ service cloud.firestore {
     function isCustomer() {
       return isSignedIn() && getRole(request.auth.uid) == 'customer';
     }
+    
+    function getOrder(userId, orderId) {
+        return get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId));
+    }
+    
+    function isParticipant(userId, orderId) {
+      let order = getOrder(userId, orderId).data;
+      return isOwner(userId) || isAdmin() || (isDriver() && order.driverId == request.auth.uid);
+    }
 
     /*********************************************************************
      *                                                                   *
@@ -82,6 +91,16 @@ service cloud.firestore {
                             (resource.data.driverId == request.auth.uid && request.resource.data.status == 'delivered' && resource.data.pin == request.resource.data.pin)
                           ));
         allow delete: if isOwner(userId) || isAdmin();
+        
+        // Rules for the nested 'messages' subcollection
+        match /messages/{messageId} {
+            // A participant (customer, assigned driver, or admin) can read messages.
+            allow get, list: if isParticipant(userId, orderId);
+            // A participant can create messages.
+            allow create: if isParticipant(userId, orderId) && request.resource.data.senderId == request.auth.uid;
+            // Messages are immutable.
+            allow update, delete: if false;
+        }
     }
     
     // This allows an admin OR a driver to query the 'orders' collection group for specific statuses.
