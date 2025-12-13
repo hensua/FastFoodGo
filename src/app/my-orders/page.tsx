@@ -86,7 +86,9 @@ export default function MyOrdersPage() {
     return query(
         collection(firestore, 'users', user.uid, 'orders'), 
         orderBy('orderDate', 'desc'),
-        where('status', '!=', 'delivered') // Optionally hide delivered orders
+        // Use 'in' operator to query for multiple valid, non-delivered statuses.
+        // This is supported by Firestore and avoids the multi-field inequality error.
+        where('status', 'in', ['pending', 'cooking', 'ready', 'delivering', 'cancelled'])
     );
   }, [firestore, user]);
 
