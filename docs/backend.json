@@ -65,7 +65,8 @@
         "driverName": { "type": "string" },
         "customerName": { "type": "string" },
         "customerPhoneNumber": { "type": "string" },
-        "pin": { "type": "string", "description": "A 4-digit PIN for delivery confirmation, visible only to the customer and admin." }
+        "pin": { "type": "string", "description": "A 4-digit PIN for delivery confirmation, visible only to the customer and admin." },
+        "cancellationReason": { "type": "string", "description": "The reason why an order was cancelled, provided by an admin." }
       },
       "required": ["id", "customerId", "orderDate", "totalAmount", "deliveryFee", "tip", "paymentMethod", "deliveryAddress", "status", "pin"]
     },

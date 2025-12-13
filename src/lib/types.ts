@@ -35,6 +35,9 @@ export type Order = {
   status: OrderStatus;
   items: CartItem[];
 
+  // Cancellation reason
+  cancellationReason?: string;
+
   // Driver info
   driverId?: string;
   driverName?: string;

@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { Loader2, ShoppingBag, Clock, ChefHat, Truck, CheckCircle2, KeyRound, Ban, Gift } from 'lucide-react';
+import { Loader2, ShoppingBag, Clock, ChefHat, Truck, CheckCircle2, KeyRound, Ban, Gift, Info } from 'lucide-react';
 import Link from 'next/link';
 import {
   AlertDialog,
@@ -63,6 +63,16 @@ const OrderCard = ({ order, onCancel }: { order: Order, onCancel: (order: Order)
           </div>
         </div>
 
+        {order.status === 'cancelled' && order.cancellationReason && (
+             <div className="text-sm text-destructive-foreground bg-destructive/80 p-3 rounded-md flex items-start gap-3">
+                 <Info className="h-5 w-5 mt-0.5 shrink-0"/>
+                 <div>
+                    <p className="font-semibold">Motivo de cancelación:</p>
+                    <p>{order.cancellationReason}</p>
+                 </div>
+             </div>
+        )}
+
         {order.status !== 'pending' && order.status !== 'cooking' && order.status !== 'cancelled' && (
           <div className="text-sm text-muted-foreground bg-primary/5 p-3 rounded-md flex items-center gap-3">
              {order.status === 'delivering' ? <Truck className="text-primary h-8 w-8"/> : <KeyRound className="text-primary h-8 w-8"/>}
@@ -100,11 +110,11 @@ const OrderCard = ({ order, onCancel }: { order: Order, onCancel: (order: Order)
                     <span>{formatCurrency(subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-muted-foreground">Domicilio</span>
+                    <span className="text-muted-foreground flex items-center gap-1"><Truck size={14}/> Domicilio</span>
                     <span>{formatCurrency(order.deliveryFee)}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-muted-foreground">Propina</span>
+                    <span className="text-muted-foreground flex items-center gap-1"><Gift size={14}/> Propina</span>
                     <span>{formatCurrency(order.tip)}</span>
                 </div>
             </div>

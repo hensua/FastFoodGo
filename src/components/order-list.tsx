@@ -4,11 +4,11 @@ import React, { useMemo, useState } from 'react';
 import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
 import { collectionGroup, query, where, doc, updateDoc } from 'firebase/firestore';
 import type { Order, OrderStatus, AppUser } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { Clock, ChefHat, PackageCheck, Loader2, Truck, XCircle } from 'lucide-react';
+import { Clock, ChefHat, PackageCheck, Loader2, Truck, XCircle, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -20,6 +20,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Textarea } from './ui/textarea';
+import { Label } from './ui/label';
 
 const statusConfig: Record<string, { title: string; icon: React.ElementType; color: string }> = {
   pending: { title: 'Pendientes', icon: Clock, color: 'border-l-4 border-yellow-500' },
@@ -29,7 +31,7 @@ const statusConfig: Record<string, { title: string; icon: React.ElementType; col
   cancelled: { title: 'Cancelados', icon: XCircle, color: 'border-l-4 border-red-500' },
 };
 
-const OrderCard = ({ order, onStatusChange, onCancel, isUpdating }: { order: Order; onStatusChange: (orderId: string, customerId: string, newStatus: OrderStatus) => void; onCancel: (order: Order) => void; isUpdating: boolean }) => {
+const OrderCard = ({ order, onStatusChange, onCancel, isUpdating }: { order: Order; onStatusChange: (orderId: string, customerId: string, newStatus: OrderStatus, reason?: string) => void; onCancel: (order: Order) => void; isUpdating: boolean }) => {
   const currentStatusConfig = statusConfig[order.status as keyof typeof statusConfig];
   const nextStatusMap: Record<string, OrderStatus | null> = { pending: 'cooking', cooking: 'ready', ready: null };
   const nextStatus = nextStatusMap[order.status];
@@ -62,7 +64,7 @@ const OrderCard = ({ order, onStatusChange, onCancel, isUpdating }: { order: Ord
           <span>{formatCurrency(order.totalAmount)}</span>
         </div>
         
-        {order.status !== 'cancelled' && (
+        {order.status !== 'cancelled' && order.status !== 'delivered' && (
           <div className='space-y-2'>
             {nextStatus && (
               <Button onClick={() => onStatusChange(order.id, order.customerId, nextStatus)} className="w-full text-sm" disabled={isUpdating}>
@@ -82,14 +84,75 @@ const OrderCard = ({ order, onStatusChange, onCancel, isUpdating }: { order: Ord
           </div>
         )}
         {order.status === 'cancelled' && (
-            <div className="text-center text-sm text-red-600 font-semibold p-2 bg-red-50 rounded-md">
-                <p>Este pedido ha sido cancelado.</p>
+            <div className="text-sm text-red-600 p-2 bg-red-50/80 rounded-md">
+                <div className='flex items-start gap-2'>
+                    <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                    <div>
+                        <p className="font-semibold">Pedido Cancelado</p>
+                        {order.cancellationReason && <p className="text-xs">{order.cancellationReason}</p>}
+                    </div>
+                </div>
             </div>
         )}
       </CardContent>
     </Card>
   );
 };
+
+const CancelOrderDialog = ({
+    order,
+    isOpen,
+    onOpenChange,
+    onConfirm,
+    isCancelling,
+}: {
+    order: Order | null;
+    isOpen: boolean;
+    onOpenChange: (open: boolean) => void;
+    onConfirm: (reason: string) => void;
+    isCancelling: boolean;
+}) => {
+    const [reason, setReason] = useState('');
+
+    useEffect(() => {
+        if (isOpen) {
+            setReason('');
+        }
+    }, [isOpen]);
+
+    return (
+         <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+            <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Cancelar Pedido #{order?.id.slice(-6).toUpperCase()}</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Por favor, especifica el motivo de la cancelación. Esta nota será guardada en el registro del pedido.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-2">
+                <Label htmlFor="cancellation-reason">Motivo de la cancelación</Label>
+                <Textarea
+                    id="cancellation-reason"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Ej: Se acabó el stock del producto, el cliente lo solicitó, etc."
+                />
+            </div>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Volver</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={() => onConfirm(reason)}
+                    disabled={isCancelling || reason.trim().length < 5}
+                    className="bg-destructive hover:bg-destructive/90"
+                >
+                    {isCancelling ? <Loader2 className='animate-spin mr-2'/> : null}
+                    Confirmar Cancelación
+                </AlertDialogAction>
+            </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    )
+}
 
 export function OrderList() {
   const firestore = useFirestore();
@@ -110,15 +173,27 @@ export function OrderList() {
 
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
 
-  const handleStatusChange = async (orderId: string, customerId: string, newStatus: OrderStatus) => {
+  const handleStatusChange = async (orderId: string, customerId: string, newStatus: OrderStatus, reason?: string) => {
     if (!firestore) return;
     setUpdatingOrderId(orderId);
     const orderRef = doc(firestore, 'users', customerId, 'orders', orderId);
+    
+    const updateData: { status: OrderStatus; cancellationReason?: string } = { status: newStatus };
+    if (newStatus === 'cancelled' && reason) {
+        updateData.cancellationReason = reason;
+    }
+
     try {
-      await updateDoc(orderRef, { status: newStatus });
+      await updateDoc(orderRef, updateData);
+      
+      let toastDescription = `El pedido #${orderId.slice(-6).toUpperCase()} ha sido actualizado.`;
+      if (newStatus === 'cancelled') {
+        toastDescription = `El pedido #${orderId.slice(-6).toUpperCase()} ha sido cancelado.`
+      }
+
       toast({
         title: "Estado actualizado",
-        description: `El pedido #${orderId.slice(-6).toUpperCase()} ahora está ${newStatus === 'cooking' ? 'en preparación' : 'listo para retirar'}.`,
+        description: toastDescription,
       });
     } catch (error) {
       console.error("Error updating order status: ", error);
@@ -132,9 +207,9 @@ export function OrderList() {
     }
   };
 
-  const confirmCancelOrder = async () => {
-    if (!firestore || !orderToCancel) return;
-    handleStatusChange(orderToCancel.id, orderToCancel.customerId, 'cancelled');
+  const handleConfirmCancel = (reason: string) => {
+    if (!orderToCancel) return;
+    handleStatusChange(orderToCancel.id, orderToCancel.customerId, 'cancelled', reason);
     setOrderToCancel(null);
   }
 
@@ -179,20 +254,13 @@ export function OrderList() {
           </div>
         ))}
       </div>
-       <AlertDialog open={!!orderToCancel} onOpenChange={() => setOrderToCancel(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Seguro que quieres cancelar este pedido?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción es irreversible y el pedido se marcará como cancelado.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>No</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmCancelOrder} className="bg-destructive hover:bg-destructive/90">Sí, Cancelar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+       <CancelOrderDialog
+        order={orderToCancel}
+        isOpen={!!orderToCancel}
+        onOpenChange={() => setOrderToCancel(null)}
+        onConfirm={handleConfirmCancel}
+        isCancelling={!!updatingOrderId && updatingOrderId === orderToCancel?.id}
+       />
     </>
   );
 }
