@@ -2,15 +2,15 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { useFirestore, useCollection, useUser, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, orderBy, doc, updateDoc, where } from 'firebase/firestore';
-import type { Order, OrderStatus } from '@/lib/types';
+import type { Order, OrderStatus, AppUser } from '@/lib/types';
 import Header from '@/components/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { Loader2, ShoppingBag, Clock, ChefHat, Truck, CheckCircle2, KeyRound, Ban, Gift, Info } from 'lucide-react';
+import { Loader2, ShoppingBag, Clock, ChefHat, Truck, CheckCircle2, KeyRound, Ban, Gift, Info, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import {
   AlertDialog,
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { ChatDialog } from '@/components/chat/ChatDialog';
 
 
 const statusConfig: Record<OrderStatus, { text: string; icon: React.ElementType; color: string; progress: string }> = {
@@ -35,9 +36,10 @@ const statusConfig: Record<OrderStatus, { text: string; icon: React.ElementType;
   cancelled: { text: 'Cancelado', icon: Ban, color: 'text-red-500', progress: 'w-full bg-red-500' },
 };
 
-const OrderCard = ({ order, onCancel }: { order: Order, onCancel: (order: Order) => void }) => {
+const OrderCard = ({ order, onCancel, onChat }: { order: Order, onCancel: (order: Order) => void, onChat: (order: Order) => void }) => {
   const config = statusConfig[order.status];
   const subtotal = order.totalAmount - (order.deliveryFee || 0) - (order.tip || 0);
+  const canChat = ['cooking', 'ready', 'delivering'].includes(order.status);
   
   return (
     <Card className="shadow-md animate-fade-in w-full flex flex-col">
@@ -121,9 +123,16 @@ const OrderCard = ({ order, onCancel }: { order: Order, onCancel: (order: Order)
         </div>
       </CardContent>
       <CardFooter className="flex justify-between items-center bg-muted/50 p-4">
-         {order.status === 'pending' && (
-            <Button variant="destructive" size="sm" onClick={() => onCancel(order)}>Cancelar</Button>
-        )}
+         <div className='flex gap-2'>
+            {order.status === 'pending' && (
+                <Button variant="destructive" size="sm" onClick={() => onCancel(order)}>Cancelar</Button>
+            )}
+             {canChat && (
+                <Button variant="outline" size="sm" onClick={() => onChat(order)}>
+                    <MessageSquare className='mr-2' size={14} /> Chat
+                </Button>
+            )}
+         </div>
         <div className="flex flex-col items-end flex-grow">
           <span className="text-sm">Total del Pedido</span>
           <span className="font-bold text-lg">{formatCurrency(order.totalAmount)}</span>
@@ -140,6 +149,10 @@ export default function MyOrdersPage() {
   const { toast } = useToast();
 
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
+  const [chatOrder, setChatOrder] = useState<Order | null>(null);
+
+  const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+  const { data: userDoc, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
 
   const myOrdersQuery = useMemo(() => {
     if (!firestore || !user) return null;
@@ -185,8 +198,9 @@ export default function MyOrdersPage() {
     }
   };
 
+  const pageLoading = isUserLoading || isUserDocLoading;
 
-  if (isUserLoading) {
+  if (pageLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>
   }
 
@@ -216,7 +230,7 @@ export default function MyOrdersPage() {
               <h2 className="text-2xl font-semibold mb-4">Pedidos Activos</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {activeOrders.map(order => (
-                  <OrderCard key={order.id} order={order} onCancel={setOrderToCancel} />
+                  <OrderCard key={order.id} order={order} onCancel={setOrderToCancel} onChat={setChatOrder} />
                 ))}
               </div>
             </>
@@ -227,7 +241,7 @@ export default function MyOrdersPage() {
             <h2 className="text-2xl font-semibold my-8 pt-4 border-t">Historial de Pedidos</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {pastOrders.map(order => (
-                <OrderCard key={order.id} order={order} onCancel={() => {}} />
+                <OrderCard key={order.id} order={order} onCancel={() => {}} onChat={setChatOrder} />
               ))}
             </div>
           </>
@@ -249,6 +263,16 @@ export default function MyOrdersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {chatOrder && userDoc && (
+          <ChatDialog
+              order={chatOrder}
+              user={userDoc}
+              isOpen={!!chatOrder}
+              onOpenChange={() => setChatOrder(null)}
+          />
+      )}
     </div>
   );
 }
+

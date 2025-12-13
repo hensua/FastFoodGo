@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -8,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { Clock, ChefHat, PackageCheck, Loader2, Truck, XCircle, Info } from 'lucide-react';
+import { Clock, ChefHat, PackageCheck, Loader2, Truck, XCircle, Info, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
+import { ChatDialog } from './chat/ChatDialog';
 
 const statusConfig: Record<string, { title: string; icon: React.ElementType; color: string }> = {
   pending: { title: 'Pendientes', icon: Clock, color: 'border-l-4 border-yellow-500' },
@@ -31,11 +33,12 @@ const statusConfig: Record<string, { title: string; icon: React.ElementType; col
   cancelled: { title: 'Cancelados', icon: XCircle, color: 'border-l-4 border-red-500' },
 };
 
-const OrderCard = ({ order, onStatusChange, onCancel, isUpdating }: { order: Order; onStatusChange: (orderId: string, customerId: string, newStatus: OrderStatus, reason?: string) => void; onCancel: (order: Order) => void; isUpdating: boolean }) => {
+const OrderCard = ({ order, onStatusChange, onCancel, onChat, isUpdating }: { order: Order; onStatusChange: (orderId: string, customerId: string, newStatus: OrderStatus, reason?: string) => void; onCancel: (order: Order) => void; onChat: (order: Order) => void; isUpdating: boolean }) => {
   const currentStatusConfig = statusConfig[order.status as keyof typeof statusConfig];
   const nextStatusMap: Record<string, OrderStatus | null> = { pending: 'cooking', cooking: 'ready', ready: null };
   const nextStatus = nextStatusMap[order.status];
   const actionTextMap: Record<string, string> = { cooking: "Empezar a Cocinar", ready: "Marcar como Listo" };
+  const canChat = ['cooking', 'ready', 'delivering'].includes(order.status);
 
   return (
     <Card className={`shadow-md animate-fade-in ${currentStatusConfig.color}`}>
@@ -72,9 +75,16 @@ const OrderCard = ({ order, onStatusChange, onCancel, isUpdating }: { order: Ord
                 {actionTextMap[nextStatus]}
               </Button>
             )}
-            <Button variant="outline" className="w-full text-sm hover:bg-destructive/10 hover:text-destructive" onClick={() => onCancel(order)} disabled={isUpdating}>
-              Cancelar Pedido
-            </Button>
+             <div className='flex gap-2 w-full'>
+                <Button variant="outline" className="w-full text-sm hover:bg-destructive/10 hover:text-destructive" onClick={() => onCancel(order)} disabled={isUpdating}>
+                  Cancelar
+                </Button>
+                 {canChat && (
+                    <Button variant='outline' className='w-full text-sm' onClick={() => onChat(order)} disabled={isUpdating}>
+                        <MessageSquare size={14} className='mr-2' /> Chat
+                    </Button>
+                )}
+             </div>
           </div>
         )}
 
@@ -161,6 +171,7 @@ export function OrderList() {
   
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
+  const [chatOrder, setChatOrder] = useState<Order | null>(null);
 
   const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userDoc } = useDoc<AppUser>(userDocRef);
@@ -243,7 +254,8 @@ export function OrderList() {
                       key={order.id} 
                       order={order} 
                       onStatusChange={handleStatusChange}
-                      onCancel={setOrderToCancel} 
+                      onCancel={setOrderToCancel}
+                      onChat={setChatOrder}
                       isUpdating={updatingOrderId === order.id}
                   />
                 ))
@@ -261,6 +273,14 @@ export function OrderList() {
         onConfirm={handleConfirmCancel}
         isCancelling={!!updatingOrderId && updatingOrderId === orderToCancel?.id}
        />
+        {chatOrder && userDoc && (
+          <ChatDialog
+              order={chatOrder}
+              user={userDoc}
+              isOpen={!!chatOrder}
+              onOpenChange={() => setChatOrder(null)}
+          />
+      )}
     </>
   );
 }
