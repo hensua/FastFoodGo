@@ -57,6 +57,7 @@
         "orderDate": { "type": "string", "format": "date-time" },
         "totalAmount": { "type": "number" },
         "deliveryFee": { "type": "number" },
+        "tip": { "type": "number", "description": "The tip amount for the driver." },
         "paymentMethod": { "type": "string" },
         "deliveryAddress": { "type": "string" },
         "status": { "type": "string", "enum": ["pending", "cooking", "ready", "delivering", "delivered", "cancelled"] },
@@ -66,7 +67,7 @@
         "customerPhoneNumber": { "type": "string" },
         "pin": { "type": "string", "description": "A 4-digit PIN for delivery confirmation, visible only to the customer and admin." }
       },
-      "required": ["id", "customerId", "orderDate", "totalAmount", "deliveryFee", "paymentMethod", "deliveryAddress", "status", "pin"]
+      "required": ["id", "customerId", "orderDate", "totalAmount", "deliveryFee", "tip", "paymentMethod", "deliveryAddress", "status", "pin"]
     },
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",

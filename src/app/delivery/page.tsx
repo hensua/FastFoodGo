@@ -103,6 +103,12 @@ const PinDialog = ({ open, onOpenChange, onSubmit, isSubmitting, orderId }: { op
     onSubmit(pin);
   };
 
+  useEffect(() => {
+    if (open) {
+      setPin('');
+    }
+  }, [open]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -219,7 +225,7 @@ export default function DeliveryPage() {
 
   const deliveryStats = useMemo(() => {
     if (!pastDeliveries) return { count: 0, earnings: 0 };
-    const earnings = pastDeliveries.reduce((acc, order) => acc + order.deliveryFee, 0);
+    const earnings = pastDeliveries.reduce((acc, order) => acc + (order.deliveryFee || 0) + (order.tip || 0), 0);
     return {
       count: pastDeliveries.length,
       earnings: earnings,
@@ -228,11 +234,11 @@ export default function DeliveryPage() {
 
   const isLoading = isUserLoading || isRoleLoading;
 
-  if (isLoading || !userDoc) {
+  if (isLoading || (!isUserLoading && !user)) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando...</div>;
   }
   
-  if(!isDriver) {
+  if(!isUserLoading && user && !isDriver) {
       return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
   }
 
@@ -289,14 +295,15 @@ export default function DeliveryPage() {
                pastDeliveries && pastDeliveries.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className='border-b'><tr className='text-left text-sm text-muted-foreground'><th className='p-2'>Pedido</th><th className='p-2'>Fecha</th><th className='p-2'>Cliente</th><th className='p-2 text-right'>Ganancia</th></tr></thead>
+                    <thead className='border-b'><tr className='text-left text-sm text-muted-foreground'><th className='p-2'>Pedido</th><th className='p-2'>Fecha</th><th className='p-2'>Cliente</th><th className='p-2'>Propina</th><th className='p-2 text-right'>Ganancia Total</th></tr></thead>
                     <tbody>
                       {pastDeliveries.map(order => (
                         <tr key={order.id} className='border-b'>
                           <td className='p-2 font-mono text-primary'>#{order.id.slice(-6).toUpperCase()}</td>
-                          <td className='p-2 text-muted-foreground'>{new Date(order.orderDate.toDate()).toLocaleDateString()}</td>
+                          <td className='p-2 text-muted-foreground'>{order.orderDate?.toDate ? new Date(order.orderDate.toDate()).toLocaleDateString() : 'N/A'}</td>
                           <td className='p-2'>{order.customerName}</td>
-                          <td className='p-2 text-right font-semibold'>{formatCurrency(order.deliveryFee)}</td>
+                          <td className='p-2'>{formatCurrency(order.tip || 0)}</td>
+                          <td className='p-2 text-right font-semibold'>{formatCurrency((order.deliveryFee || 0) + (order.tip || 0))}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -326,7 +333,7 @@ export default function DeliveryPage() {
           open={!!pinOrder} 
           onOpenChange={() => setPinOrder(null)} 
           onSubmit={handleMarkAsDelivered}
-          isSubmitting={isUpdatingOrder === pinOrder?.id}
+          isSubmitting={!!isUpdatingOrder && isUpdatingOrder === pinOrder?.id}
           orderId={pinOrder?.id || null}
         />
     </div>

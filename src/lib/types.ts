@@ -23,6 +23,7 @@ export type Order = {
   orderDate: any;
   totalAmount: number;
   deliveryFee: number;
+  tip: number; // New field for tips
   paymentMethod: string;
   pin: string;
 

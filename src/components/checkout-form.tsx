@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
-import { Loader2, AlertTriangle, Truck } from 'lucide-react';
+import { Loader2, AlertTriangle, Truck, Gift } from 'lucide-react';
 import CartItem from './cart/cart-item';
 import { ScrollArea } from './ui/scroll-area';
 import { formatCurrency, DELIVERY_FEE } from '@/lib/utils';
@@ -17,10 +17,12 @@ import type { AppUser } from '@/lib/types';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
+import { Input } from './ui/input';
 
 export default function CheckoutForm() {
   const { cartItems, totalPrice, clearCart } = useCart();
   const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [tip, setTip] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const firestore = useFirestore();
@@ -30,7 +32,8 @@ export default function CheckoutForm() {
   const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userData, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
 
-  const finalTotal = totalPrice + DELIVERY_FEE;
+  const finalTotal = totalPrice + DELIVERY_FEE + tip;
+  const suggestedTips = [2000, 3000, 5000];
 
   const handlePlaceOrder = async () => {
     if (!user || !firestore || !userData) {
@@ -59,6 +62,7 @@ export default function CheckoutForm() {
         orderDate: serverTimestamp(),
         totalAmount: finalTotal,
         deliveryFee: DELIVERY_FEE,
+        tip: tip,
         paymentMethod: paymentMethod,
         status: 'pending',
         pin: pin,
@@ -114,9 +118,13 @@ export default function CheckoutForm() {
               <span className="text-muted-foreground flex items-center gap-2"><Truck size={16}/> Tarifa de Domicilio</span>
               <span>{formatCurrency(DELIVERY_FEE)}</span>
             </div>
+             <div className="flex justify-between">
+              <span className="text-muted-foreground flex items-center gap-2"><Gift size={16}/> Propina</span>
+              <span>{formatCurrency(tip)}</span>
+            </div>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-between font-bold text-xl">
+        <CardFooter className="flex justify-between font-bold text-xl bg-muted/50 py-4">
           <span>Total:</span>
           <span>{formatCurrency(finalTotal)}</span>
         </CardFooter>
@@ -147,6 +155,24 @@ export default function CheckoutForm() {
                 <Link href="/profile?redirect=/checkout" className="text-sm text-primary hover:underline">Cambiar dirección</Link>
              </div>
           )}
+          
+          <div className="space-y-3">
+            <Label>Propina para el repartidor</Label>
+            <div className="flex gap-2">
+              {suggestedTips.map(amount => (
+                <Button key={amount} variant="outline" size="sm" onClick={() => setTip(amount)}>
+                  {formatCurrency(amount)}
+                </Button>
+              ))}
+            </div>
+            <Input 
+              type="number"
+              placeholder="O ingresa un monto personalizado"
+              value={tip || ''}
+              onChange={(e) => setTip(Number(e.target.value))}
+              className="mt-2"
+            />
+          </div>
 
           <div className="space-y-2">
             <Label>Método de Pago</Label>
