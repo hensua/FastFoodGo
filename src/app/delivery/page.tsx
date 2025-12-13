@@ -3,10 +3,10 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
-import { collectionGroup, query, where, doc, updateDoc, writeBatch } from 'firebase/firestore';
-import type { Order, OrderStatus, AppUser } from '@/lib/types';
+import { collectionGroup, query, where, doc, updateDoc } from 'firebase/firestore';
+import type { Order, AppUser } from '@/lib/types';
 import Header from '@/components/header';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
@@ -14,9 +14,7 @@ import { Loader2, Truck, CheckCircle2, Navigation } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
-const OrderCard = ({ order, onAccept, onDeliver }: { order: Order; onAccept: (order: Order) => void; onDeliver: (order: Order) => void; }) => {
-  const { user } = useUser();
-  const isAssignedToMe = order.driverId === user?.uid;
+const OrderCard = ({ order, onAccept, isUpdating }: { order: Order; onAccept: (order: Order) => void; isUpdating: boolean }) => {
 
   return (
     <Card className="shadow-md animate-fade-in border-l-4 border-green-500">
@@ -31,27 +29,28 @@ const OrderCard = ({ order, onAccept, onDeliver }: { order: Order; onAccept: (or
       </CardHeader>
       <CardContent>
         <div className="space-y-1 mb-2">
-          {order.items.slice(0, 2).map((item, index) => (
+          {(order.items || []).slice(0, 2).map((item, index) => (
             <div key={index} className="flex justify-between text-sm">
               <span className="font-medium">{item.quantity}x {item.product.name}</span>
             </div>
           ))}
-          {order.items.length > 2 && <p className="text-sm text-muted-foreground">+ {order.items.length - 2} más...</p>}
+          {(order.items?.length || 0) > 2 && <p className="text-sm text-muted-foreground">+ {(order.items?.length || 0) - 2} más...</p>}
         </div>
         <div className="font-bold border-t pt-2">
           <span>Total: {formatCurrency(order.totalAmount)}</span>
         </div>
       </CardContent>
       <CardFooter>
-        <Button onClick={() => onAccept(order)} className="w-full">
-          <Truck className="mr-2" /> Aceptar Pedido
+        <Button onClick={() => onAccept(order)} className="w-full" disabled={isUpdating}>
+          {isUpdating ? <Loader2 className="mr-2 animate-spin" /> : <Truck className="mr-2" />}
+           Aceptar Pedido
         </Button>
       </CardFooter>
     </Card>
   );
 };
 
-const DeliveringCard = ({ order, onDeliver }: { order: Order; onDeliver: (order: Order) => void; }) => {
+const DeliveringCard = ({ order, onDeliver, isUpdating }: { order: Order; onDeliver: (order: Order) => void; isUpdating: boolean; }) => {
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.deliveryAddress)}`;
 
   return (
@@ -79,8 +78,9 @@ const DeliveringCard = ({ order, onDeliver }: { order: Order; onDeliver: (order:
         </div>
       </CardContent>
       <CardFooter>
-        <Button onClick={() => onDeliver(order)} className="w-full bg-green-600 hover:bg-green-700">
-          <CheckCircle2 className="mr-2" /> Marcar como Entregado
+        <Button onClick={() => onDeliver(order)} className="w-full bg-green-600 hover:bg-green-700" disabled={isUpdating}>
+          {isUpdating ? <Loader2 className="mr-2 animate-spin" /> : <CheckCircle2 className="mr-2" />}
+           Marcar como Entregado
         </Button>
       </CardFooter>
     </Card>
@@ -93,6 +93,8 @@ export default function DeliveryPage() {
   const { toast } = useToast();
   const router = useRouter();
 
+  const [isUpdatingOrder, setIsUpdatingOrder] = useState<string | null>(null);
+
   // Redirect if not a driver
   const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
@@ -104,12 +106,12 @@ export default function DeliveryPage() {
     }
   }, [user, userDoc, isUserLoading, isRoleLoading, router, toast]);
 
-  const readyOrdersQuery = useMemo(() => {
-    if (!firestore || !user) return null;
+  const readyOrdersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
     return query(collectionGroup(firestore, 'orders'), where('status', '==', 'ready'));
-  }, [firestore, user]);
+  }, [firestore]);
 
-  const myDeliveriesQuery = useMemo(() => {
+  const myDeliveriesQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return query(collectionGroup(firestore, 'orders'), where('status', '==', 'delivering'), where('driverId', '==', user.uid));
   }, [firestore, user]);
@@ -117,11 +119,10 @@ export default function DeliveryPage() {
   const { data: readyOrders, isLoading: readyOrdersLoading } = useCollection<Order>(readyOrdersQuery);
   const { data: myDeliveries, isLoading: myDeliveriesLoading } = useCollection<Order>(myDeliveriesQuery);
 
-  const [isUpdating, setIsUpdating] = useState(false);
 
   const handleAcceptOrder = async (order: Order) => {
     if (!firestore || !user || !userDoc) return;
-    setIsUpdating(true);
+    setIsUpdatingOrder(order.id);
     const orderRef = doc(firestore, 'users', order.customerId, 'orders', order.id);
     try {
       await updateDoc(orderRef, {
@@ -134,13 +135,13 @@ export default function DeliveryPage() {
       console.error("Error accepting order:", error);
       toast({ variant: 'destructive', title: 'Error', description: 'No se pudo aceptar el pedido.' });
     } finally {
-      setIsUpdating(false);
+      setIsUpdatingOrder(null);
     }
   };
 
   const handleMarkAsDelivered = async (order: Order) => {
     if (!firestore) return;
-    setIsUpdating(true);
+    setIsUpdatingOrder(order.id);
     const orderRef = doc(firestore, 'users', order.customerId, 'orders', order.id);
     try {
       await updateDoc(orderRef, { status: 'delivered' });
@@ -149,13 +150,13 @@ export default function DeliveryPage() {
       console.error("Error delivering order:", error);
       toast({ variant: 'destructive', title: 'Error', description: 'No se pudo completar la entrega.' });
     } finally {
-      setIsUpdating(false);
+      setIsUpdatingOrder(null);
     }
   };
 
-  const isLoading = isUserLoading || isRoleLoading || readyOrdersLoading || myDeliveriesLoading || isUpdating;
+  const isLoading = isUserLoading || isRoleLoading || !firestore;
 
-  if (isUserLoading || isRoleLoading || !userDoc) {
+  if (isLoading || !userDoc) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando...</div>;
   }
   
@@ -176,7 +177,7 @@ export default function DeliveryPage() {
             <div className="space-y-4">
               {myDeliveriesLoading ? <Loader2 className="animate-spin mx-auto mt-10" /> :
                 myDeliveries && myDeliveries.length > 0 ? (
-                  myDeliveries.map(order => <DeliveringCard key={order.id} order={order} onDeliver={handleMarkAsDelivered} />)
+                  myDeliveries.map(order => <DeliveringCard key={order.id} order={order} onDeliver={handleMarkAsDelivered} isUpdating={isUpdatingOrder === order.id} />)
                 ) : (
                   <p className="text-center text-muted-foreground py-10">No tienes entregas activas.</p>
                 )}
@@ -189,7 +190,7 @@ export default function DeliveryPage() {
             <div className="space-y-4">
               {readyOrdersLoading ? <Loader2 className="animate-spin mx-auto mt-10" /> :
                 readyOrders && readyOrders.length > 0 ? (
-                  readyOrders.map(order => <OrderCard key={order.id} order={order} onAccept={handleAcceptOrder} onDeliver={handleMarkAsDelivered} />)
+                  readyOrders.map(order => <OrderCard key={order.id} order={order} onAccept={handleAcceptOrder} isUpdating={isUpdatingOrder === order.id} />)
                 ) : (
                   <p className="text-center text-muted-foreground py-10">No hay pedidos listos por ahora.</p>
                 )}
