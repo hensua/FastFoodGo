@@ -72,7 +72,7 @@ const OrderCard = ({ order, onStatusChange, onCancel, isUpdating }: { order: Ord
                 {actionTextMap[nextStatus]}
               </Button>
             )}
-            <Button variant="destructive" outline className="w-full text-sm" onClick={() => onCancel(order)} disabled={isUpdating}>
+            <Button variant="outline" className="w-full text-sm hover:bg-destructive/10 hover:text-destructive" onClick={() => onCancel(order)} disabled={isUpdating}>
               Cancelar Pedido
             </Button>
           </div>
