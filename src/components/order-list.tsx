@@ -63,7 +63,7 @@ export function OrderList() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const ordersQuery = useMemoFirebase(() => {
+  const ordersQuery = useMemo(() => {
     if (!firestore) return null;
     return query(collectionGroup(firestore, 'orders'), where('status', 'in', ['pending', 'cooking', 'ready']));
   }, [firestore]);
@@ -119,5 +119,3 @@ export function OrderList() {
     </div>
   );
 }
-
-    
