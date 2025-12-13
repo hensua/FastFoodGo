@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, orderBy, doc, updateDoc, where } from 'firebase/firestore';
+import { collection, query, orderBy, doc, updateDoc, where, onSnapshot } from 'firebase/firestore';
 import type { Order, OrderStatus, AppUser, ChatMessage } from '@/lib/types';
 import Header from '@/components/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -171,17 +171,12 @@ const useUnreadMessages = (orders: Order[] | undefined, currentUser: AppUser | n
 
       const messagesQuery = query(
         collection(firestore, 'users', order.customerId, 'orders', order.id, 'messages'),
-        orderBy('timestamp', 'desc')
+        orderBy('timestamp', 'desc'),
+        where('senderId', '!=', currentUser.uid)
       );
 
       return onSnapshot(messagesQuery, (snapshot) => {
-        if (snapshot.empty) {
-          setUnreadState(prev => ({ ...prev, [order.id]: false }));
-          return;
-        }
-        const lastMessage = snapshot.docs[0].data() as ChatMessage;
-        const isUnread = lastMessage.senderId !== currentUser.uid;
-        setUnreadState(prev => ({ ...prev, [order.id]: isUnread }));
+        setUnreadState(prev => ({ ...prev, [order.id]: !snapshot.empty }));
       });
     });
 
@@ -343,7 +338,7 @@ export default function MyOrdersPage() {
               user={userDoc}
               isOpen={!!chatOrder}
               onOpenChange={() => setChatOrder(null)}
-              onMessageSent={() => markAsRead(chatOrder.id)}
+              onMessageSent={() => { /* Mark as read is handled internally now */ }}
           />
       )}
     </div>
