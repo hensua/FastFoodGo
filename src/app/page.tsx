@@ -38,7 +38,7 @@ function HomePageContent() {
     }
   }, [products, isProductsLoading, firestore]);
 
-  const isLoading = isProductsLoading || products === null;
+  const isLoading = isProductsLoading || products === null || !firestore;
 
   return <OrderPage products={products || []} loading={isLoading} />;
 }
@@ -56,27 +56,23 @@ export default function Home() {
   
   const isAdmin = useMemo(() => userDoc?.role === 'admin', [userDoc]);
 
-  // Combined loading state
-  const isLoading = isUserLoading || !firestore || (user && isRoleLoading);
+  // Combined loading state for auth and role check
+  const isLoading = isUserLoading || isRoleLoading;
 
   useEffect(() => {
-    if (!isLoading) {
-      if (isAdmin) {
-        router.push('/admin');
-      }
+    // Only redirect if we are not loading and the user is an admin.
+    if (!isLoading && isAdmin) {
+      router.push('/admin');
     }
   }, [isLoading, isAdmin, router]);
 
-  if (isLoading) {
-    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Cargando...</div>;
-  }
-  
-  // If the user is an admin, we show a redirecting message while Next.js router kicks in.
-  // This avoids rendering the customer page for a fraction of a second.
+  // If the user is an admin, show a loading indicator while redirecting
+  // to prevent flashing the customer page.
+  // This state is only shown briefly after login for admins.
   if (isAdmin) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo al panel de control...</div>;
   }
 
-  // Only render the customer-facing page if we are sure the user is not an admin
+  // For everyone else (customers, guests, or during initial load), show the customer-facing page.
   return <HomePageContent />;
 }
