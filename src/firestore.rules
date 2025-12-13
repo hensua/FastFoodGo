@@ -16,6 +16,7 @@ rules_version = '2';
  * data, like the product catalog, is read-only for regular users.
  *
  * Data Structure:
+ * - /users/{userId}: Stores basic info for all users. Key for role management.
  * - /customers/{userId}/...: A user-specific data tree containing a customer's
  *   profile, orders, and order-specific data. This structure ensures that a
  *   user's private information is securely isolated by path.
@@ -23,18 +24,16 @@ rules_version = '2';
  * - /drivers/{driverId}: A top-level collection for driver profiles.
  * - /roles_admin/{userId}: A restricted collection where the existence of a
  *   document grants a user administrative privileges.
+ * - /roles_driver/{userId}: A restricted collection where the existence of a
+ *   document grants a user driver privileges.
  *
  * Key Security Decisions:
  * - User Data Isolation: All customer-related data is nested under `/customers/{userId}`,
  *   allowing for simple and highly secure path-based ownership rules. Listing
  *   other users' data is impossible for non-admins.
  * - Admin Privileges: Admin access is granted via Document-Based Access Control
- *   (DBAC) in the `/roles_admin` collection. This collection is write-protected
- *   by security rules and must be managed from a trusted server environment.
- * - Driver Access: Drivers can only manage their own profile in `/drivers/{driverId}`.
- *   They are granted read-only access to specific orders across different users
- *   if their `driverId` is present on the order document. They cannot list or
- *   modify orders.
+ *   (DBAC) in the `/roles_admin` collection. This collection can be modified only by other admins.
+ * - Driver Privileges: Driver access is granted via DBAC in the `/roles_driver` collection.
  * - Public Data: The `/products` collection is publicly readable by anyone but
  *   can only be modified by admins.
  *
@@ -48,7 +47,7 @@ rules_version = '2';
  *
  * Structural Segregation:
  * - Private user data (`/customers`) is structurally separated from public data
- *   (`/products`) and role-specific data (`/drivers`). This segregation simplifies
+ *   (`/products`) and role-specific data (`/drivers`, `/users`). This segregation simplifies
  *   rules for list operations, making queries safer and more performant.
  */
 service cloud.firestore {
@@ -60,43 +59,28 @@ service cloud.firestore {
      *                                                                   *
      *********************************************************************/
 
-    /**
-     * The user is authenticated.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * The authenticated user's UID matches the provided userId.
-     * This is the foundation of the ownership model.
-     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-
-    /**
-     * The document being accessed already exists in Firestore.
-     * Crucial for protecting against writes to non-existent paths.
-     */
+    
     function isExistingDoc() {
       return resource != null;
     }
 
-    /**
-     * A combination of isOwner and isExistingDoc for secure updates and deletes.
-     */
     function isExistingOwner(userId) {
       return isOwner(userId) && isExistingDoc();
     }
 
-    /**
-     * The user has administrative privileges.
-     * Access is granted if a document with the user's UID exists in the
-     * /roles_admin collection.
-     */
     function isAdmin() {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+    
+    function isDriver() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_driver/$(request.auth.uid));
     }
 
 
@@ -109,48 +93,57 @@ service cloud.firestore {
     /**
      * @description
      *   Manages admin roles. Document existence grants privileges.
-     *   This collection is locked down; it can only be modified by a trusted
-     *   server using Admin SDK credentials, not by any client.
-     * @path /roles_admin/{userId}
-     * @allow (get) An admin checking their own role: `get /roles_admin/admin_user_id`
-     * @deny (create) Any user trying to make themselves an admin: `create /roles_admin/some_user_id`
-     * @principle Prevents privilege escalation by making roles read-only from clients.
+     *   This collection can only be modified by an admin, allowing admins
+     *   to grant or revoke privileges to other users.
      */
     match /roles_admin/{userId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get, list: if isAdmin();
+      allow write: if isAdmin(); // Admins can create/delete roles
+    }
+
+    /**
+     * @description
+     *   Manages driver roles. Document existence grants privileges.
+     *   This collection can only be modified by an admin.
+     */
+    match /roles_driver/{userId} {
+      allow get, list: if isAdmin();
+      allow write: if isAdmin(); // Admins can create/delete roles
     }
 
     /**
      * @description
      *   Stores the restaurant's product catalog.
-     *   This data is public for anyone to read (e.g., to browse the menu),
-     *   but only administrators can create, update, or delete products.
-     *   Initial seeding is allowed by any signed-in user if the collection is empty.
-     * @path /products/{productId}
-     * @allow (read) Any user, signed in or not, viewing a product: `get /products/burger123`
-     * @allow (create) Any signed-in user if products collection is empty (for seeding): `create /products/new_item`
-     * @deny (create) A non-admin user trying to add a product after seeding: `create /products/new_item`
-     * @principle Separates public read access from privileged write access, with a one-time seeding exception.
+     *   Publicly readable, but only administrators can manage products.
+     *   Seeding is allowed by any signed-in user if the collection is empty.
      */
     match /products/{productId} {
       allow read: if true;
+      // Allow create if user is signed in and the document doesn't exist (for seeding) OR if user is admin
       allow create: if (isSignedIn() && !exists(/databases/$(database)/documents/products/$(productId))) || isAdmin();
       allow update, delete: if isAdmin();
     }
+    
+    /**
+     * @description
+     * Stores public user information. Any authenticated user can create their own profile.
+     * Admins can read the full list of users for management purposes.
+     * Users can only edit their own information.
+     */
+     match /users/{userId} {
+        allow read: if isSignedIn();
+        allow list: if isAdmin(); // Admins can list all users for the "Team" tab
+        allow create: if isOwner(userId); // A user can create their own user document
+        allow update: if isOwner(userId); // A user can update their own profile
+        allow delete: if isAdmin(); // Only admins can delete users
+     }
+
 
     /**
      * @description
      *   Stores profiles for delivery drivers.
      *   A driver can create and manage their own profile, but cannot see or
      *   edit the profiles of other drivers.
-     * @path /drivers/{driverId}
-     * @allow (create) A new driver signing up: `create /drivers/driver_abc` by driver_abc
-     * @deny (get) A driver trying to view another's profile: `get /drivers/driver_xyz` by driver_abc
-     * @principle Enforces strict document ownership for sensitive user data.
      */
     match /drivers/{driverId} {
       allow get: if isOwner(driverId) || isAdmin();
@@ -160,12 +153,13 @@ service cloud.firestore {
       allow delete: if isExistingOwner(driverId);
     }
     
+    // Customer-specific data is nested and owned by the user.
     match /customers/{userId}/{document=**} {
       allow read, write: if isOwner(userId) || isAdmin();
     }
     
     match /customers/{userId}/orders/{orderId} {
-        allow get: if isOwner(userId) || isAdmin() || (isSignedIn() && isExistingDoc() && resource.data.driverId == request.auth.uid);
+        allow get: if isOwner(userId) || isAdmin() || (isDriver() && isExistingDoc() && resource.data.driverId == request.auth.uid);
         allow list: if isOwner(userId) || isAdmin();
         allow create: if isOwner(userId) && request.resource.data.customerId == userId;
         allow update: if (isOwner(userId) || isAdmin()) && request.resource.data.customerId == resource.data.customerId;

@@ -12,7 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, UserCredential, User } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, User, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
 const loginSchema = z.object({
@@ -29,6 +29,7 @@ export default function LoginPage() {
   const { toast } = useToast();
   const [isEmailLoading, setIsEmailLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isSigningUp, setIsSigningUp] = useState(false);
 
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -49,27 +50,29 @@ export default function LoginPage() {
     const userRef = doc(firestore, 'users', firebaseUser.uid);
     const userSnap = await getDoc(userRef);
 
-    // If user document doesn't exist, create it.
     if (!userSnap.exists()) {
       const { displayName, email, photoURL, uid } = firebaseUser;
-      await setDoc(userRef, {
-        uid,
-        displayName,
-        email,
-        photoURL,
-        createdAt: serverTimestamp(),
-      });
+      try {
+        await setDoc(userRef, {
+          uid,
+          displayName,
+          email,
+          photoURL,
+          createdAt: serverTimestamp(),
+        });
+      } catch (e) {
+        console.error("Error creating user document:", e);
+      }
     }
     
     handleRedirect();
   };
 
-
   useEffect(() => {
     if (!isUserLoading && user) {
        handleRedirect();
     }
-  }, [user, isUserLoading]);
+  }, [user, isUserLoading, router]);
 
   const handleGoogleSignIn = async () => {
     if (!auth) return;
@@ -98,23 +101,45 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       await handleUserSetup(userCredential.user);
     } catch (error: any) {
-        let description = "Ocurrió un error inesperado. Por favor, intenta de nuevo.";
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
-          description = "Correo o contraseña incorrectos. Por favor, verifica tus credenciales.";
-        } else if (error.code === 'auth/too-many-requests') {
-          description = "Demasiados intentos fallidos. Por favor, intenta de nuevo más tarde."
-        }
-         toast({
-          variant: "destructive",
-          title: "Error de autenticación",
-          description: description,
-        });
+      let description = "Ocurrió un error inesperado. Por favor, intenta de nuevo.";
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+        description = "Correo o contraseña incorrectos. Por favor, verifica tus credenciales.";
+      } else if (error.code === 'auth/too-many-requests') {
+        description = "Demasiados intentos fallidos. Por favor, intenta de nuevo más tarde."
+      }
+       toast({
+        variant: "destructive",
+        title: "Error de autenticación",
+        description: description,
+      });
     } finally {
       setIsEmailLoading(false);
     }
   };
 
-  if (isUserLoading || user) {
+  const handleEmailSignUp = async (values: z.infer<typeof loginSchema>) => {
+    if (!auth) return;
+    setIsSigningUp(true);
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+        await handleUserSetup(userCredential.user);
+    } catch (error: any) {
+        let description = "Ocurrió un error inesperado al registrar la cuenta.";
+        if (error.code === 'auth/email-already-in-use') {
+          description = "Este correo electrónico ya está en uso. Por favor, inicia sesión o usa un correo diferente.";
+        }
+        toast({
+            variant: "destructive",
+            title: "Error de Registro",
+            description,
+        });
+    } finally {
+        setIsSigningUp(false);
+    }
+  };
+
+
+  if (isUserLoading || (!isUserLoading && user)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -126,12 +151,12 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">¡Bienvenido!</CardTitle>
-          <CardDescription>Inicia sesión para continuar</CardDescription>
+          <CardTitle className="text-2xl font-bold">{isSigningUp ? 'Crear Cuenta' : '¡Bienvenido!'}</CardTitle>
+          <CardDescription>{isSigningUp ? 'Ingresa tus datos para registrarte.' : 'Inicia sesión para continuar'}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <Button onClick={handleGoogleSignIn} className="w-full" variant="outline" disabled={isGoogleLoading || isEmailLoading}>
+            <Button onClick={handleGoogleSignIn} className="w-full" variant="outline" disabled={isGoogleLoading || isEmailLoading || isSigningUp}>
               {isGoogleLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -139,23 +164,20 @@ export default function LoginPage() {
               )}
               Continuar con Google
             </Button>
-             <p className="text-center text-sm text-muted-foreground">
-              Usa Google para crear tu cuenta si eres nuevo.
-            </p>
-
+            
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  O inicia sesión con correo
+                <span className="bg-card px-2 text-muted-foreground">
+                  O {isSigningUp ? 'regístrate con tu correo' : 'inicia sesión con correo'}
                 </span>
               </div>
             </div>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleEmailSignIn)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(isSigningUp ? handleEmailSignUp : handleEmailSignIn)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="email"
@@ -163,7 +185,7 @@ export default function LoginPage() {
                     <FormItem>
                       <FormLabel>Correo Electrónico</FormLabel>
                       <FormControl>
-                        <Input placeholder="usuario@peter.com" {...field} disabled={isEmailLoading || isGoogleLoading} />
+                        <Input placeholder="usuario@peter.com" {...field} disabled={isEmailLoading || isGoogleLoading || isSigningUp} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -176,21 +198,27 @@ export default function LoginPage() {
                     <FormItem>
                       <FormLabel>Contraseña</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="********" {...field} disabled={isEmailLoading || isGoogleLoading} />
+                        <Input type="password" placeholder="********" {...field} disabled={isEmailLoading || isGoogleLoading || isSigningUp} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isEmailLoading || isGoogleLoading}>
-                  {isEmailLoading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : null}
-                  Iniciar sesión
+                <Button type="submit" className="w-full" disabled={isEmailLoading || isGoogleLoading || isSigningUp}>
+                  {(isEmailLoading || isSigningUp) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isSigningUp ? 'Registrarse' : 'Iniciar sesión'}
                 </Button>
               </form>
             </Form>
-
+             <p className="px-8 text-center text-sm text-muted-foreground">
+              {isSigningUp ? "Ya tienes una cuenta? " : "No tienes una cuenta? "}
+              <button
+                onClick={() => setIsSigningUp(!isSigningUp)}
+                className="underline underline-offset-4 hover:text-primary"
+              >
+                {isSigningUp ? "Inicia Sesión" : "Regístrate"}
+              </button>
+            </p>
           </div>
         </CardContent>
       </Card>
