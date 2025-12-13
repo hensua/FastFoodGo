@@ -10,14 +10,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { Loader2, ShoppingBag, Clock, ChefHat, Truck, CheckCircle2 } from 'lucide-react';
+import { Loader2, ShoppingBag, Clock, ChefHat, Truck, CheckCircle2, KeyRound } from 'lucide-react';
 import Link from 'next/link';
 
 const statusConfig: Record<OrderStatus, { text: string; icon: React.ElementType; color: string; progress: string }> = {
-  pending: { text: 'Pendiente', icon: Clock, color: 'text-gray-500', progress: 'w-1/5' },
-  cooking: { text: 'En Preparación', icon: ChefHat, color: 'text-yellow-500', progress: 'w-2/5' },
-  ready: { text: 'Listo para Retirar', icon: ShoppingBag, color: 'text-blue-500', progress: 'w-3/5' },
-  delivering: { text: 'En Camino', icon: Truck, color: 'text-orange-500', progress: 'w-4/5' },
+  pending: { text: 'Pendiente', icon: Clock, color: 'text-gray-500', progress: 'w-1/6' },
+  cooking: { text: 'En Preparación', icon: ChefHat, color: 'text-yellow-500', progress: 'w-2/6' },
+  ready: { text: 'Listo para Retirar', icon: ShoppingBag, color: 'text-blue-500', progress: 'w-3/6' },
+  delivering: { text: 'En Camino', icon: Truck, color: 'text-orange-500', progress: 'w-4/6' },
   delivered: { text: 'Entregado', icon: CheckCircle2, color: 'text-green-500', progress: 'w-full' },
   cancelled: { text: 'Cancelado', icon: CheckCircle2, color: 'text-red-500', progress: 'w-full bg-red-500' },
 };
@@ -37,7 +37,7 @@ const OrderCard = ({ order }: { order: Order }) => {
               })}
             </CardDescription>
           </div>
-          <Badge variant={order.status === 'delivered' ? 'default' : 'secondary'} className={config.color.replace('text-', 'bg-').replace('-500', '/10')}>
+          <Badge variant={order.status === 'delivered' ? 'default' : 'secondary'} className={`${config.color.replace('text-', 'bg-').replace('-500', '/10')} border ${config.color.replace('text-','border-')}`}>
             <config.icon className={`mr-2 ${config.color}`} size={16}/> {config.text}
           </Badge>
         </div>
@@ -48,14 +48,27 @@ const OrderCard = ({ order }: { order: Order }) => {
             <div className={`bg-primary h-2.5 rounded-full transition-all duration-500 ${config.progress}`} />
           </div>
         </div>
-        {order.status === 'delivering' && order.driverName && (
-          <div className="text-sm text-muted-foreground bg-primary/5 p-3 rounded-md flex items-center gap-2">
-            <Truck className="text-primary" size={20}/>
-            <div>
-              <span className="font-semibold">{order.driverName}</span> está en camino con tu pedido.
-            </div>
+
+        {order.status !== 'pending' && order.status !== 'cooking' && order.status !== 'cancelled' && (
+          <div className="text-sm text-muted-foreground bg-primary/5 p-3 rounded-md flex items-center gap-3">
+             {order.status === 'delivering' ? <Truck className="text-primary h-8 w-8"/> : <KeyRound className="text-primary h-8 w-8"/>}
+             <div>
+                {order.status === 'delivering' && order.driverName && (
+                  <><span className="font-semibold">{order.driverName}</span> está en camino con tu pedido.</>
+                )}
+                 {order.status !== 'delivered' && (
+                  <>
+                    <p className="font-semibold mt-1">Tu PIN de entrega es:</p>
+                    <p className="font-bold text-lg text-primary tracking-widest">{order.pin}</p>
+                  </>
+                )}
+                 {order.status === 'delivered' && (
+                  <p className="font-semibold">¡Tu pedido fue entregado con éxito!</p>
+                )}
+             </div>
           </div>
         )}
+
         <div className="border-t pt-4">
           <h4 className="font-semibold mb-2">Resumen del pedido:</h4>
           <div className="space-y-1 text-sm text-muted-foreground">
@@ -85,14 +98,24 @@ export default function MyOrdersPage() {
     if (!firestore || !user) return null;
     return query(
         collection(firestore, 'users', user.uid, 'orders'), 
-        orderBy('orderDate', 'desc'),
-        // Use 'in' operator to query for multiple valid, non-delivered statuses.
-        // This is supported by Firestore and avoids the multi-field inequality error.
-        where('status', 'in', ['pending', 'cooking', 'ready', 'delivering', 'cancelled'])
+        orderBy('orderDate', 'desc')
     );
   }, [firestore, user]);
 
   const { data: orders, isLoading } = useCollection<Order>(myOrdersQuery);
+
+  const { activeOrders, pastOrders } = useMemo(() => {
+    const active: Order[] = [];
+    const past: Order[] = [];
+    orders?.forEach(order => {
+      if (order.status === 'delivered' || order.status === 'cancelled') {
+        past.push(order);
+      } else {
+        active.push(order);
+      }
+    });
+    return { activeOrders: active, pastOrders: past };
+  }, [orders]);
 
   if (isUserLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>
@@ -111,20 +134,34 @@ export default function MyOrdersPage() {
         {!isLoading && orders && orders.length === 0 && (
           <div className="text-center py-20 border-2 border-dashed rounded-lg">
             <ShoppingBag className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-xl font-semibold">No tienes pedidos activos</h3>
+            <h3 className="mt-4 text-xl font-semibold">No has realizado pedidos</h3>
             <p className="mt-2 text-muted-foreground">¿Qué tal si ordenas algo delicioso?</p>
             <Button asChild className="mt-6">
               <Link href="/">Comenzar a Ordenar</Link>
             </Button>
           </div>
         )}
+        
+        {activeOrders.length > 0 && (
+            <>
+              <h2 className="text-2xl font-semibold mb-4">Pedidos Activos</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {activeOrders.map(order => (
+                  <OrderCard key={order.id} order={order} />
+                ))}
+              </div>
+            </>
+        )}
 
-        {orders && orders.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {orders.map(order => (
-              <OrderCard key={order.id} order={order} />
-            ))}
-          </div>
+        {pastOrders.length > 0 && (
+          <>
+            <h2 className="text-2xl font-semibold my-8 pt-4 border-t">Historial de Pedidos</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {pastOrders.map(order => (
+                <OrderCard key={order.id} order={order} />
+              ))}
+            </div>
+          </>
         )}
       </main>
     </div>

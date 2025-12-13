@@ -3,19 +3,27 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
-import { collectionGroup, query, where, doc, updateDoc } from 'firebase/firestore';
+import { collectionGroup, query, where, doc, updateDoc, orderBy } from 'firebase/firestore';
 import type { Order, AppUser } from '@/lib/types';
 import Header from '@/components/header';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { Loader2, Truck, CheckCircle2, Navigation } from 'lucide-react';
+import { Loader2, Truck, CheckCircle2, Navigation, History, BarChart2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 
 const OrderCard = ({ order, onAccept, isUpdating }: { order: Order; onAccept: (order: Order) => void; isUpdating: boolean }) => {
-
   return (
     <Card className="shadow-md animate-fade-in border-l-4 border-green-500">
       <CardHeader className="pb-2">
@@ -85,7 +93,44 @@ const DeliveringCard = ({ order, onDeliver, isUpdating }: { order: Order; onDeli
       </CardFooter>
     </Card>
   )
-}
+};
+
+const PinDialog = ({ open, onOpenChange, onSubmit, isSubmitting, orderId }: { open: boolean; onOpenChange: (open: boolean) => void; onSubmit: (pin: string) => void; isSubmitting: boolean; orderId: string | null }) => {
+  const [pin, setPin] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(pin);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Confirmar Entrega</DialogTitle>
+          <DialogDescription>
+            Pídele al cliente el PIN de 4 dígitos para confirmar que el pedido #{orderId?.slice(-6).toUpperCase()} ha sido entregado.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <Input 
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            placeholder="Introduce el PIN"
+            maxLength={4}
+            className="text-center text-2xl tracking-widest font-bold h-16"
+          />
+          <DialogFooter className="mt-4">
+            <Button type="submit" disabled={isSubmitting || pin.length !== 4}>
+              {isSubmitting ? <Loader2 className="animate-spin" /> : 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 
 export default function DeliveryPage() {
   const firestore = useFirestore();
@@ -93,9 +138,11 @@ export default function DeliveryPage() {
   const { toast } = useToast();
   const router = useRouter();
 
+  const [activeTab, setActiveTab] = useState('deliveries');
   const [isUpdatingOrder, setIsUpdatingOrder] = useState<string | null>(null);
 
-  // Redirect if not a driver
+  const [pinOrder, setPinOrder] = useState<Order | null>(null);
+
   const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
   const isDriver = userDoc?.role === 'driver';
@@ -108,18 +155,23 @@ export default function DeliveryPage() {
   }, [user, userDoc, isUserLoading, isRoleLoading, router, toast, isDriver]);
 
   const readyOrdersQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !isDriver) return null; // FIX: Only query if user is a driver
+    if (!firestore || !user || !isDriver) return null;
     return query(collectionGroup(firestore, 'orders'), where('status', '==', 'ready'));
   }, [firestore, user, isDriver]);
 
   const myDeliveriesQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !isDriver) return null; // FIX: Only query if user is a driver
+    if (!firestore || !user || !isDriver) return null;
     return query(collectionGroup(firestore, 'orders'), where('status', '==', 'delivering'), where('driverId', '==', user.uid));
+  }, [firestore, user, isDriver]);
+  
+  const myPastDeliveriesQuery = useMemoFirebase(() => {
+    if (!firestore || !user || !isDriver) return null;
+    return query(collectionGroup(firestore, 'orders'), where('status', '==', 'delivered'), where('driverId', '==', user.uid), orderBy('orderDate', 'desc'));
   }, [firestore, user, isDriver]);
 
   const { data: readyOrders, isLoading: readyOrdersLoading } = useCollection<Order>(readyOrdersQuery);
   const { data: myDeliveries, isLoading: myDeliveriesLoading } = useCollection<Order>(myDeliveriesQuery);
-
+  const { data: pastDeliveries, isLoading: pastDeliveriesLoading } = useCollection<Order>(myPastDeliveriesQuery);
 
   const handleAcceptOrder = async (order: Order) => {
     if (!firestore || !user || !userDoc) return;
@@ -139,14 +191,24 @@ export default function DeliveryPage() {
       setIsUpdatingOrder(null);
     }
   };
+  
+  const handleOpenPinDialog = (order: Order) => {
+    setPinOrder(order);
+  };
 
-  const handleMarkAsDelivered = async (order: Order) => {
-    if (!firestore) return;
-    setIsUpdatingOrder(order.id);
-    const orderRef = doc(firestore, 'users', order.customerId, 'orders', order.id);
+  const handleMarkAsDelivered = async (pin: string) => {
+    if (!firestore || !pinOrder) return;
+    if (pin !== pinOrder.pin) {
+      toast({ variant: 'destructive', title: 'PIN Incorrecto', description: 'El PIN no coincide. Inténtalo de nuevo.' });
+      return;
+    }
+
+    setIsUpdatingOrder(pinOrder.id);
+    const orderRef = doc(firestore, 'users', pinOrder.customerId, 'orders', pinOrder.id);
     try {
       await updateDoc(orderRef, { status: 'delivered' });
       toast({ title: '¡Pedido Entregado!', description: '¡Buen trabajo!' });
+      setPinOrder(null);
     } catch (error) {
       console.error("Error delivering order:", error);
       toast({ variant: 'destructive', title: 'Error', description: 'No se pudo completar la entrega.' });
@@ -155,7 +217,16 @@ export default function DeliveryPage() {
     }
   };
 
-  const isLoading = isUserLoading || isRoleLoading || !firestore;
+  const deliveryStats = useMemo(() => {
+    if (!pastDeliveries) return { count: 0, earnings: 0 };
+    const earnings = pastDeliveries.reduce((acc, order) => acc + order.deliveryFee, 0);
+    return {
+      count: pastDeliveries.length,
+      earnings: earnings,
+    };
+  }, [pastDeliveries]);
+
+  const isLoading = isUserLoading || isRoleLoading;
 
   if (isLoading || !userDoc) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando...</div>;
@@ -169,36 +240,95 @@ export default function DeliveryPage() {
     <div className="min-h-screen bg-background">
       <Header onCartClick={() => {}} />
       <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">Panel de Repartidor</h1>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Mis Entregas */}
-          <div className="bg-muted/50 rounded-xl p-4">
-            <h2 className="font-bold text-muted-foreground uppercase tracking-wider mb-4">Mis Entregas ({myDeliveries?.length || 0})</h2>
-            <div className="space-y-4">
-              {myDeliveriesLoading ? <Loader2 className="animate-spin mx-auto mt-10" /> :
-                myDeliveries && myDeliveries.length > 0 ? (
-                  myDeliveries.map(order => <DeliveringCard key={order.id} order={order} onDeliver={handleMarkAsDelivered} isUpdating={isUpdatingOrder === order.id} />)
-                ) : (
-                  <p className="text-center text-muted-foreground py-10">No tienes entregas activas.</p>
-                )}
-            </div>
-          </div>
-
-          {/* Pedidos Disponibles */}
-          <div className="bg-muted/50 rounded-xl p-4">
-            <h2 className="font-bold text-muted-foreground uppercase tracking-wider mb-4">Pedidos para Retirar ({readyOrders?.length || 0})</h2>
-            <div className="space-y-4">
-              {readyOrdersLoading ? <Loader2 className="animate-spin mx-auto mt-10" /> :
-                readyOrders && readyOrders.length > 0 ? (
-                  readyOrders.map(order => <OrderCard key={order.id} order={order} onAccept={handleAcceptOrder} isUpdating={isUpdatingOrder === order.id} />)
-                ) : (
-                  <p className="text-center text-muted-foreground py-10">No hay pedidos listos por ahora.</p>
-                )}
-            </div>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Truck className="text-primary" /> Panel de Repartidor
+          </h1>
+          <div className="flex gap-1 p-1 bg-muted rounded-lg flex-wrap">
+              <button onClick={() => setActiveTab('deliveries')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'deliveries' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Truck size={16} /> Entregas</button>
+              <button onClick={() => setActiveTab('history')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'history' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><History size={16} /> Historial</button>
+              <button onClick={() => setActiveTab('stats')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'stats' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><BarChart2 size={16} /> Estadísticas</button>
           </div>
         </div>
+
+        {activeTab === 'deliveries' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Mis Entregas */}
+            <div className="bg-muted/50 rounded-xl p-4">
+              <h2 className="font-bold text-muted-foreground uppercase tracking-wider mb-4">Mis Entregas ({myDeliveries?.length || 0})</h2>
+              <div className="space-y-4">
+                {myDeliveriesLoading ? <Loader2 className="animate-spin mx-auto mt-10" /> :
+                  myDeliveries && myDeliveries.length > 0 ? (
+                    myDeliveries.map(order => <DeliveringCard key={order.id} order={order} onDeliver={handleOpenPinDialog} isUpdating={isUpdatingOrder === order.id} />)
+                  ) : (
+                    <p className="text-center text-muted-foreground py-10">No tienes entregas activas.</p>
+                  )}
+              </div>
+            </div>
+
+            {/* Pedidos Disponibles */}
+            <div className="bg-muted/50 rounded-xl p-4">
+              <h2 className="font-bold text-muted-foreground uppercase tracking-wider mb-4">Pedidos para Retirar ({readyOrders?.length || 0})</h2>
+              <div className="space-y-4">
+                {readyOrdersLoading ? <Loader2 className="animate-spin mx-auto mt-10" /> :
+                  readyOrders && readyOrders.length > 0 ? (
+                    readyOrders.map(order => <OrderCard key={order.id} order={order} onAccept={handleAcceptOrder} isUpdating={isUpdatingOrder === order.id} />)
+                  ) : (
+                    <p className="text-center text-muted-foreground py-10">No hay pedidos listos por ahora.</p>
+                  )}
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {activeTab === 'history' && (
+          <Card>
+            <CardHeader><CardTitle>Historial de Entregas</CardTitle></CardHeader>
+            <CardContent>
+              {pastDeliveriesLoading ? <div className="flex justify-center"><Loader2 className="animate-spin"/></div> : 
+               pastDeliveries && pastDeliveries.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className='border-b'><tr className='text-left text-sm text-muted-foreground'><th className='p-2'>Pedido</th><th className='p-2'>Fecha</th><th className='p-2'>Cliente</th><th className='p-2 text-right'>Ganancia</th></tr></thead>
+                    <tbody>
+                      {pastDeliveries.map(order => (
+                        <tr key={order.id} className='border-b'>
+                          <td className='p-2 font-mono text-primary'>#{order.id.slice(-6).toUpperCase()}</td>
+                          <td className='p-2 text-muted-foreground'>{new Date(order.orderDate.toDate()).toLocaleDateString()}</td>
+                          <td className='p-2'>{order.customerName}</td>
+                          <td className='p-2 text-right font-semibold'>{formatCurrency(order.deliveryFee)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+               ) : <p className="text-center text-muted-foreground py-10">No has completado ninguna entrega.</p>
+              }
+            </CardContent>
+          </Card>
+        )}
+        
+        {activeTab === 'stats' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader><CardTitle>Total Entregas</CardTitle></CardHeader>
+              <CardContent><p className="text-4xl font-bold">{deliveryStats.count}</p></CardContent>
+            </Card>
+             <Card>
+              <CardHeader><CardTitle>Ingresos Totales</CardTitle></CardHeader>
+              <CardContent><p className="text-4xl font-bold">{formatCurrency(deliveryStats.earnings)}</p></CardContent>
+            </Card>
+          </div>
+        )}
       </main>
+
+       <PinDialog 
+          open={!!pinOrder} 
+          onOpenChange={() => setPinOrder(null)} 
+          onSubmit={handleMarkAsDelivered}
+          isSubmitting={isUpdatingOrder === pinOrder?.id}
+          orderId={pinOrder?.id || null}
+        />
     </div>
   );
 }

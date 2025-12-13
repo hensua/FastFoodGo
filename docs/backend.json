@@ -56,15 +56,17 @@
         "customerId": { "type": "string" },
         "orderDate": { "type": "string", "format": "date-time" },
         "totalAmount": { "type": "number" },
+        "deliveryFee": { "type": "number" },
         "paymentMethod": { "type": "string" },
         "deliveryAddress": { "type": "string" },
         "status": { "type": "string", "enum": ["pending", "cooking", "ready", "delivering", "delivered", "cancelled"] },
         "driverId": { "type": "string" },
         "driverName": { "type": "string" },
         "customerName": { "type": "string" },
-        "customerPhoneNumber": { "type": "string" }
+        "customerPhoneNumber": { "type": "string" },
+        "pin": { "type": "string", "description": "A 4-digit PIN for delivery confirmation, visible only to the customer and admin." }
       },
-      "required": ["id", "customerId", "orderDate", "totalAmount", "paymentMethod", "deliveryAddress", "status"]
+      "required": ["id", "customerId", "orderDate", "totalAmount", "deliveryFee", "paymentMethod", "deliveryAddress", "status", "pin"]
     },
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",

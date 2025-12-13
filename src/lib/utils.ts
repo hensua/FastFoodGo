@@ -13,3 +13,5 @@ export function formatCurrency(amount: number) {
     maximumFractionDigits: 0,
   }).format(amount);
 }
+
+export const DELIVERY_FEE = 3500;

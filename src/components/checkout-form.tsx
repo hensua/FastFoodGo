@@ -7,14 +7,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, Moped } from 'lucide-react';
 import CartItem from './cart/cart-item';
 import { ScrollArea } from './ui/scroll-area';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, DELIVERY_FEE } from '@/lib/utils';
 import { useFirestore, useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, serverTimestamp, doc, setDoc } from 'firebase/firestore';
 import type { AppUser } from '@/lib/types';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
+import { Separator } from './ui/separator';
 
 export default function CheckoutForm() {
   const { cartItems, totalPrice, clearCart } = useCart();
@@ -27,6 +29,8 @@ export default function CheckoutForm() {
 
   const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userData, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
+
+  const finalTotal = totalPrice + DELIVERY_FEE;
 
   const handlePlaceOrder = async () => {
     if (!user || !firestore || !userData) {
@@ -44,6 +48,7 @@ export default function CheckoutForm() {
     
     try {
       const newOrderRef = doc(collection(firestore, 'users', user.uid, 'orders'));
+      const pin = Math.floor(1000 + Math.random() * 9000).toString();
 
       const orderData = {
         id: newOrderRef.id,
@@ -52,9 +57,11 @@ export default function CheckoutForm() {
         customerPhoneNumber: userData.phoneNumber || '',
         deliveryAddress: userData.deliveryAddress,
         orderDate: serverTimestamp(),
-        totalAmount: totalPrice,
+        totalAmount: finalTotal,
+        deliveryFee: DELIVERY_FEE,
         paymentMethod: paymentMethod,
         status: 'pending',
+        pin: pin,
         items: cartItems.map(item => ({
           productId: item.product.id,
           product: {
@@ -69,7 +76,7 @@ export default function CheckoutForm() {
 
       await setDoc(newOrderRef, orderData);
       
-      router.push(`/order-confirmation?orderId=${orderData.id}&paymentMethod=${paymentMethod}&total=${totalPrice}`);
+      router.push(`/order-confirmation?orderId=${orderData.id}&paymentMethod=${paymentMethod}&total=${finalTotal}`);
       
       clearCart();
 
@@ -97,10 +104,21 @@ export default function CheckoutForm() {
               ))}
             </div>
           </ScrollArea>
+           <Separator className="my-4" />
+           <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span>{formatCurrency(totalPrice)}</span>
+            </div>
+             <div className="flex justify-between">
+              <span className="text-muted-foreground flex items-center gap-2"><Moped size={16}/> Tarifa de Domicilio</span>
+              <span>{formatCurrency(DELIVERY_FEE)}</span>
+            </div>
+          </div>
         </CardContent>
         <CardFooter className="flex justify-between font-bold text-xl">
           <span>Total:</span>
-          <span>{formatCurrency(totalPrice)}</span>
+          <span>{formatCurrency(finalTotal)}</span>
         </CardFooter>
       </Card>
       
@@ -149,7 +167,7 @@ export default function CheckoutForm() {
             size="lg" 
             className="w-full"
             onClick={handlePlaceOrder}
-            disabled={isSubmitting || isUserDocLoading || isAddressMissing}
+            disabled={isSubmitting || isUserDocLoading || isAddressMissing || cartItems.length === 0}
           >
             {isSubmitting ? (
               <>

@@ -22,7 +22,9 @@ export type Order = {
   customerId: string;
   orderDate: any;
   totalAmount: number;
+  deliveryFee: number;
   paymentMethod: string;
+  pin: string;
 
   // Denormalized customer data for driver access
   customerName?: string;

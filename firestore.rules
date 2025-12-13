@@ -69,14 +69,17 @@ service cloud.firestore {
         // Driver can get the order if they are assigned.
         allow get: if isOwner(userId) || isAdmin() || (isDriver() && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid);
         allow list, create: if isOwner(userId) || isAdmin();
+        
         // A customer can only cancel their order if it is 'pending'.
         allow update: if (isOwner(userId) && request.resource.data.status == 'cancelled' && resource.data.status == 'pending')
                       // An admin can update any order (e.g., from pending to cooking).
                       || isAdmin()
-                      // A driver can update an order to 'delivering' or 'delivered' if they are assigned or if it's 'ready' and unassigned.
+                      // A driver can update an order to 'delivering' or 'delivered'.
                       || (isDriver() && (
-                            (resource.data.driverId == request.auth.uid && (request.resource.data.status == 'delivered')) ||
-                            (resource.data.status == 'ready' && request.resource.data.status == 'delivering' && request.resource.data.driverId == request.auth.uid)
+                            // Driver can mark as 'delivering' if it's 'ready' and they are assigned.
+                            (resource.data.status == 'ready' && request.resource.data.status == 'delivering' && request.resource.data.driverId == request.auth.uid) ||
+                            // Driver can mark as 'delivered' if they are assigned and the correct PIN is provided.
+                            (resource.data.driverId == request.auth.uid && request.resource.data.status == 'delivered' && resource.data.pin == request.resource.data.pin)
                           ));
         allow delete: if isOwner(userId) || isAdmin();
     }
