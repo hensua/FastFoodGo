@@ -120,7 +120,7 @@ service cloud.firestore {
      * @principle Prevents privilege escalation by making roles read-only from clients.
      */
     match /roles_admin/{userId} {
-      allow get, list, create, delete: if isAdmin();
+      allow get, list, create, delete, write: if isAdmin();
       allow update: if false;
     }
 
@@ -131,7 +131,7 @@ service cloud.firestore {
      * @path /roles_driver/{userId}
      */
     match /roles_driver/{userId} {
-      allow get, list, create, delete: if isAdmin();
+      allow get, list, create, delete, write: if isAdmin();
       allow update: if false;
     }
 
@@ -152,6 +152,21 @@ service cloud.firestore {
       allow create: if (isSignedIn() && !exists(/databases/$(database)/documents/products/$(productId))) || isAdmin();
       allow update, delete: if isAdmin();
     }
+    
+    /**
+     * @description
+     * Stores public user information. Any authenticated user can create their own profile.
+     * Admins can read the full list of users for management purposes.
+     * Users can only edit their own information.
+     */
+     match /users/{userId} {
+        allow read: if isSignedIn();
+        allow list: if isAdmin();
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isAdmin();
+     }
+
 
     /**
      * @description
@@ -189,5 +204,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

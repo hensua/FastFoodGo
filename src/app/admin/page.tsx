@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useFirestore, useMemoFirebase, useCollection, errorEmitter, FirestorePermissionError, useDoc } from '@/firebase';
-import { collectionGroup, query, where, doc, updateDoc, addDoc, deleteDoc, collection } from 'firebase/firestore';
+import { collectionGroup, query, where, doc, updateDoc, addDoc, deleteDoc, collection, setDoc } from 'firebase/firestore';
 import type { Order, OrderStatus, Product, AppUser, Role } from '@/lib/types';
 import Header from '@/components/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +15,6 @@ import { useUser } from '@/firebase/provider';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { listAllUsers, getUserRoles, setUserRole } from '@/app/actions/user-actions';
 
 // Kitchen View Components
 const statusConfig = {
@@ -69,15 +68,16 @@ const OrderCard = ({ order, onStatusChange }: { order: Order, onStatusChange: (o
 
 // Inventory View Components
 const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product | null, onSave: (product: Omit<Product, 'id'> | Product) => void, onCancel: () => void, isSaving: boolean }) => {
-  const [formData, setFormData] = useState<Omit<Product, 'id'>>(
-    product || { name: '', description: '', price: 0, imageUrl: '', imageHint: '', category: 'Otros', stock: 0 }
+  const [formData, setFormData] = useState<Omit<Product, 'id' | 'imageHint'>>(
+    product || { name: '', description: '', price: 0, imageUrl: '', category: 'Otros', stock: 0 }
   );
 
   useEffect(() => {
     if (product) {
-      setFormData(product);
+      const { imageHint, ...rest } = product;
+      setFormData(rest);
     } else {
-      setFormData({ name: '', description: '', price: 0, imageUrl: '', imageHint: '', category: 'Otros', stock: 0 });
+      setFormData({ name: '', description: '', price: 0, imageUrl: '', category: 'Otros', stock: 0 });
     }
   }, [product]);
 
@@ -129,55 +129,82 @@ const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product
   );
 };
 
+type UserWithRole = AppUser & { role: Role; };
 
 // Team Management View
 const TeamManagement = () => {
-  const [users, setUsers] = useState<(AppUser & { role: Role })[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const firestore = useFirestore();
+  const usersCollection = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+  const { data: users, isLoading: usersLoading } = useCollection<AppUser>(usersCollection);
+
+  const [usersWithRoles, setUsersWithRoles] = useState<UserWithRole[]>([]);
+  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [isRoleChanging, setIsRoleChanging] = useState<string | null>(null);
 
-  const fetchUsersAndRoles = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    const usersResult = await listAllUsers();
-
-    if (usersResult.success && usersResult.users) {
-      const usersWithRoles = await Promise.all(
-        usersResult.users.map(async (user) => {
-          const roles = await getUserRoles(user.uid);
-          let role: Role = 'customer';
-          if (roles.isAdmin) role = 'admin';
-          else if (roles.isDriver) role = 'driver';
-          return { ...user, role };
-        })
-      );
-      setUsers(usersWithRoles);
-    } else {
-      setError(usersResult.error || "Error al cargar usuarios.");
-    }
-    setIsLoading(false);
-  }, []);
-
   useEffect(() => {
-    fetchUsersAndRoles();
-  }, [fetchUsersAndRoles]);
+    if (!users || !firestore) return;
+  
+    const fetchRoles = async () => {
+      setIsLoadingRoles(true);
+      const usersWithRolesPromises = users.map(async (user) => {
+        const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
+        const driverRoleRef = doc(firestore, 'roles_driver', user.uid);
+        const [adminDoc, driverDoc] = await Promise.all([
+          getDoc(adminRoleRef),
+          getDoc(driverRoleRef)
+        ]);
+
+        let role: Role = 'customer';
+        if (adminDoc.exists()) role = 'admin';
+        else if (driverDoc.exists()) role = 'driver';
+        
+        return { ...user, role };
+      });
+      
+      const resolvedUsers = await Promise.all(usersWithRolesPromises);
+      setUsersWithRoles(resolvedUsers);
+      setIsLoadingRoles(false);
+    };
+
+    fetchRoles();
+
+  }, [users, firestore]);
   
   const handleRoleChange = async (uid: string, newRole: Role) => {
+    if(!firestore) return;
     setIsRoleChanging(uid);
-    const result = await setUserRole(uid, newRole);
-    if(result.success) {
-      setUsers(prevUsers => prevUsers.map(u => u.uid === uid ? { ...u, role: newRole } : u));
-    } else {
-      alert(`Error al cambiar el rol: ${result.error}`);
+    
+    const adminRoleRef = doc(firestore, "roles_admin", uid);
+    const driverRoleRef = doc(firestore, "roles_driver", uid);
+
+    try {
+      if (newRole === 'admin') {
+        await setDoc(adminRoleRef, { assignedAt: new Date() });
+        await deleteDoc(driverRoleRef);
+      } else if (newRole === 'driver') {
+        await setDoc(driverRoleRef, { assignedAt: new Date() });
+        await deleteDoc(adminRoleRef);
+      } else { // customer
+        await deleteDoc(adminRoleRef);
+        await deleteDoc(driverRoleRef);
+      }
+      // Update local state to reflect change immediately
+      setUsersWithRoles(prev => prev.map(u => u.uid === uid ? { ...u, role: newRole } : u));
+    } catch (error: any) {
+      console.error("Error setting user role:", error);
+      alert(`Error al cambiar el rol: ${error.message}`);
+    } finally {
+      setIsRoleChanging(null);
     }
-    setIsRoleChanging(null);
   };
 
-  const filteredUsers = users.filter(user =>
+  const filteredUsers = usersWithRoles.filter(user =>
     user.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const isLoading = usersLoading || isLoadingRoles;
 
   return (
     <Card>
@@ -192,7 +219,7 @@ const TeamManagement = () => {
       </CardHeader>
       <CardContent>
         {isLoading ? <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin" /></div> :
-         error ? <div className="text-destructive">{error}</div> :
+         filteredUsers.length === 0 ? <div className="text-center text-muted-foreground py-8">No se encontraron usuarios.</div> :
         <table className="w-full">
           <thead className='border-b'>
             <tr className='text-left text-sm text-muted-foreground'>
@@ -264,12 +291,13 @@ const AdminDashboard = ({ isAdmin }: { isAdmin: boolean }) => {
     if (!firestore) return;
     setIsSavingProduct(true);
     try {
-      if ('id' in productData) {
+      if ('id' in productData && productData.id) {
         const productRef = doc(firestore, 'products', productData.id);
         const { id, ...dataToUpdate } = productData;
         await updateDoc(productRef, dataToUpdate);
       } else {
-        await addDoc(collection(firestore, 'products'), productData);
+        const { id, ...dataToAdd } = productData as Product;
+        await addDoc(collection(firestore, 'products'), dataToAdd);
       }
       setEditingProduct(null);
     } catch (error) {
@@ -372,32 +400,29 @@ export default function AdminPage() {
   const firestore = useFirestore();
   const router = useRouter();
 
-  const adminRoleRef = useMemoFirebase(() => firestore && user ? doc(firestore, 'roles_admin', user.uid) : null, [firestore, user]);
+  const adminRoleRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'roles_admin', user.uid) : null, [firestore, user]);
   const { data: adminRoleDoc, isLoading: isRoleLoading } = useDoc(adminRoleRef);
-  const isAdmin = adminRoleDoc === null ? false : adminRoleDoc;
-
+  
+  const isAdmin = useMemo(() => !!adminRoleDoc, [adminRoleDoc]);
 
   useEffect(() => {
-    if (!isUserLoading && !isRoleLoading && !isAdmin) {
-      router.push('/login');
+    if (!isUserLoading && !isRoleLoading) {
+      if (!user || !isAdmin) {
+        router.push('/login');
+      }
     }
   }, [user, isUserLoading, isAdmin, isRoleLoading, router]);
 
-  if (isUserLoading || isRoleLoading) {
+  if (isUserLoading || isRoleLoading || !isAdmin) {
     return <div className="h-screen flex items-center justify-center">Verificando acceso...</div>;
   }
   
-  if (isAdmin) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header onCartClick={() => {}} />
-        <main className="container mx-auto px-4 py-8">
-          <AdminDashboard isAdmin={isAdmin} />
-        </main>
-      </div>
-    );
-  }
-
-  return <div className="h-screen flex items-center justify-center">Redirigiendo...</div>;
+  return (
+    <div className="min-h-screen bg-background">
+      <Header onCartClick={() => {}} />
+      <main className="container mx-auto px-4 py-8">
+        <AdminDashboard isAdmin={isAdmin} />
+      </main>
+    </div>
+  );
 }
-    

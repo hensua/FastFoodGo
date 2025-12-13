@@ -36,5 +36,6 @@ export type AppUser = {
   email?: string | null;
   displayName?: string | null;
   photoURL?: string | null;
+  createdAt?: any;
 };
     

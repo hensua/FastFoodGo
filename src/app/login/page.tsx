@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Chrome, Loader2 } from 'lucide-react';
@@ -12,7 +12,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, UserCredential, User } from 'firebase/auth';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Por favor, introduce un correo electrónico válido.' }),
@@ -21,6 +22,7 @@ const loginSchema = z.object({
 
 export default function LoginPage() {
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -40,6 +42,28 @@ export default function LoginPage() {
     const intendedPath = searchParams.get('redirect') || '/';
     router.push(intendedPath);
   };
+  
+  const handleUserSetup = async (firebaseUser: User) => {
+    if (!firestore || !firebaseUser) return;
+    
+    const userRef = doc(firestore, 'users', firebaseUser.uid);
+    const userSnap = await getDoc(userRef);
+
+    // If user document doesn't exist, create it.
+    if (!userSnap.exists()) {
+      const { displayName, email, photoURL, uid } = firebaseUser;
+      await setDoc(userRef, {
+        uid,
+        displayName,
+        email,
+        photoURL,
+        createdAt: serverTimestamp(),
+      });
+    }
+    
+    handleRedirect();
+  };
+
 
   useEffect(() => {
     if (!isUserLoading && user) {
@@ -52,8 +76,8 @@ export default function LoginPage() {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
-      handleRedirect();
+      const userCredential = await signInWithPopup(auth, provider);
+      await handleUserSetup(userCredential.user);
     } catch (error: any) {
       if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
         toast({
@@ -71,8 +95,8 @@ export default function LoginPage() {
     if (!auth) return;
     setIsEmailLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
-      // onAuthStateChanged handled by useEffect will redirect
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      await handleUserSetup(userCredential.user);
     } catch (error: any) {
         let description = "Ocurrió un error inesperado. Por favor, intenta de nuevo.";
         if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
