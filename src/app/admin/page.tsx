@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { ChefHat, Package, Trash2, Edit, X, Users, Loader2, UtensilsCrossed, TrendingUp, Download, BarChart, ShoppingBag, Ban, Ticket, CircleDollarSign, XCircle, PackageCheck } from 'lucide-react';
+import { ChefHat, Package, Trash2, Edit, X, Users, Loader2, UtensilsCrossed, TrendingUp, Download, BarChart, ShoppingBag, Ban, Ticket, CircleDollarSign, XCircle, PackageCheck, Banknote, Landmark, Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/provider';
 import { Input } from '@/components/ui/input';
@@ -285,8 +285,17 @@ const StatsDashboard = () => {
         const totalOrders = orders.length;
         const deliveredOrders = orders.filter(o => o.status === 'delivered');
         const cancelledOrders = orders.filter(o => o.status === 'cancelled');
+        
         const totalSales = deliveredOrders.reduce((sum, o) => sum + o.totalAmount, 0);
         const avgTicket = deliveredOrders.length > 0 ? totalSales / deliveredOrders.length : 0;
+        
+        // Payment method stats
+        const cashOrders = deliveredOrders.filter(o => o.paymentMethod === 'cash');
+        const transferOrders = deliveredOrders.filter(o => o.paymentMethod === 'transfer');
+        const cashAmount = cashOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+        const transferAmount = transferOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+        const mostUsedPayment = cashOrders.length > transferOrders.length ? 'Efectivo' : 'Transferencia';
+
 
         return {
             totalSales,
@@ -294,6 +303,11 @@ const StatsDashboard = () => {
             deliveredOrders: deliveredOrders.length,
             cancelledOrders: cancelledOrders.length,
             avgTicket,
+            cashOrdersCount: cashOrders.length,
+            transferOrdersCount: transferOrders.length,
+            cashTotalAmount: cashAmount,
+            transferTotalAmount: transferAmount,
+            mostUsedPaymentMethod: mostUsedPayment,
         };
     }, [orders]);
 
@@ -373,7 +387,7 @@ const StatsDashboard = () => {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Pedidos Entregados</CardTitle>
-                        <ShoppingBag className="h-4 w-4 text-green-500" />
+                        <PackageCheck className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats.deliveredOrders}</div>
@@ -419,6 +433,47 @@ const StatsDashboard = () => {
                             <Bar dataKey="Ventas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                         </RechartsBarChart>
                     </ResponsiveContainer>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Estadísticas de Pago</CardTitle>
+                    <CardDescription>Análisis de los métodos de pago utilizados por los clientes.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                     <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total en Efectivo</CardTitle>
+                            <Banknote className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{formatCurrency(stats.cashTotalAmount)}</div>
+                            <p className="text-xs text-muted-foreground">{stats.cashOrdersCount} transacciones</p>
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total en Transferencia</CardTitle>
+                            <Landmark className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{formatCurrency(stats.transferTotalAmount)}</div>
+                             <p className="text-xs text-muted-foreground">{stats.transferOrdersCount} transacciones</p>
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Método Preferido</CardTitle>
+                            <Star className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                             <div className="text-2xl font-bold">{stats.mostUsedPaymentMethod}</div>
+                             <p className="text-xs text-muted-foreground">
+                                {Math.round(Math.max(stats.cashOrdersCount, stats.transferOrdersCount) / stats.deliveredOrders * 100 || 0)}% de los pedidos
+                             </p>
+                        </CardContent>
+                    </Card>
                 </CardContent>
             </Card>
         </div>
