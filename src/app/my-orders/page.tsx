@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, orderBy, doc, updateDoc, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import type { Order, OrderStatus, AppUser, ChatMessage } from '@/lib/types';
 import Header from '@/components/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -169,14 +169,25 @@ const useUnreadMessages = (orders: Order[] | undefined, currentUser: AppUser | n
       const canChat = ['cooking', 'ready', 'delivering'].includes(order.status);
       if (!canChat) return () => {};
 
+      // This simpler query avoids needing a composite index in Firestore.
       const messagesQuery = query(
         collection(firestore, 'users', order.customerId, 'orders', order.id, 'messages'),
-        orderBy('timestamp', 'desc'),
-        where('senderId', '!=', currentUser.uid)
+        orderBy('timestamp', 'desc')
       );
-
+      
       return onSnapshot(messagesQuery, (snapshot) => {
-        setUnreadState(prev => ({ ...prev, [order.id]: !snapshot.empty }));
+          if (snapshot.empty) {
+            setUnreadState(prev => ({ ...prev, [order.id]: false }));
+            return;
+          }
+          // Check if the most recent message is from someone else
+          const lastMessage = snapshot.docs[0].data() as ChatMessage;
+          const hasUnread = lastMessage.senderId !== currentUser.uid;
+          setUnreadState(prev => ({ ...prev, [order.id]: hasUnread }));
+      }, (error) => {
+        // This will catch permission errors or other listener failures.
+        console.error(`Error listening to messages for order ${order.id}:`, error);
+        setUnreadState(prev => ({ ...prev, [order.id]: false }));
       });
     });
 
@@ -225,7 +236,7 @@ export default function MyOrdersPage() {
     return { activeOrders: active, pastOrders: past };
   }, [orders]);
   
-  const { unreadState, markAsRead } = useUnreadMessages(orders, userDoc);
+  const { unreadState, markAsRead } = useUnreadMessages(activeOrders, userDoc);
 
   const handleOpenChat = (order: Order) => {
     markAsRead(order.id);
@@ -254,9 +265,14 @@ export default function MyOrdersPage() {
     }
   };
 
-  const pageLoading = isUserLoading || isUserDocLoading || !userDoc;
+  const pageLoading = isUserLoading || isUserDocLoading;
 
   if (pageLoading) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>
+  }
+  
+  if (!isUserLoading && !user) {
+    router.push('/login?redirect=/my-orders');
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>
   }
 
@@ -308,7 +324,7 @@ export default function MyOrdersPage() {
                   order={order} 
                   onCancel={() => {}} 
                   onChat={handleOpenChat} 
-                  hasUnreadMessages={unreadState[order.id] || false}
+                  hasUnreadMessages={false}
                 />
               ))}
             </div>
@@ -338,7 +354,6 @@ export default function MyOrdersPage() {
               user={userDoc}
               isOpen={!!chatOrder}
               onOpenChange={() => setChatOrder(null)}
-              onMessageSent={() => { /* Mark as read is handled internally now */ }}
           />
       )}
     </div>
