@@ -28,7 +28,7 @@ const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product
   useEffect(() => {
     if (product) {
       const { imageHint, ...rest } = product;
-      setFormData(rest);
+      setFormData(rest as Omit<Product, 'id' | 'imageHint'>);
     } else {
       setFormData({ name: '', description: '', price: 0, imageUrl: '', category: 'Otros', stock: 0 });
     }
@@ -106,7 +106,6 @@ const TeamManagement = () => {
         const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
         const driverRoleRef = doc(firestore, 'roles_driver', user.uid);
         
-        // Use a try-catch for getDoc as it can fail with permissions if rules are very strict
         try {
           const [adminDoc, driverDoc] = await Promise.all([
             getDoc(adminRoleRef),
@@ -142,6 +141,7 @@ const TeamManagement = () => {
     const driverRoleRef = doc(firestore, "roles_driver", uid);
 
     try {
+      // Always try to delete from both role collections to ensure clean state
       await deleteDoc(adminRoleRef);
       await deleteDoc(driverRoleRef);
 
@@ -247,7 +247,7 @@ const AdminDashboard = () => {
         await updateDoc(productRef, dataToUpdate);
         toast({ title: "Producto actualizado", description: `${productData.name} fue actualizado con éxito.`});
       } else {
-        await addDoc(collection(firestore, 'products'), productData as Product);
+        await addDoc(collection(firestore, 'products'), productData as Omit<Product, 'id'>);
         toast({ title: "Producto creado", description: `Se ha añadido un nuevo producto al catálogo.`});
       }
       setEditingProduct(null);
@@ -334,7 +334,7 @@ export default function AdminPage() {
   const adminRoleRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'roles_admin', user.uid) : null, [firestore, user]);
   const { data: adminRoleDoc, isLoading: isRoleLoading } = useDoc(adminRoleRef);
   
-  const isAdmin = useMemo(() => adminRoleDoc?.exists(), [adminRoleDoc]);
+  const isAdmin = useMemo(() => !!adminRoleDoc, [adminRoleDoc]);
 
   useEffect(() => {
     if (!isUserLoading && !isRoleLoading) {

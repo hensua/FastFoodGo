@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
 import { collection, writeBatch, doc } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import OrderPage from './order-page';
 import { products as initialProducts } from '@/lib/data';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
 function HomePageContent() {
   const firestore = useFirestore();
@@ -56,24 +57,26 @@ export default function Home() {
   );
   const { data: adminRoleDoc, isLoading: isRoleLoading } = useDoc(adminRoleRef);
   
+  const isAdmin = useMemo(() => !!adminRoleDoc, [adminRoleDoc]);
+
   const isLoading = isUserLoading || isRoleLoading;
 
   useEffect(() => {
     if (!isLoading) {
-      if (adminRoleDoc) {
+      if (isAdmin) {
         router.push('/admin');
       }
     }
-  }, [isLoading, adminRoleDoc, router]);
+  }, [isLoading, isAdmin, router]);
 
   if (isLoading) {
-    return <div className="h-screen flex items-center justify-center">Cargando...</div>;
-  }
-
-  if (adminRoleDoc) {
-    return <div className="h-screen flex items-center justify-center">Redirigiendo al panel de control...</div>;
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Cargando...</div>;
   }
   
+  if (isAdmin) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo al panel de control...</div>;
+  }
+
+  // Only render the customer-facing page if we are sure the user is not an admin
   return <HomePageContent />;
 }
-    
