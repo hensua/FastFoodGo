@@ -15,7 +15,7 @@ export type CartItem = {
   note?: string;
 };
 
-export type OrderStatus = 'pending' | 'cooking' | 'ready' | 'delivered';
+export type OrderStatus = 'pending' | 'cooking' | 'ready' | 'delivering' | 'delivered' | 'cancelled';
 
 export type Order = {
   id: string;
@@ -23,10 +23,18 @@ export type Order = {
   orderDate: any;
   totalAmount: number;
   paymentMethod: string;
+
+  // Denormalized customer data for driver access
+  customerName?: string;
   deliveryAddress: string;
+  customerPhoneNumber?: string;
+  
   status: OrderStatus;
   items: CartItem[];
-  customerName?: string;
+
+  // Driver info
+  driverId?: string;
+  driverName?: string;
 };
 
 export type Role = 'admin' | 'driver' | 'customer';
@@ -38,6 +46,6 @@ export type AppUser = {
   photoURL?: string | null;
   createdAt?: any;
   role?: Role;
+  phoneNumber?: string;
+  deliveryAddress?: string;
 };
-
-    

@@ -6,6 +6,7 @@ import { useCart } from '@/components/cart-provider';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useUser } from '@/firebase';
+import { Loader2 } from 'lucide-react';
 
 export default function CheckoutPage() {
   const { totalItems } = useCart();
@@ -14,15 +15,19 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (!isUserLoading && !user) {
-      router.push('/login');
+      router.push('/login?redirect=/checkout');
     }
-    if (totalItems === 0) {
+    if (!isUserLoading && totalItems === 0) {
       router.push('/');
     }
   }, [totalItems, router, user, isUserLoading]);
 
-  if (totalItems === 0 || isUserLoading || !user) {
-    return null; 
+  if (isUserLoading || !user) {
+    return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>; 
+  }
+
+  if (totalItems === 0) {
+    return null; // or a message telling user their cart is empty and redirecting
   }
   
   return (

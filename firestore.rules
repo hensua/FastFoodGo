@@ -21,20 +21,21 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(userId)).data;
     }
     
-    function getRole() {
-      return getUserData(request.auth.uid).role;
+    function getRole(userId) {
+      return getUserData(userId).role;
     }
 
     function isAdmin() {
-      return isSignedIn() && getRole() == 'admin';
+      // Check the user's own role from their user document
+      return isSignedIn() && getRole(request.auth.uid) == 'admin';
     }
     
     function isDriver() {
-      return isSignedIn() && getRole() == 'driver';
+      return isSignedIn() && getRole(request.auth.uid) == 'driver';
     }
     
     function isCustomer() {
-      return isSignedIn() && getRole() == 'customer';
+      return isSignedIn() && getRole(request.auth.uid) == 'customer';
     }
 
     /*********************************************************************
@@ -50,32 +51,39 @@ service cloud.firestore {
     }
     
     match /users/{userId} {
+      // Any signed-in user can read a user profile (for names, etc.)
       allow get: if isSignedIn();
+      // Only admins can list all users for the management panel
       allow list: if isAdmin();
-      allow create: if isOwner(userId); // A user can create their own user document
-      allow update: if isOwner(userId) && request.resource.data.role == resource.data.role; // User can update profile, but not their role
-      allow update: if isAdmin(); // Admin can update anything, including the role
+      // A user can create their own user document upon sign-up
+      allow create: if isOwner(userId);
+      // A user can update their own profile, but cannot change their role.
+      // Admins can update any field, including the role.
+      allow update: if (isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin();
       allow delete: if isAdmin();
     }
     
     match /users/{userId}/orders/{orderId} {
-        allow get, list, create, update, delete: if isOwner(userId) || isAdmin();
+        // Customer can manage their own order.
+        // Admin can manage any order.
+        // Driver can get the order if they are assigned.
+        allow get: if isOwner(userId) || isAdmin() || (isDriver() && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid);
+        allow list, create: if isOwner(userId) || isAdmin();
+        // A customer can only cancel their order if it is 'pending'.
+        allow update: if (isOwner(userId) && request.resource.data.status == 'cancelled' && resource.data.status == 'pending')
+                      // An admin can update any order (e.g., from pending to cooking).
+                      || isAdmin()
+                      // A driver can update an order to 'delivering' or 'delivered' if they are assigned or if it's 'ready' and unassigned.
+                      || (isDriver() && (
+                            (resource.data.driverId == request.auth.uid && (request.resource.data.status == 'delivered')) ||
+                            (resource.data.status == 'ready' && request.resource.data.status == 'delivering' && request.resource.data.driverId == request.auth.uid)
+                          ));
+        allow delete: if isOwner(userId) || isAdmin();
     }
     
-    match /users/{userId}/orders/{orderId} {
-        allow get: if isDriver() && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid;
-    }
-    
-    // This allows an admin to query the 'orders' collection group
+    // This allows an admin OR a driver to query the 'orders' collection group for specific statuses.
     match /{path=**}/orders/{orderId} {
-        allow get, list: if isAdmin();
-    }
-
-    // Driver specific collections can be added here if needed in the future
-    match /drivers/{driverId} {
-      allow read, write: if isOwner(driverId) || isAdmin();
+        allow list: if isAdmin() || isDriver();
     }
   }
 }
-
-    

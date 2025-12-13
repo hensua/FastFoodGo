@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { useFirestore, useCollection, useUser } from '@/firebase';
+import React, { useMemo, useState } from 'react';
+import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
 import { collectionGroup, query, where, doc, updateDoc } from 'firebase/firestore';
 import type { Order, OrderStatus, AppUser } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,14 +14,14 @@ import { useToast } from '@/hooks/use-toast';
 const statusConfig = {
   pending: { title: 'Pendientes', icon: Clock, color: 'border-l-4 border-red-500' },
   cooking: { title: 'En Preparación', icon: ChefHat, color: 'border-l-4 border-yellow-500' },
-  ready: { title: 'Listos para Servir', icon: PackageCheck, color: 'border-l-4 border-green-500' },
+  ready: { title: 'Listos para Retirar', icon: PackageCheck, color: 'border-l-4 border-green-500' },
 };
 
-const OrderCard = ({ order, onStatusChange }: { order: Order, onStatusChange: (orderId: string, customerId: string, newStatus: OrderStatus) => void }) => {
+const OrderCard = ({ order, onStatusChange, isUpdating }: { order: Order; onStatusChange: (orderId: string, customerId: string, newStatus: OrderStatus) => void; isUpdating: boolean }) => {
   const currentStatusConfig = statusConfig[order.status as keyof typeof statusConfig];
-  const nextStatusMap: Record<string, OrderStatus | null> = { pending: 'cooking', cooking: 'ready', ready: 'delivered' };
+  const nextStatusMap: Record<string, OrderStatus | null> = { pending: 'cooking', cooking: 'ready', ready: null }; // Drivers will handle 'delivering'
   const nextStatus = nextStatusMap[order.status];
-  const actionTextMap: Record<string, string> = { cooking: "Empezar a Cocinar", ready: "Marcar como Listo", delivered: "Entregar Pedido" };
+  const actionTextMap: Record<string, string> = { cooking: "Empezar a Cocinar", ready: "Marcar como Listo" };
 
   return (
     <Card className={`shadow-md animate-fade-in ${currentStatusConfig.color}`}>
@@ -31,8 +31,8 @@ const OrderCard = ({ order, onStatusChange }: { order: Order, onStatusChange: (o
             <span className='font-bold text-lg'>#{order.id.slice(-6).toUpperCase()}</span>
             <p className="text-xs text-muted-foreground font-normal">{order.customerName || 'Cliente Anónimo'}</p>
           </div>
-          <Badge className={order.paymentMethod === 'card' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}>
-            {order.paymentMethod === 'cash' ? 'Efectivo' : (order.paymentMethod === 'transfer' ? 'Transferencia' : 'Tarjeta')}
+          <Badge className={order.paymentMethod === 'transfer' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}>
+            {order.paymentMethod === 'cash' ? 'Efectivo' : 'Transferencia'}
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -50,7 +50,8 @@ const OrderCard = ({ order, onStatusChange }: { order: Order, onStatusChange: (o
           <span>{formatCurrency(order.totalAmount)}</span>
         </div>
         {nextStatus && (
-          <Button onClick={() => onStatusChange(order.id, order.customerId, nextStatus)} className="w-full text-sm">
+          <Button onClick={() => onStatusChange(order.id, order.customerId, nextStatus)} className="w-full text-sm" disabled={isUpdating}>
+            {isUpdating ? <Loader2 className="animate-spin mr-2"/> : null}
             {actionTextMap[nextStatus]}
           </Button>
         )}
@@ -63,24 +64,30 @@ export function OrderList() {
   const firestore = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
+  
+  // State for optimistic updates
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+
+  const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+  const { data: userDoc } = useDoc<AppUser>(userDocRef);
+  const isAdmin = userDoc?.role === 'admin';
 
   const ordersQuery = useMemo(() => {
-    // Only create the query if firestore is available and the user is logged in
-    // The security rules will handle role-based access
-    if (!firestore || !user) return null;
+    if (!firestore || !isAdmin) return null; // Only run query if user is admin
     return query(collectionGroup(firestore, 'orders'), where('status', 'in', ['pending', 'cooking', 'ready']));
-  }, [firestore, user]);
+  }, [firestore, isAdmin]);
 
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
 
   const handleStatusChange = async (orderId: string, customerId: string, newStatus: OrderStatus) => {
     if (!firestore) return;
+    setUpdatingOrderId(orderId);
     const orderRef = doc(firestore, 'users', customerId, 'orders', orderId);
     try {
       await updateDoc(orderRef, { status: newStatus });
       toast({
         title: "Estado actualizado",
-        description: `El pedido #${orderId.slice(-6).toUpperCase()} ahora está ${newStatus}.`,
+        description: `El pedido #${orderId.slice(-6).toUpperCase()} ahora está ${newStatus === 'cooking' ? 'en preparación' : 'listo para retirar'}.`,
       });
     } catch (error) {
       console.error("Error updating order status: ", error);
@@ -89,6 +96,8 @@ export function OrderList() {
         title: "Error",
         description: "No se pudo actualizar el estado del pedido.",
       });
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
 
@@ -98,9 +107,8 @@ export function OrderList() {
     ready: orders?.filter(o => o.status === 'ready') || [],
   }), [orders]);
   
-  // Don't render anything if there's no user, as the query won't run anyway
-  if (!user) {
-    return null;
+  if (!isAdmin) {
+    return null; // Don't render if not admin
   }
 
   return (
@@ -116,7 +124,12 @@ export function OrderList() {
               <div className="flex justify-center items-center py-10"><Loader2 className="animate-spin" /></div>
             ) : ordersByStatus[statusKey].length > 0 ? (
               ordersByStatus[statusKey].map(order => (
-                <OrderCard key={order.id} order={order} onStatusChange={handleStatusChange} />
+                <OrderCard 
+                    key={order.id} 
+                    order={order} 
+                    onStatusChange={handleStatusChange} 
+                    isUpdating={updatingOrderId === order.id}
+                />
               ))
             ) : (
               <div className="text-center text-muted-foreground/70 py-10 italic text-sm">No hay pedidos en esta etapa</div>

@@ -12,12 +12,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import { LogOut, Shield } from 'lucide-react';
+import { LogOut, Shield, User as UserIcon, Truck } from 'lucide-react';
 import Link from 'next/link';
 import { doc } from 'firebase/firestore';
 import { useMemo } from 'react';
 import type { AppUser } from '@/lib/types';
-
 
 export default function AuthButton() {
   const auth = useAuth();
@@ -29,9 +28,10 @@ export default function AuthButton() {
     [firestore, user]
   );
   const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
-  const isAdmin = useMemo(() => userDoc?.role === 'admin', [userDoc]);
   
-  const isLoading = isUserLoading || !firestore || (user && isRoleLoading);
+  const userRole = useMemo(() => userDoc?.role, [userDoc]);
+
+  const isLoading = isUserLoading || (user && isRoleLoading);
 
   if (isLoading) {
     return <Skeleton className="h-10 w-10 rounded-full" />;
@@ -72,7 +72,13 @@ export default function AuthButton() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {isAdmin && (
+        <DropdownMenuItem asChild>
+          <Link href="/profile">
+            <UserIcon className="mr-2 h-4 w-4" />
+            <span>Mi Perfil</span>
+          </Link>
+        </DropdownMenuItem>
+        {userRole === 'admin' && (
           <DropdownMenuItem asChild>
             <Link href="/admin">
               <Shield className="mr-2 h-4 w-4" />
@@ -80,6 +86,23 @@ export default function AuthButton() {
             </Link>
           </DropdownMenuItem>
         )}
+        {userRole === 'driver' && (
+           <DropdownMenuItem asChild>
+            <Link href="/delivery">
+              <Truck className="mr-2 h-4 w-4" />
+              <span>Panel de Repartidor</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
+        {userRole === 'customer' && (
+           <DropdownMenuItem asChild>
+            <Link href="/my-orders">
+              <Truck className="mr-2 h-4 w-4" />
+              <span>Mis Pedidos</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => auth?.signOut()}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Cerrar Sesión</span>

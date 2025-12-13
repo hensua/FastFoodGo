@@ -52,127 +52,19 @@
       "type": "object",
       "description": "Represents a customer order.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the order."
-        },
-        "customerId": {
-          "type": "string",
-          "description": "Reference to Customer. (Relationship: Customer 1:N Order)"
-        },
-        "orderDate": {
-          "type": "string",
-          "description": "Date and time when the order was placed.",
-          "format": "date-time"
-        },
-        "totalAmount": {
-          "type": "number",
-          "description": "Total amount of the order."
-        },
-        "paymentMethod": {
-          "type": "string",
-          "description": "Payment method used for the order (e.g., credit card, cash)."
-        },
-        "deliveryAddress": {
-          "type": "string",
-          "description": "Delivery address for the order."
-        },
-        "status": {
-          "type": "string",
-          "description": "Current status of the order (e.g., pending, processing, delivered)."
-        },
-        "driverId": {
-          "type": "string",
-          "description": "Reference to Driver. (Relationship: Driver 1:N Order)"
-        }
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "orderDate": { "type": "string", "format": "date-time" },
+        "totalAmount": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "deliveryAddress": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "cooking", "ready", "delivering", "delivered", "cancelled"] },
+        "driverId": { "type": "string" },
+        "driverName": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhoneNumber": { "type": "string" }
       },
-      "required": [
-        "id",
-        "customerId",
-        "orderDate",
-        "totalAmount",
-        "paymentMethod",
-        "deliveryAddress",
-        "status"
-      ]
-    },
-    "OrderItem": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "OrderItem",
-      "type": "object",
-      "description": "Represents an item within an order.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the order item."
-        },
-        "orderId": {
-          "type": "string",
-          "description": "Reference to Order. (Relationship: Order 1:N OrderItem)"
-        },
-        "productId": {
-          "type": "string",
-          "description": "Reference to Product. (Relationship: Product 1:N OrderItem)"
-        },
-        "quantity": {
-          "type": "number",
-          "description": "Quantity of the product in the order item."
-        },
-        "itemPrice": {
-          "type": "number",
-          "description": "Price of the individual item at the time of order."
-        }
-      },
-      "required": [
-        "id",
-        "orderId",
-        "productId",
-        "quantity",
-        "itemPrice"
-      ]
-    },
-    "Customer": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Customer",
-      "type": "object",
-      "description": "Represents a customer of the restaurant.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the customer."
-        },
-        "firstName": {
-          "type": "string",
-          "description": "First name of the customer."
-        },
-        "lastName": {
-          "type": "string",
-          "description": "Last name of the customer."
-        },
-        "email": {
-          "type": "string",
-          "description": "Email address of the customer.",
-          "format": "email"
-        },
-        "phoneNumber": {
-          "type": "string",
-          "description": "Phone number of the customer."
-        },
-        "deliveryAddresses": {
-          "type": "array",
-          "description": "Delivery addresses associated with the customer.",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "id",
-        "firstName",
-        "lastName",
-        "email",
-        "phoneNumber"
-      ]
+      "required": ["id", "customerId", "orderDate", "totalAmount", "paymentMethod", "deliveryAddress", "status"]
     },
     "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -185,83 +77,11 @@
         "email": { "type": "string", "description": "The user's email address." },
         "photoURL": { "type": "string", "description": "URL for the user's profile picture." },
         "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the user profile was created." },
-        "role": { "type": "string", "description": "The user's role in the application (customer, driver, admin).", "enum": ["customer", "driver", "admin"] }
+        "role": { "type": "string", "description": "The user's role in the application (customer, driver, admin).", "enum": ["customer", "driver", "admin"] },
+        "phoneNumber": { "type": "string", "description": "The user's phone number." },
+        "deliveryAddress": { "type": "string", "description": "The user's primary delivery address." }
       },
       "required": ["uid", "email", "role"]
-    },
-    "Driver": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Driver",
-      "type": "object",
-      "description": "Represents a delivery driver.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the driver."
-        },
-        "firstName": {
-          "type": "string",
-          "description": "First name of the driver."
-        },
-        "lastName": {
-          "type": "string",
-          "description": "Last name of the driver."
-        },
-        "phoneNumber": {
-          "type": "string",
-          "description": "Phone number of the driver."
-        },
-        "available": {
-          "type": "boolean",
-          "description": "Indicates if the driver is currently available for deliveries."
-        },
-        "currentLocation": {
-          "type": "string",
-          "description": "Current location coordinates of the driver."
-        }
-      },
-      "required": [
-        "id",
-        "firstName",
-        "lastName",
-        "phoneNumber",
-        "available"
-      ]
-    },
-    "SuggestedProduct": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "SuggestedProduct",
-      "type": "object",
-      "description": "Represents a product suggested to a customer, based on the items in their cart.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the suggested product."
-        },
-        "productId": {
-          "type": "string",
-          "description": "Reference to the Product being suggested. (Relationship: Product 1:N SuggestedProduct)"
-        },
-        "orderId": {
-          "type": "string",
-          "description": "Reference to the Order for which the product is suggested. (Relationship: Order 1:N SuggestedProduct)"
-        },
-        "suggestionReason": {
-          "type": "string",
-          "description": "The AI derived reason for suggesting this product."
-        },
-        "suggestionScore": {
-          "type": "number",
-          "description": "AI derived relevancy score of the suggestion."
-        }
-      },
-      "required": [
-        "id",
-        "productId",
-        "orderId",
-        "suggestionReason",
-        "suggestionScore"
-      ]
     }
   },
   "auth": {
@@ -276,16 +96,8 @@
         "path": "/products/{productId}",
         "definition": {
           "entityName": "Product",
-          "schema": {
-            "$ref": "#/backend/entities/Product"
-          },
-          "description": "Stores information about each product offered by the restaurant.",
-          "params": [
-            {
-              "name": "productId",
-              "description": "Unique identifier for the product."
-            }
-          ]
+          "schema": { "$ref": "#/backend/entities/Product" },
+          "description": "Stores information about each product offered by the restaurant."
         }
       },
       {
@@ -293,97 +105,18 @@
         "definition": {
             "entityName": "User",
             "schema": { "$ref": "#/backend/entities/User" },
-            "description": "Stores public user profile information for all users.",
-            "params": [{ "name": "userId", "description": "Unique identifier for the user." }]
+            "description": "Stores public user profile information for all users, including their role."
         }
       },
       {
         "path": "/users/{userId}/orders/{orderId}",
         "definition": {
           "entityName": "Order",
-          "schema": {
-            "$ref": "#/backend/entities/Order"
-          },
-          "description": "Stores order information. Includes denormalized 'customerId' for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the user (customer)."
-            },
-            {
-              "name": "orderId",
-              "description": "Unique identifier for the order."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/orders/{orderId}/order_items/{orderItemId}",
-        "definition": {
-          "entityName": "OrderItem",
-          "schema": {
-            "$ref": "#/backend/entities/OrderItem"
-          },
-          "description": "Stores individual items within an order.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the user (customer)."
-            },
-            {
-              "name": "orderId",
-              "description": "Unique identifier for the order."
-            },
-            {
-              "name": "orderItemId",
-              "description": "Unique identifier for the order item."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/orders/{orderId}/suggested_products/{suggestedProductId}",
-        "definition": {
-          "entityName": "SuggestedProduct",
-          "schema": {
-            "$ref": "#/backend/entities/SuggestedProduct"
-          },
-          "description": "Stores AI derived suggestions for products related to the users cart.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the user (customer)."
-            },
-            {
-              "name": "orderId",
-              "description": "Unique identifier for the order."
-            },
-            {
-              "name": "suggestedProductId",
-              "description": "Unique identifier for the suggested product."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/drivers/{driverId}",
-        "definition": {
-          "entityName": "Driver",
-          "schema": {
-            "$ref": "#/backend/entities/Driver"
-          },
-          "description": "Stores driver information.",
-          "params": [
-            {
-              "name": "driverId",
-              "description": "Unique identifier for the driver."
-            }
-          ]
+          "schema": { "$ref": "#/backend/entities/Order" },
+          "description": "Stores order information for a specific user. Includes denormalized data for driver access."
         }
       }
     ],
-    "reasoning": "This Firestore structure is designed for the FastFoodGo application. It uses a centralized 'users' collection to manage user data and roles, which is a more scalable and cleaner approach than using separate role collections. Customers' orders are nested under their user document for clear ownership and path-based security. Products and drivers are in top-level collections for global access (with appropriate security rules)."
+    "reasoning": "This Firestore structure is designed for the FastFoodGo application. It uses a centralized 'users' collection to manage user data and roles. Customers' orders are nested under their user document for clear ownership and path-based security. Products are in a top-level collection for global access. This revision removes separate driver/customer collections in favor of a unified user model with a 'role' field."
   }
 }
-
-    

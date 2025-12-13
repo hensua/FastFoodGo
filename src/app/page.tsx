@@ -38,7 +38,7 @@ function HomePageContent() {
     }
   }, [products, isProductsLoading, firestore]);
 
-  const isLoading = isProductsLoading || products === null || !firestore;
+  const isLoading = isProductsLoading || products === null;
 
   return <OrderPage products={products || []} loading={isLoading} />;
 }
@@ -54,23 +54,22 @@ export default function Home() {
   );
   const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
   
-  const isAdmin = useMemo(() => userDoc?.role === 'admin', [userDoc]);
-
-  // Combined loading state for auth and role check
-  const isLoading = isUserLoading || isRoleLoading;
+  const userRole = useMemo(() => userDoc?.role, [userDoc]);
 
   useEffect(() => {
-    // Only redirect if we are not loading and the user is an admin.
-    if (!isLoading && isAdmin) {
+    // Wait until user and role are loaded
+    if (isUserLoading || isRoleLoading) return;
+    
+    if (userRole === 'admin') {
       router.push('/admin');
+    } else if (userRole === 'driver') {
+      router.push('/delivery');
     }
-  }, [isLoading, isAdmin, router]);
+  }, [isUserLoading, isRoleLoading, userRole, router]);
 
-  // If the user is an admin, show a loading indicator while redirecting
-  // to prevent flashing the customer page.
-  // This state is only shown briefly after login for admins.
-  if (isAdmin) {
-    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo al panel de control...</div>;
+  // If user is an admin or driver, show a loading spinner while redirecting
+  if (!isUserLoading && !isRoleLoading && (userRole === 'admin' || userRole === 'driver')) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo a tu panel...</div>;
   }
 
   // For everyone else (customers, guests, or during initial load), show the customer-facing page.
