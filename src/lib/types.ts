@@ -28,3 +28,13 @@ export type Order = {
   items: CartItem[];
   customerName?: string;
 };
+
+export type Role = 'admin' | 'driver' | 'customer';
+
+export type AppUser = {
+  uid: string;
+  email?: string | null;
+  displayName?: string | null;
+  photoURL?: string | null;
+};
+    

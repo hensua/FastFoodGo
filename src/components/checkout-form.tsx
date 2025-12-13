@@ -12,7 +12,7 @@ import CartItem from './cart/cart-item';
 import { ScrollArea } from './ui/scroll-area';
 import { formatCurrency } from '@/lib/utils';
 import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase';
-import { collection, serverTimestamp, doc } from 'firebase/firestore';
+import { collection, serverTimestamp, doc, setDoc } from 'firebase/firestore';
 
 export default function CheckoutForm() {
   const { cartItems, totalPrice, clearCart } = useCart();
@@ -24,20 +24,18 @@ export default function CheckoutForm() {
 
   const handlePlaceOrder = async () => {
     if (!user || !firestore) {
-      router.push('/login');
+      router.push('/login?redirect=/checkout');
       return;
     }
 
     setIsSubmitting(true);
     
     try {
-      const orderId = `FFG-${Date.now()}`;
-      
-      // We are creating a subcollection 'orders' under the 'customers' document.
-      const ordersCollectionRef = collection(firestore, 'customers', user.uid, 'orders');
+      // Use Firestore's auto-generated ID for the order document
+      const newOrderRef = doc(collection(firestore, 'customers', user.uid, 'orders'));
 
       const orderData = {
-        id: orderId,
+        id: newOrderRef.id, // Use the generated ID
         customerId: user.uid,
         customerName: user.displayName || 'Cliente Anónimo',
         orderDate: serverTimestamp(),
@@ -47,7 +45,6 @@ export default function CheckoutForm() {
         status: 'pending',
         items: cartItems.map(item => ({
           productId: item.product.id,
-          // We denormalize product data here so the order is self-contained.
           product: {
              name: item.product.name,
              price: item.product.price,
@@ -58,14 +55,15 @@ export default function CheckoutForm() {
         })),
       };
 
-      await addDocumentNonBlocking(ordersCollectionRef, orderData);
+      await setDoc(newOrderRef, orderData);
       
-      router.push(`/order-confirmation?orderId=${orderId}&paymentMethod=${paymentMethod}&total=${totalPrice}`);
+      router.push(`/order-confirmation?orderId=${orderData.id}&paymentMethod=${paymentMethod}&total=${totalPrice}`);
       
       clearCart();
 
     } catch (error) {
       console.error("Error al realizar el pedido:", error);
+      // Here you might want to show a toast to the user
     } finally {
       setIsSubmitting(false);
     }
@@ -129,3 +127,4 @@ export default function CheckoutForm() {
     </div>
   );
 }
+    

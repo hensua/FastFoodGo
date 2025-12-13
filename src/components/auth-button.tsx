@@ -77,7 +77,7 @@ export default function AuthButton() {
             </Link>
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={() => auth.signOut()}>
+        <DropdownMenuItem onClick={() => auth?.signOut()}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Cerrar Sesión</span>
         </DropdownMenuItem>
@@ -85,3 +85,4 @@ export default function AuthButton() {
     </DropdownMenu>
   );
 }
+    

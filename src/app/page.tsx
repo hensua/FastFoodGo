@@ -21,10 +21,8 @@ function HomePageContent() {
         console.log('No products found, seeding database...');
         const batch = writeBatch(firestore);
         initialProducts.forEach((product) => {
-          // Firebase generates the ID, so we exclude it from the object we write.
           const docRef = doc(collection(firestore, 'products'));
-          const { id, ...productData } = product;
-          batch.set(docRef, productData);
+          batch.set(docRef, product);
         });
         try {
           await batch.commit();
@@ -37,7 +35,6 @@ function HomePageContent() {
       }
     };
     
-    // Only regular users can seed the database on first load
     if (products !== null && products.length === 0 && !isProductsLoading) {
       seedDatabase();
     }
@@ -49,13 +46,12 @@ function HomePageContent() {
 }
 
 export default function Home() {
+  const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
-  const { user, isUserLoading } = useUser();
   
-  // Admin role check
   const adminRoleRef = useMemoFirebase(() => 
-    firestore && user ? doc(firestore, 'roles_admin', user.uid) : null,
+    (firestore && user) ? doc(firestore, 'roles_admin', user.uid) : null,
     [firestore, user]
   );
   const { data: adminRoleDoc, isLoading: isRoleLoading } = useDoc(adminRoleRef);
@@ -63,8 +59,10 @@ export default function Home() {
   const isLoading = isUserLoading || isRoleLoading;
 
   useEffect(() => {
-    if (!isLoading && adminRoleDoc) {
-      router.push('/admin');
+    if (!isLoading) {
+      if (adminRoleDoc) {
+        router.push('/admin');
+      }
     }
   }, [isLoading, adminRoleDoc, router]);
 
@@ -73,10 +71,9 @@ export default function Home() {
   }
 
   if (adminRoleDoc) {
-    // Render loading or null while redirecting
     return <div className="h-screen flex items-center justify-center">Redirigiendo al panel de control...</div>;
   }
   
-  // Render order page for regular users
   return <HomePageContent />;
 }
+    

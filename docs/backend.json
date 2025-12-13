@@ -376,21 +376,24 @@
       {
         "path": "/roles_admin/{userId}",
         "definition": {
-          "entityName": "roles_admin",
           "schema": {
             "$ref": "#/backend/entities/Customer"
           },
-          "description": "Collection used to grant admin privileges. Document existence determines admin role.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the user."
-            }
-          ]
+          "description": "Collection used to grant admin privileges. Document existence determines admin role."
+        }
+      },
+      {
+        "path": "/roles_driver/{userId}",
+        "definition": {
+          "schema": {
+            "$ref": "#/backend/entities/Driver"
+          },
+          "description": "Collection used to grant driver privileges. Document existence determines driver role."
         }
       }
     ],
-    "reasoning": "This Firestore structure is designed for the FastFoodGo application, prioritizing security, scalability, and ease of debugging, following the principles of Authorization Independence, Clarity of Intent, DBAC, and QAPs. It incorporates denormalization for authorization and structural segregation to streamline security rules.\n\n*   **Products:** The `products` collection stores the restaurant's menu items. This collection has a flat structure and uniform access control needs (admin only), so structural segregation is not needed.\n*   **Customers & Orders:** Customer data is stored under `/users/{userId}/customer_profile`. Orders, OrderItems and SuggestedProducts are nested under the customer. This structure allows for simple path-based ownership for the customer's data. The denormalization occurs with the order objects, which contain the customerId. This allows for listing orders not dependent on the user.\n*   **Drivers & Orders:** Driver data is stored in the `/drivers/{driverId}` collection. Similar to Customers, Orders are also nested under drivers with the driverId as a denormalized field on the Order object. This pattern enables simple read/write rules for drivers to only access orders assigned to them. Orders are assigned to drivers by writing the driverId to the Order document.\n*   **Admin Roles:** The `/roles_admin/{uid}` collection grants administrative privileges based on document existence (DBAC).\n\n**Authorization Independence (Denormalization):**\n*   The key denormalization strategy involves including the `customerId` and `driverId` within the `Order` documents. This allows for rules that validate that the `customerId` matches the `request.auth.uid` when creating an order or for the driver to validate that the `driverId` matches their `uid`. Rules do NOT need to perform `get()` operations to validate a parent object, enabling atomic operations and enhanced security.\n\n**QAPs (Rules are not Filters):**\n*   Structural segregation is used to separate concerns. Customer data is stored under the user, Driver data under the Driver Id. This segregation means rules do not act as filters. List operations do not need to filter based on user role, as the path structure itself enforces this separation."
+    "reasoning": "This Firestore structure is designed for the FastFoodGo application, prioritizing security, scalability, and ease of debugging, following the principles of Authorization Independence, Clarity of Intent, DBAC, and QAPs. It incorporates denormalization for authorization and structural segregation to streamline security rules.\n\n*   **Products:** The `products` collection stores the restaurant's menu items. This collection has a flat structure and uniform access control needs (admin only), so structural segregation is not needed.\n*   **Customers & Orders:** Customer data is stored under `/users/{userId}/customer_profile`. Orders, OrderItems and SuggestedProducts are nested under the customer. This structure allows for simple path-based ownership for the customer's data. The denormalization occurs with the order objects, which contain the customerId. This allows for listing orders not dependent on the user.\n*   **Drivers & Orders:** Driver data is stored in the `/drivers/{driverId}` collection. Similar to Customers, Orders are also nested under drivers with the driverId as a denormalized field on the Order object. This pattern enables simple read/write rules for drivers to only access orders assigned to them. Orders are assigned to drivers by writing the driverId to the Order document.\n*   **Admin & Driver Roles:** The `/roles_admin/{uid}` and `/roles_driver/{uid}` collections grant privileges based on document existence (DBAC).\n\n**Authorization Independence (Denormalization):**\n*   The key denormalization strategy involves including the `customerId` and `driverId` within the `Order` documents. This allows for rules that validate that the `customerId` matches the `request.auth.uid` when creating an order or for the driver to validate that the `driverId` matches their `uid`. Rules do NOT need to perform `get()` operations to validate a parent object, enabling atomic operations and enhanced security.\n\n**QAPs (Rules are not Filters):**\n*   Structural segregation is used to separate concerns. Customer data is stored under the user, Driver data under the Driver Id. This segregation means rules do not act as filters. List operations do not need to filter based on user role, as the path structure itself enforces this separation."
   }
 }
+
     

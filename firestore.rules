@@ -98,6 +98,10 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
+    
+    function isDriver() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_driver/$(request.auth.uid));
+    }
 
 
     /*********************************************************************
@@ -109,19 +113,26 @@ service cloud.firestore {
     /**
      * @description
      *   Manages admin roles. Document existence grants privileges.
-     *   This collection is locked down; it can only be modified by a trusted
-     *   server using Admin SDK credentials, not by any client.
+     *   This collection is locked down; it can only be modified by an admin.
      * @path /roles_admin/{userId}
      * @allow (get) An admin checking their own role: `get /roles_admin/admin_user_id`
-     * @deny (create) Any user trying to make themselves an admin: `create /roles_admin/some_user_id`
+     * @deny (create) A non-admin user trying to make themselves an admin: `create /roles_admin/some_user_id`
      * @principle Prevents privilege escalation by making roles read-only from clients.
      */
     match /roles_admin/{userId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if false;
+      allow get, list, create, delete: if isAdmin();
       allow update: if false;
-      allow delete: if false;
+    }
+
+    /**
+     * @description
+     *   Manages driver roles. Document existence grants privileges.
+     *   This collection can only be modified by an admin.
+     * @path /roles_driver/{userId}
+     */
+    match /roles_driver/{userId} {
+      allow get, list, create, delete: if isAdmin();
+      allow update: if false;
     }
 
     /**
@@ -174,7 +185,9 @@ service cloud.firestore {
     
     // This allows an admin to query the 'orders' collection group
     match /{path=**}/orders/{orderId} {
-        allow read: if isAdmin();
+        allow get, list: if isAdmin();
     }
   }
 }
+
+    
