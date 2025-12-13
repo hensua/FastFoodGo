@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useFirestore, useMemoFirebase, useCollection, useDoc } from '@/firebase';
-import { collection, doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, deleteDoc, setDoc, collectionGroup, query, getDocs } from 'firebase/firestore';
 import type { Order, Product, AppUser, Role } from '@/lib/types';
 import Header from '@/components/header';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { ChefHat, Package, Trash2, Edit, X, Users, Loader2, UtensilsCrossed, TrendingUp } from 'lucide-react';
+import { ChefHat, Package, Trash2, Edit, X, Users, Loader2, UtensilsCrossed, TrendingUp, Download, BarChart, ShoppingBag, Ban, Ticket, CircleDollarSign } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/provider';
 import { Input } from '@/components/ui/input';
@@ -28,7 +28,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-
+import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { format, subMonths } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 // Inventory View Components
 const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product | null, onSave: (product: Omit<Product, 'id'> | Product) => void, onCancel: () => void, isSaving: boolean }) => {
@@ -245,6 +247,173 @@ const TeamManagement = () => {
   );
 };
 
+// Stats Dashboard View
+const StatsDashboard = () => {
+    const firestore = useFirestore();
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchOrders = async () => {
+            if (!firestore) return;
+            setIsLoading(true);
+            try {
+                const ordersQuery = query(collectionGroup(firestore, 'orders'));
+                const querySnapshot = await getDocs(ordersQuery);
+                const fetchedOrders = querySnapshot.docs.map(doc => doc.data() as Order);
+                setOrders(fetchedOrders);
+            } catch (error) {
+                console.error("Error fetching orders for stats:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchOrders();
+    }, [firestore]);
+
+    const stats = useMemo(() => {
+        const totalOrders = orders.length;
+        const deliveredOrders = orders.filter(o => o.status === 'delivered');
+        const cancelledOrders = orders.filter(o => o.status === 'cancelled');
+        const totalSales = deliveredOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+        const avgTicket = deliveredOrders.length > 0 ? totalSales / deliveredOrders.length : 0;
+
+        return {
+            totalSales,
+            totalOrders,
+            deliveredOrders: deliveredOrders.length,
+            cancelledOrders: cancelledOrders.length,
+            avgTicket,
+        };
+    }, [orders]);
+
+    const monthlySales = useMemo(() => {
+        const salesByMonth: { [key: string]: number } = {};
+        const last12Months = Array.from({ length: 12 }, (_, i) => subMonths(new Date(), i));
+
+        last12Months.forEach(date => {
+            const monthKey = format(date, 'MMM yyyy', { locale: es });
+            salesByMonth[monthKey] = 0;
+        });
+
+        orders.forEach(order => {
+            if (order.status === 'delivered' && order.orderDate) {
+                const orderDate = order.orderDate.toDate();
+                const monthKey = format(orderDate, 'MMM yyyy', { locale: es });
+                if (monthKey in salesByMonth) {
+                    salesByMonth[monthKey] += order.totalAmount;
+                }
+            }
+        });
+        
+        return Object.entries(salesByMonth).map(([name, sales]) => ({ name, Ventas: sales })).reverse();
+    }, [orders]);
+
+    const downloadCSV = () => {
+        const headers = ["Mes", "Ventas"];
+        const rows = monthlySales.map(item => [item.name, item.Ventas]);
+
+        let csvContent = "data:text/csv;charset=utf-8," 
+            + headers.join(",") + "\n" 
+            + rows.map(e => e.join(",")).join("\n");
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "reporte_ventas_mensuales.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    if (isLoading) {
+        return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8" /> Cargando reportes...</div>;
+    }
+
+    return (
+        <div className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Ventas Totales</CardTitle>
+                        <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{formatCurrency(stats.totalSales)}</div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Ticket Promedio</CardTitle>
+                        <Ticket className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{formatCurrency(stats.avgTicket)}</div>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Pedidos Totales</CardTitle>
+                        <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.totalOrders}</div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Pedidos Entregados</CardTitle>
+                        <ShoppingBag className="h-4 w-4 text-green-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.deliveredOrders}</div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Pedidos Cancelados</CardTitle>
+                        <Ban className="h-4 w-4 text-destructive" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.cancelledOrders}</div>
+                    </CardContent>
+                </Card>
+            </div>
+            
+            <Card>
+                <CardHeader>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <CardTitle>Ventas en los Últimos 12 Meses</CardTitle>
+                            <CardDescription>Un resumen de los ingresos generados mensualmente.</CardDescription>
+                        </div>
+                        <Button onClick={downloadCSV} variant="outline">
+                            <Download className="mr-2 h-4 w-4" />
+                            Descargar CSV
+                        </Button>
+                    </div>
+                </CardHeader>
+                <CardContent className="h-[350px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <RechartsBarChart data={monthlySales}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                            <YAxis 
+                                stroke="#888888"
+                                fontSize={12}
+                                tickLine={false}
+                                axisLine={false}
+                                tickFormatter={(value) => `${formatCurrency(value as number)}`}
+                             />
+                            <Tooltip formatter={(value: number) => [formatCurrency(value), "Ventas"]} cursor={{ fill: 'hsl(var(--muted))' }}/>
+                            <Bar dataKey="Ventas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                        </RechartsBarChart>
+                    </ResponsiveContainer>
+                </CardContent>
+            </Card>
+        </div>
+    );
+};
 
 
 // Main Admin Dashboard Component
@@ -352,7 +521,7 @@ const AdminDashboard = () => {
         </div>
       )}
       {activeTab === 'team' && <TeamManagement />}
-      {activeTab === 'stats' && <div className="text-center p-8 bg-card rounded-lg shadow-sm">Reportes Próximamente...</div>}
+      {activeTab === 'stats' && <StatsDashboard />}
       
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
