@@ -9,14 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { ChefHat, Package, Trash2, Edit, X, Users, Loader2, UtensilsCrossed, TrendingUp, Download, BarChart, ShoppingBag, Ban, Ticket, CircleDollarSign } from 'lucide-react';
+import { ChefHat, Package, Trash2, Edit, X, Users, Loader2, UtensilsCrossed, TrendingUp, Download, BarChart, ShoppingBag, Ban, Ticket, CircleDollarSign, XCircle, PackageCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/provider';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { OrderList } from '@/components/order-list';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +30,8 @@ import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { format, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Label } from '@/components/ui/label';
+import { OrderList } from '@/components/order-list';
 
 // Inventory View Components
 const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product | null, onSave: (product: Omit<Product, 'id'> | Product) => void, onCancel: () => void, isSaving: boolean }) => {
@@ -74,8 +75,14 @@ const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product
           <Input name="name" value={formData.name} onChange={handleChange} placeholder="Nombre del producto" required />
           <Textarea name="description" value={formData.description} onChange={handleChange} placeholder="Descripción" required />
           <div className="grid grid-cols-2 gap-4">
-            <Input name="price" type="number" value={formData.price} onChange={handleChange} placeholder="Precio" required />
-            <Input name="stock" type="number" value={formData.stock || 0} onChange={handleChange} placeholder="Stock" />
+            <div className="space-y-2">
+              <Label htmlFor="price">Precio</Label>
+              <Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} placeholder="Precio" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="stock">Stock</Label>
+              <Input id="stock" name="stock" type="number" value={formData.stock || 0} onChange={handleChange} placeholder="Stock" />
+            </div>
           </div>
           <Select name="category" value={formData.category} onValueChange={handleCategoryChange}>
             <SelectTrigger><SelectValue placeholder="Categoría" /></SelectTrigger>
@@ -85,7 +92,10 @@ const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product
               ))}
             </SelectContent>
           </Select>
-          <Input name="imageUrl" value={formData.imageUrl} onChange={handleChange} placeholder="URL de la imagen" required />
+          <div className="space-y-2">
+              <Label htmlFor="imageUrl">URL de la imagen</Label>
+              <Input id="imageUrl" name="imageUrl" value={formData.imageUrl} onChange={handleChange} placeholder="https://example.com/image.png" required />
+          </div>
           <Button type="submit" className="w-full" disabled={isSaving}>
             {isSaving ? <Loader2 className="animate-spin" /> : (product ? 'Guardar Cambios' : 'Crear Producto')}
           </Button>
@@ -298,7 +308,7 @@ const StatsDashboard = () => {
 
         orders.forEach(order => {
             if (order.status === 'delivered' && order.orderDate) {
-                const orderDate = order.orderDate.toDate();
+                const orderDate = new Date(order.orderDate.seconds * 1000);
                 const monthKey = format(orderDate, 'MMM yyyy', { locale: es });
                 if (monthKey in salesByMonth) {
                     salesByMonth[monthKey] += order.totalAmount;
