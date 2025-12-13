@@ -14,6 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, User, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import Link from 'next/link';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Por favor, introduce un correo electrónico válido.' }),
@@ -222,11 +223,12 @@ export default function LoginPage() {
                 {isSigningUp ? "Inicia Sesión" : "Regístrate"}
               </button>
             </p>
+             <p className="text-center text-sm text-muted-foreground">
+                <Link href="/" className="underline underline-offset-4 hover:text-primary">Volver al Inicio</Link>
+             </p>
           </div>
         </CardContent>
       </Card>
     </div>
   );
 }
-
-    
