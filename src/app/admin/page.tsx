@@ -5,7 +5,7 @@ import { useFirestore, useMemoFirebase, useCollection, useDoc } from '@/firebase
 import { collection, doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import type { Order, Product, AppUser, Role } from '@/lib/types';
 import Header from '@/components/header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
@@ -93,6 +93,7 @@ const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product
   );
 };
 
+
 // Team Management View
 const TeamManagement = () => {
   const firestore = useFirestore();
@@ -104,9 +105,19 @@ const TeamManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isRoleChanging, setIsRoleChanging] = useState<string | null>(null);
 
-  const handleRoleChange = async (uid: string, newRole: Role) => {
-    if (!firestore) return;
+  const [roleChangeData, setRoleChangeData] = useState<{ uid: string; newRole: Role; userName: string } | null>(null);
+
+  const handleRoleChangeRequest = (uid: string, newRole: Role, user: AppUser) => {
+    if (user.role === newRole) return;
+    setRoleChangeData({ uid, newRole, userName: user.displayName || user.email || 'Usuario' });
+  };
+
+  const confirmRoleChange = async () => {
+    if (!firestore || !roleChangeData) return;
+
+    const { uid, newRole } = roleChangeData;
     setIsRoleChanging(uid);
+    setRoleChangeData(null); // Close dialog
 
     const userRef = doc(firestore, "users", uid);
 
@@ -127,25 +138,35 @@ const TeamManagement = () => {
       setIsRoleChanging(null);
     }
   };
+  
+  const groupedUsers = useMemo(() => {
+    const groups: { admins: AppUser[], drivers: AppUser[], customers: AppUser[] } = {
+      admins: [],
+      drivers: [],
+      customers: [],
+    };
 
-  const filteredUsers = users?.filter(user =>
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    const filtered = users?.filter(user =>
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      user.displayName?.toLowerCase().includes(searchTerm.toLowerCase())
+    ) || [];
 
-  return (
+    filtered.forEach(user => {
+      if (user.role === 'admin') groups.admins.push(user);
+      else if (user.role === 'driver') groups.drivers.push(user);
+      else groups.customers.push(user);
+    });
+
+    return groups;
+  }, [users, searchTerm]);
+
+  const UserTable = ({ users, title }: { users: AppUser[], title: string }) => (
     <Card>
       <CardHeader>
-        <CardTitle>Gestión de Equipo</CardTitle>
-        <Input 
-          placeholder="Buscar por correo electrónico..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="mt-2"
-        />
+        <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        {usersLoading || !firestore ? <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin" /></div> :
-         !filteredUsers || filteredUsers.length === 0 ? <div className="text-center text-muted-foreground py-8">No se encontraron usuarios.</div> :
+        {users.length === 0 ? <div className="text-center text-muted-foreground py-4">No hay usuarios en este grupo.</div> :
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className='border-b'>
@@ -156,7 +177,7 @@ const TeamManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map(user => (
+              {users.map(user => (
                 <tr key={user.uid} className='border-b'>
                   <td className='py-3 font-medium flex items-center gap-2'>
                     {user.displayName || "Sin Nombre"}
@@ -164,12 +185,12 @@ const TeamManagement = () => {
                   <td className="py-3 text-muted-foreground">{user.email}</td>
                   <td className='py-3 text-right'>
                     {isRoleChanging === user.uid ? <Loader2 className="h-4 w-4 animate-spin ml-auto" /> :
-                      <Select value={user.role} onValueChange={(newRole) => handleRoleChange(user.uid, newRole as Role)}>
+                      <Select value={user.role} onValueChange={(newRole) => handleRoleChangeRequest(user.uid, newRole as Role, user)}>
                         <SelectTrigger className="w-40 ml-auto h-9"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="customer">Cliente</SelectItem>
-                          <SelectItem value="driver">Repartidor</SelectItem>
                           <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="driver">Repartidor</SelectItem>
+                          <SelectItem value="customer">Cliente</SelectItem>
                         </SelectContent>
                       </Select>
                     }
@@ -182,7 +203,48 @@ const TeamManagement = () => {
       </CardContent>
     </Card>
   );
+
+  return (
+    <div className='space-y-8'>
+       <Card>
+        <CardHeader>
+          <CardTitle>Gestión de Equipo</CardTitle>
+          <CardDescription>Busca y administra los roles de los usuarios en la plataforma.</CardDescription>
+          <Input 
+            placeholder="Buscar por nombre o correo electrónico..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="mt-2"
+          />
+        </CardHeader>
+       </Card>
+
+      {usersLoading || !firestore ? <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin" /></div> :
+        <div className="space-y-6">
+          <UserTable users={groupedUsers.admins} title="Administradores" />
+          <UserTable users={groupedUsers.drivers} title="Repartidores" />
+          <UserTable users={groupedUsers.customers} title="Clientes" />
+        </div>
+      }
+
+      <AlertDialog open={!!roleChangeData} onOpenChange={() => setRoleChangeData(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Confirmar cambio de rol?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Estás a punto de cambiar el rol de <span className='font-bold'>{roleChangeData?.userName}</span> a <span className='font-bold uppercase'>{roleChangeData?.newRole}</span>. ¿Estás seguro?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRoleChange}>Confirmar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
 };
+
 
 
 // Main Admin Dashboard Component
