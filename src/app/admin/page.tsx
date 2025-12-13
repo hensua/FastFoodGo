@@ -77,11 +77,11 @@ const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="price">Precio</Label>
-              <Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} placeholder="Precio" required />
+              <Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="stock">Stock</Label>
-              <Input id="stock" name="stock" type="number" value={formData.stock || 0} onChange={handleChange} placeholder="Stock" />
+              <Input id="stock" name="stock" type="number" value={formData.stock || 0} onChange={handleChange} />
             </div>
           </div>
           <Select name="category" value={formData.category} onValueChange={handleCategoryChange}>
