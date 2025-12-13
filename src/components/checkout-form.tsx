@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
-import { Loader2, AlertTriangle, Moped } from 'lucide-react';
+import { Loader2, AlertTriangle, Truck } from 'lucide-react';
 import CartItem from './cart/cart-item';
 import { ScrollArea } from './ui/scroll-area';
 import { formatCurrency, DELIVERY_FEE } from '@/lib/utils';
@@ -111,7 +111,7 @@ export default function CheckoutForm() {
               <span>{formatCurrency(totalPrice)}</span>
             </div>
              <div className="flex justify-between">
-              <span className="text-muted-foreground flex items-center gap-2"><Moped size={16}/> Tarifa de Domicilio</span>
+              <span className="text-muted-foreground flex items-center gap-2"><Truck size={16}/> Tarifa de Domicilio</span>
               <span>{formatCurrency(DELIVERY_FEE)}</span>
             </div>
           </div>
