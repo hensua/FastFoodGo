@@ -43,7 +43,7 @@ export interface InternalQuery extends Query<DocumentData> {
  * 
  *
  * IMPORTANT! YOU MUST MEMOIZE the inputted memoizedTargetRefOrQuery or BAD THINGS WILL HAPPEN
- * use useMemo to memoize it per React guidence.  Also make sure that it's dependencies are stable
+ * use useMemoFirebase to memoize it per React guidence.  Also make sure that it's dependencies are stable
  * references
  *  
  * @template T Optional type for document data. Defaults to any.
@@ -58,19 +58,20 @@ export function useCollection<T = any>(
   type StateDataType = ResultItemType[] | null;
 
   const [data, setData] = useState<StateDataType>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true); // Start as true
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    // If the query/ref is not ready, set loading to false (or true if you want to show a spinner)
-    // and ensure no data/error is present.
+    // If the query/ref is not ready, set loading to true (to show a spinner)
+    // and ensure no data/error is present. Then, do not attach a listener.
     if (!memoizedTargetRefOrQuery) {
       setData(null);
-      setIsLoading(false); // Not loading because we aren't fetching anything.
+      setIsLoading(true); // Stay in loading state until a valid query is provided
       setError(null);
       return; // Stop here, don't attach a listener.
     }
-
+    
+    // A valid query is provided, start the fetching process.
     setIsLoading(true);
     setError(null);
 
