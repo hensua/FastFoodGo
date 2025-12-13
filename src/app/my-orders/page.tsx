@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, orderBy, doc, updateDoc, where } from 'firebase/firestore';
 import type { Order, OrderStatus, AppUser, ChatMessage } from '@/lib/types';
@@ -36,22 +35,20 @@ const statusConfig: Record<OrderStatus, { text: string; icon: React.ElementType;
   cancelled: { text: 'Cancelado', icon: Ban, color: 'text-red-500', progress: 'w-full bg-red-500' },
 };
 
-const OrderCard = ({ order, onCancel, onChat, currentUser }: { order: Order, onCancel: (order: Order) => void, onChat: (order: Order) => void, currentUser: AppUser }) => {
+const OrderCard = ({ 
+  order, 
+  onCancel, 
+  onChat, 
+  hasUnreadMessages 
+}: { 
+  order: Order, 
+  onCancel: (order: Order) => void, 
+  onChat: (order: Order) => void, 
+  hasUnreadMessages: boolean 
+}) => {
   const config = statusConfig[order.status];
   const subtotal = order.totalAmount - (order.deliveryFee || 0) - (order.tip || 0);
   const canChat = ['cooking', 'ready', 'delivering'].includes(order.status);
-  
-  const firestore = useFirestore();
-  const messagesQuery = useMemoFirebase(() => {
-    if (!firestore || !canChat) return null;
-    return query(collection(firestore, 'users', order.customerId, 'orders', order.id, 'messages'), orderBy('timestamp', 'desc'));
-  }, [firestore, order.customerId, order.id, canChat]);
-  const { data: messages } = useCollection<ChatMessage>(messagesQuery);
-  const hasUnreadMessages = useMemo(() => {
-    if (!messages || messages.length === 0) return false;
-    return messages[0].senderId !== currentUser.uid;
-  }, [messages, currentUser.uid]);
-
 
   return (
     <Card className="shadow-md animate-fade-in w-full flex flex-col">
@@ -160,6 +157,44 @@ const OrderCard = ({ order, onCancel, onChat, currentUser }: { order: Order, onC
   );
 };
 
+// Custom hook to manage unread messages
+const useUnreadMessages = (orders: Order[] | undefined, currentUser: AppUser | null) => {
+  const firestore = useFirestore();
+  const [unreadState, setUnreadState] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!orders || !firestore || !currentUser) return;
+
+    const unsubscribers = orders.map(order => {
+      const canChat = ['cooking', 'ready', 'delivering'].includes(order.status);
+      if (!canChat) return () => {};
+
+      const messagesQuery = query(
+        collection(firestore, 'users', order.customerId, 'orders', order.id, 'messages'),
+        orderBy('timestamp', 'desc')
+      );
+
+      return onSnapshot(messagesQuery, (snapshot) => {
+        if (snapshot.empty) {
+          setUnreadState(prev => ({ ...prev, [order.id]: false }));
+          return;
+        }
+        const lastMessage = snapshot.docs[0].data() as ChatMessage;
+        const isUnread = lastMessage.senderId !== currentUser.uid;
+        setUnreadState(prev => ({ ...prev, [order.id]: isUnread }));
+      });
+    });
+
+    return () => unsubscribers.forEach(unsub => unsub());
+  }, [orders, firestore, currentUser]);
+
+  const markAsRead = (orderId: string) => {
+    setUnreadState(prev => ({ ...prev, [orderId]: false }));
+  };
+
+  return { unreadState, markAsRead };
+};
+
 
 export default function MyOrdersPage() {
   const firestore = useFirestore();
@@ -194,6 +229,14 @@ export default function MyOrdersPage() {
     });
     return { activeOrders: active, pastOrders: past };
   }, [orders]);
+  
+  const { unreadState, markAsRead } = useUnreadMessages(orders, userDoc);
+
+  const handleOpenChat = (order: Order) => {
+    markAsRead(order.id);
+    setChatOrder(order);
+  };
+
 
   const handleCancelOrder = async () => {
     if (!firestore || !orderToCancel) return;
@@ -248,7 +291,13 @@ export default function MyOrdersPage() {
               <h2 className="text-2xl font-semibold mb-4">Pedidos Activos</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {activeOrders.map(order => (
-                  <OrderCard key={order.id} order={order} onCancel={setOrderToCancel} onChat={setChatOrder} currentUser={userDoc} />
+                  <OrderCard 
+                    key={order.id} 
+                    order={order} 
+                    onCancel={setOrderToCancel} 
+                    onChat={handleOpenChat}
+                    hasUnreadMessages={unreadState[order.id] || false}
+                  />
                 ))}
               </div>
             </>
@@ -259,7 +308,13 @@ export default function MyOrdersPage() {
             <h2 className="text-2xl font-semibold my-8 pt-4 border-t">Historial de Pedidos</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {pastOrders.map(order => (
-                <OrderCard key={order.id} order={order} onCancel={() => {}} onChat={setChatOrder} currentUser={userDoc} />
+                <OrderCard 
+                  key={order.id} 
+                  order={order} 
+                  onCancel={() => {}} 
+                  onChat={handleOpenChat} 
+                  hasUnreadMessages={unreadState[order.id] || false}
+                />
               ))}
             </div>
           </>
@@ -288,9 +343,9 @@ export default function MyOrdersPage() {
               user={userDoc}
               isOpen={!!chatOrder}
               onOpenChange={() => setChatOrder(null)}
+              onMessageSent={() => markAsRead(chatOrder.id)}
           />
       )}
     </div>
   );
 }
-

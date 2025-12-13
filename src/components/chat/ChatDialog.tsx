@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -18,9 +17,10 @@ interface ChatDialogProps {
   user: AppUser;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  onMessageSent: () => void;
 }
 
-export function ChatDialog({ order, user, isOpen, onOpenChange }: ChatDialogProps) {
+export function ChatDialog({ order, user, isOpen, onOpenChange, onMessageSent }: ChatDialogProps) {
   if (!isOpen) return null;
 
   return (
@@ -35,7 +35,7 @@ export function ChatDialog({ order, user, isOpen, onOpenChange }: ChatDialogProp
           </DialogDescription>
         </DialogHeader>
         <div className="flex-grow overflow-hidden px-6 pb-6">
-          <ChatView order={order} currentUser={user} />
+          <ChatView order={order} currentUser={user} onMessageSent={onMessageSent} />
         </div>
       </DialogContent>
     </Dialog>
