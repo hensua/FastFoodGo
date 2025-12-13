@@ -71,10 +71,10 @@ service cloud.firestore {
         allow list, create: if isOwner(userId) || isAdmin();
         
         // A customer can only cancel their order if it is 'pending'.
+        // An admin can update any order (e.g., from pending to cooking, or cancel).
+        // A driver can update an order to 'delivering' or 'delivered'.
         allow update: if (isOwner(userId) && request.resource.data.status == 'cancelled' && resource.data.status == 'pending')
-                      // An admin can update any order (e.g., from pending to cooking).
                       || isAdmin()
-                      // A driver can update an order to 'delivering' or 'delivered'.
                       || (isDriver() && (
                             // Driver can mark as 'delivering' if it's 'ready' and they are assigned.
                             (resource.data.status == 'ready' && request.resource.data.status == 'delivering' && request.resource.data.driverId == request.auth.uid) ||

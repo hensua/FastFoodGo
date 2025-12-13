@@ -1,17 +1,28 @@
 
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useFirestore, useCollection, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where, orderBy, doc, updateDoc } from 'firebase/firestore';
 import type { Order, OrderStatus } from '@/lib/types';
 import Header from '@/components/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { Loader2, ShoppingBag, Clock, ChefHat, Truck, CheckCircle2, KeyRound } from 'lucide-react';
+import { Loader2, ShoppingBag, Clock, ChefHat, Truck, CheckCircle2, KeyRound, Ban } from 'lucide-react';
 import Link from 'next/link';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useToast } from '@/hooks/use-toast';
 
 const statusConfig: Record<OrderStatus, { text: string; icon: React.ElementType; color: string; progress: string }> = {
   pending: { text: 'Pendiente', icon: Clock, color: 'text-gray-500', progress: 'w-1/6' },
@@ -19,14 +30,14 @@ const statusConfig: Record<OrderStatus, { text: string; icon: React.ElementType;
   ready: { text: 'Listo para Retirar', icon: ShoppingBag, color: 'text-blue-500', progress: 'w-3/6' },
   delivering: { text: 'En Camino', icon: Truck, color: 'text-orange-500', progress: 'w-4/6' },
   delivered: { text: 'Entregado', icon: CheckCircle2, color: 'text-green-500', progress: 'w-full' },
-  cancelled: { text: 'Cancelado', icon: CheckCircle2, color: 'text-red-500', progress: 'w-full bg-red-500' },
+  cancelled: { text: 'Cancelado', icon: Ban, color: 'text-red-500', progress: 'w-full bg-red-500' },
 };
 
-const OrderCard = ({ order }: { order: Order }) => {
+const OrderCard = ({ order, onCancel }: { order: Order, onCancel: (order: Order) => void }) => {
   const config = statusConfig[order.status];
   
   return (
-    <Card className="shadow-md animate-fade-in w-full">
+    <Card className="shadow-md animate-fade-in w-full flex flex-col">
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
@@ -42,10 +53,10 @@ const OrderCard = ({ order }: { order: Order }) => {
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 flex-grow">
         <div>
           <div className="w-full bg-muted rounded-full h-2.5">
-            <div className={`bg-primary h-2.5 rounded-full transition-all duration-500 ${config.progress}`} />
+            <div className={`h-2.5 rounded-full transition-all duration-500 ${order.status === 'cancelled' ? 'bg-red-500' : 'bg-primary'} ${config.progress}`} />
           </div>
         </div>
 
@@ -56,7 +67,7 @@ const OrderCard = ({ order }: { order: Order }) => {
                 {order.status === 'delivering' && order.driverName && (
                   <><span className="font-semibold">{order.driverName}</span> está en camino con tu pedido.</>
                 )}
-                 {order.status !== 'delivered' && (
+                 {order.status !== 'delivered' && order.status !== 'cancelled' && (
                   <>
                     <p className="font-semibold mt-1">Tu PIN de entrega es:</p>
                     <p className="font-bold text-lg text-primary tracking-widest">{order.pin}</p>
@@ -83,7 +94,12 @@ const OrderCard = ({ order }: { order: Order }) => {
       </CardContent>
       <CardFooter className="flex justify-between items-center bg-muted/50 p-4">
         <span className="text-sm">Total del Pedido</span>
+        <div className='flex items-center gap-2'>
+        {order.status === 'pending' && (
+            <Button variant="destructive" size="sm" onClick={() => onCancel(order)}>Cancelar</Button>
+        )}
         <span className="font-bold text-lg">{formatCurrency(order.totalAmount)}</span>
+        </div>
       </CardFooter>
     </Card>
   );
@@ -93,6 +109,9 @@ const OrderCard = ({ order }: { order: Order }) => {
 export default function MyOrdersPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const { toast } = useToast();
+
+  const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
 
   const myOrdersQuery = useMemo(() => {
     if (!firestore || !user) return null;
@@ -116,6 +135,28 @@ export default function MyOrdersPage() {
     });
     return { activeOrders: active, pastOrders: past };
   }, [orders]);
+
+  const handleCancelOrder = async () => {
+    if (!firestore || !orderToCancel) return;
+    const orderRef = doc(firestore, 'users', orderToCancel.customerId, 'orders', orderToCancel.id);
+    try {
+        await updateDoc(orderRef, { status: 'cancelled' });
+        toast({
+            title: 'Pedido Cancelado',
+            description: `Tu pedido #${orderToCancel.id.slice(-6).toUpperCase()} ha sido cancelado.`,
+        });
+    } catch(error) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'No se pudo cancelar el pedido. Inténtalo de nuevo.'
+        });
+        console.error("Error cancelling order:", error);
+    } finally {
+        setOrderToCancel(null);
+    }
+  };
+
 
   if (isUserLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>
@@ -147,7 +188,7 @@ export default function MyOrdersPage() {
               <h2 className="text-2xl font-semibold mb-4">Pedidos Activos</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {activeOrders.map(order => (
-                  <OrderCard key={order.id} order={order} />
+                  <OrderCard key={order.id} order={order} onCancel={setOrderToCancel} />
                 ))}
               </div>
             </>
@@ -158,12 +199,28 @@ export default function MyOrdersPage() {
             <h2 className="text-2xl font-semibold my-8 pt-4 border-t">Historial de Pedidos</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {pastOrders.map(order => (
-                <OrderCard key={order.id} order={order} />
+                <OrderCard key={order.id} order={order} onCancel={() => {}} />
               ))}
             </div>
           </>
         )}
       </main>
+      <AlertDialog open={!!orderToCancel} onOpenChange={() => setOrderToCancel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro de cancelar este pedido?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Tu pedido será cancelado permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Volver</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancelOrder} className="bg-destructive hover:bg-destructive/90">
+                Sí, cancelar pedido
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
