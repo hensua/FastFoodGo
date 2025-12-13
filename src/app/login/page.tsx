@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth, useUser } from '@/firebase';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Por favor, introduce un correo electrónico válido.' }),
@@ -23,6 +23,7 @@ export default function LoginPage() {
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [isEmailLoading, setIsEmailLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -36,7 +37,7 @@ export default function LoginPage() {
   });
 
   const handleRedirect = () => {
-    const intendedPath = router.query.redirect as string || '/';
+    const intendedPath = searchParams.get('redirect') || '/';
     router.push(intendedPath);
   };
 
@@ -74,10 +75,8 @@ export default function LoginPage() {
       // onAuthStateChanged handled by useEffect will redirect
     } catch (error: any) {
         let description = "Ocurrió un error inesperado. Por favor, intenta de nuevo.";
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
           description = "Correo o contraseña incorrectos. Por favor, verifica tus credenciales.";
-        } else if (error.code === 'auth/wrong-password') {
-           description = "La contraseña es incorrecta. Por favor, verifica tus credenciales.";
         } else if (error.code === 'auth/too-many-requests') {
           description = "Demasiados intentos fallidos. Por favor, intenta de nuevo más tarde."
         }
@@ -117,7 +116,7 @@ export default function LoginPage() {
               Continuar con Google
             </Button>
              <p className="text-center text-sm text-muted-foreground">
-              ¿Eres un nuevo usuario? Usa Google para crear tu cuenta.
+              Usa Google para crear tu cuenta si eres nuevo.
             </p>
 
             <div className="relative">
