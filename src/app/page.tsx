@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
 import { collection, writeBatch, doc } from 'firebase/firestore';
 import type { Product, AppUser } from '@/lib/types';
@@ -13,17 +13,14 @@ function HomePageContent() {
   const firestore = useFirestore();
   const productsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'products') : null, [firestore]);
   const { data: products, isLoading: isProductsLoading } = useCollection<Product>(productsCollection);
-  const [isSeeding, setIsSeeding] = useState(false);
 
   useEffect(() => {
     const seedDatabase = async () => {
-      if (firestore && products?.length === 0 && !isProductsLoading && !isSeeding) {
-        setIsSeeding(true);
+      if (firestore && products?.length === 0 && !isProductsLoading) {
         console.log('No products found, seeding database...');
         const batch = writeBatch(firestore);
         initialProducts.forEach((productData) => {
           const docRef = doc(collection(firestore, 'products'));
-          // Ensure the product has an ID before setting it.
           const productWithId = { ...productData, id: docRef.id };
           batch.set(docRef, productWithId);
         });
@@ -32,18 +29,16 @@ function HomePageContent() {
           console.log('Database seeded successfully!');
         } catch (error) {
           console.error('Error seeding database:', error);
-        } finally {
-          setIsSeeding(false);
         }
       }
     };
     
-    if (products !== null && products.length === 0 && !isProductsLoading) {
+    if (products !== null && !isProductsLoading && firestore) {
       seedDatabase();
     }
-  }, [products, isProductsLoading, firestore, isSeeding]);
+  }, [products, isProductsLoading, firestore]);
 
-  const isLoading = isProductsLoading || isSeeding || products === null;
+  const isLoading = isProductsLoading || products === null;
 
   return <OrderPage products={products || []} loading={isLoading} />;
 }
@@ -61,7 +56,8 @@ export default function Home() {
   
   const isAdmin = useMemo(() => userDoc?.role === 'admin', [userDoc]);
 
-  const isLoading = isUserLoading || isRoleLoading;
+  // Combined loading state
+  const isLoading = isUserLoading || !firestore || (user && isRoleLoading);
 
   useEffect(() => {
     if (!isLoading) {
@@ -75,6 +71,8 @@ export default function Home() {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Cargando...</div>;
   }
   
+  // If the user is an admin, we show a redirecting message while Next.js router kicks in.
+  // This avoids rendering the customer page for a fraction of a second.
   if (isAdmin) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo al panel de control...</div>;
   }
@@ -82,5 +80,3 @@ export default function Home() {
   // Only render the customer-facing page if we are sure the user is not an admin
   return <HomePageContent />;
 }
-
-    

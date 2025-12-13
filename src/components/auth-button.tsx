@@ -25,13 +25,15 @@ export default function AuthButton() {
   const { user, isUserLoading } = useUser();
 
   const userDocRef = useMemoFirebase(() => 
-    firestore && user ? doc(firestore, 'users', user.uid) : null,
+    (firestore && user) ? doc(firestore, 'users', user.uid) : null,
     [firestore, user]
   );
   const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
   const isAdmin = useMemo(() => userDoc?.role === 'admin', [userDoc]);
+  
+  const isLoading = isUserLoading || !firestore || (user && isRoleLoading);
 
-  if (isUserLoading || (user && isRoleLoading)) {
+  if (isLoading) {
     return <Skeleton className="h-10 w-10 rounded-full" />;
   }
 
@@ -86,5 +88,3 @@ export default function AuthButton() {
     </DropdownMenu>
   );
 }
-
-    

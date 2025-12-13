@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useFirestore, useMemoFirebase, useCollection, useDoc } from '@/firebase';
-import { collection, doc, setDoc, deleteDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import type { Order, Product, AppUser, Role } from '@/lib/types';
 import Header from '@/components/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +17,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { OrderList } from '@/components/order-list';
-import { addDoc } from 'firebase/firestore';
 
 // Inventory View Components
 const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product | null, onSave: (product: Omit<Product, 'id'> | Product) => void, onCancel: () => void, isSaving: boolean }) => {
@@ -133,7 +132,7 @@ const TeamManagement = () => {
         />
       </CardHeader>
       <CardContent>
-        {usersLoading ? <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin" /></div> :
+        {usersLoading || !firestore ? <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin" /></div> :
          !filteredUsers || filteredUsers.length === 0 ? <div className="text-center text-muted-foreground py-8">No se encontraron usuarios.</div> :
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -286,17 +285,22 @@ export default function AdminPage() {
   const isAdmin = useMemo(() => userDoc?.role === 'admin', [userDoc]);
 
   useEffect(() => {
-    const checkAuth = () => {
-      if (!isUserLoading && !isRoleLoading) {
-        if (!user || !isAdmin) {
-          router.push('/login?redirect=/admin');
-        }
+    // Wait until both user and role are resolved before redirecting
+    if (!isUserLoading && !isRoleLoading && firestore) {
+      if (!user || !isAdmin) {
+        toast({
+          variant: "destructive",
+          title: "Acceso denegado",
+          description: "Debes ser un administrador para ver esta página.",
+        });
+        router.push('/login?redirect=/admin');
       }
-    };
-    checkAuth();
-  }, [user, isUserLoading, isAdmin, isRoleLoading, router]);
+    }
+  }, [user, isUserLoading, isAdmin, isRoleLoading, router, firestore]);
 
-  if (isUserLoading || isRoleLoading || !user || !isAdmin) {
+  const isLoading = isUserLoading || isRoleLoading || !firestore || !user || !isAdmin;
+
+  if (isLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
   
@@ -309,4 +313,3 @@ export default function AdminPage() {
     </div>
   );
 }
-    
