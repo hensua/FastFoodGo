@@ -14,7 +14,8 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { LogOut, Shield } from 'lucide-react';
 import Link from 'next/link';
-import { doc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useEffect } from 'react';
 
 
 export default function AuthButton() {
@@ -28,6 +29,35 @@ export default function AuthButton() {
   );
   const { data: adminRoleDoc, isLoading: isRoleLoading } = useDoc(adminRoleRef);
   const isAdmin = !!adminRoleDoc;
+
+  // Ensure user document exists in 'users' collection for any logged-in user
+  useEffect(() => {
+    const ensureUserDocument = async () => {
+      if (firestore && user) {
+        const userRef = doc(firestore, 'users', user.uid);
+        try {
+          const userSnap = await getDoc(userRef);
+          if (!userSnap.exists()) {
+            const { displayName, email, photoURL, uid } = user;
+            await setDoc(userRef, {
+              uid,
+              displayName,
+              email,
+              photoURL,
+              createdAt: serverTimestamp(),
+            });
+            console.log(`User document created for ${email}`);
+          }
+        } catch (error) {
+          console.error("Error ensuring user document:", error);
+        }
+      }
+    };
+
+    if (!isUserLoading) {
+      ensureUserDocument();
+    }
+  }, [user, isUserLoading, firestore]);
 
 
   if (isUserLoading || (user && isRoleLoading)) {
