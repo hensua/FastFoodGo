@@ -8,13 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { Clock, ChefHat, PackageCheck, Loader2 } from 'lucide-react';
+import { Clock, ChefHat, PackageCheck, Loader2, Truck, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-const statusConfig = {
+const statusConfig: Record<string, { title: string; icon: React.ElementType; color: string }> = {
   pending: { title: 'Pendientes', icon: Clock, color: 'border-l-4 border-red-500' },
   cooking: { title: 'En Preparación', icon: ChefHat, color: 'border-l-4 border-yellow-500' },
-  ready: { title: 'Listos para Retirar', icon: PackageCheck, color: 'border-l-4 border-green-500' },
+  ready: { title: 'Listos', icon: PackageCheck, color: 'border-l-4 border-green-500' },
+  delivering: { title: 'En Entrega', icon: Truck, color: 'border-l-4 border-blue-500' },
 };
 
 const OrderCard = ({ order, onStatusChange, isUpdating }: { order: Order; onStatusChange: (orderId: string, customerId: string, newStatus: OrderStatus) => void; isUpdating: boolean }) => {
@@ -55,6 +56,11 @@ const OrderCard = ({ order, onStatusChange, isUpdating }: { order: Order; onStat
             {actionTextMap[nextStatus]}
           </Button>
         )}
+        {order.status === 'delivering' && (
+           <div className="text-center text-sm text-blue-600 font-semibold p-2 bg-blue-50 rounded-md">
+            <p>Repartidor: {order.driverName || 'Asignado'}</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -74,7 +80,7 @@ export function OrderList() {
 
   const ordersQuery = useMemo(() => {
     if (!firestore || !isAdmin) return null; // Only run query if user is admin
-    return query(collectionGroup(firestore, 'orders'), where('status', 'in', ['pending', 'cooking', 'ready']));
+    return query(collectionGroup(firestore, 'orders'), where('status', 'in', ['pending', 'cooking', 'ready', 'delivering']));
   }, [firestore, isAdmin]);
 
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
@@ -105,6 +111,7 @@ export function OrderList() {
     pending: orders?.filter(o => o.status === 'pending') || [],
     cooking: orders?.filter(o => o.status === 'cooking') || [],
     ready: orders?.filter(o => o.status === 'ready') || [],
+    delivering: orders?.filter(o => o.status === 'delivering') || [],
   }), [orders]);
   
   if (!isAdmin) {
@@ -112,18 +119,18 @@ export function OrderList() {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
       {(Object.keys(statusConfig) as Array<keyof typeof statusConfig>).map(statusKey => (
         <div key={statusKey} className="bg-muted/50 rounded-xl p-4 min-h-[500px]">
           <h3 className="font-bold text-muted-foreground uppercase tracking-wider mb-4 flex justify-between items-center">
             {statusConfig[statusKey].title}
-            <span className="bg-background px-2 py-1 rounded-full text-xs shadow-sm">{ordersByStatus[statusKey].length}</span>
+            <span className="bg-background px-2 py-1 rounded-full text-xs shadow-sm">{ordersByStatus[statusKey as keyof typeof ordersByStatus].length}</span>
           </h3>
           <div className="space-y-4">
             {ordersLoading ? (
               <div className="flex justify-center items-center py-10"><Loader2 className="animate-spin" /></div>
-            ) : ordersByStatus[statusKey].length > 0 ? (
-              ordersByStatus[statusKey].map(order => (
+            ) : ordersByStatus[statusKey as keyof typeof ordersByStatus].length > 0 ? (
+              ordersByStatus[statusKey as keyof typeof ordersByStatus].map(order => (
                 <OrderCard 
                     key={order.id} 
                     order={order} 
