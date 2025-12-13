@@ -3,8 +3,8 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
-import { collectionGroup, query, where, doc, updateDoc } from 'firebase/firestore';
-import type { Order, OrderStatus, AppUser } from '@/lib/types';
+import { collectionGroup, query, where, doc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import type { Order, OrderStatus, AppUser, ChatMessage } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ const statusConfig: Record<string, { title: string; icon: React.ElementType; col
   cancelled: { title: 'Cancelados', icon: XCircle, color: 'border-l-4 border-red-500' },
 };
 
-const OrderCard = ({ order, onStatusChange, onCancel, onChat, isUpdating }: { order: Order; onStatusChange: (orderId: string, customerId: string, newStatus: OrderStatus, reason?: string) => void; onCancel: (order: Order) => void; onChat: (order: Order) => void; isUpdating: boolean }) => {
+const OrderCard = ({ order, onStatusChange, onCancel, onChat, isUpdating }: { order: Order; onStatusChange: (order: Order, newStatus: OrderStatus, reason?: string) => void; onCancel: (order: Order) => void; onChat: (order: Order) => void; isUpdating: boolean }) => {
   const currentStatusConfig = statusConfig[order.status as keyof typeof statusConfig];
   const nextStatusMap: Record<string, OrderStatus | null> = { pending: 'cooking', cooking: 'ready', ready: null };
   const nextStatus = nextStatusMap[order.status];
@@ -70,7 +70,7 @@ const OrderCard = ({ order, onStatusChange, onCancel, onChat, isUpdating }: { or
         {order.status !== 'cancelled' && order.status !== 'delivered' && (
           <div className='space-y-2'>
             {nextStatus && (
-              <Button onClick={() => onStatusChange(order.id, order.customerId, nextStatus)} className="w-full text-sm" disabled={isUpdating}>
+              <Button onClick={() => onStatusChange(order, nextStatus)} className="w-full text-sm" disabled={isUpdating}>
                 {isUpdating ? <Loader2 className="animate-spin mr-2"/> : null}
                 {actionTextMap[nextStatus]}
               </Button>
@@ -184,10 +184,27 @@ export function OrderList() {
 
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
 
-  const handleStatusChange = async (orderId: string, customerId: string, newStatus: OrderStatus, reason?: string) => {
+  const sendAutoChatMessage = async (order: Order) => {
+    if (!firestore || !order.customerName) return;
+
+    const messageData: Omit<ChatMessage, 'timestamp'> = {
+      text: `Hola ${order.customerName}, ¿deseas agregar una nota general de tu pedido?`,
+      senderId: 'system',
+      senderName: 'FastFoodGo',
+      senderRole: 'admin',
+    };
+    
+    const messagesCol = collection(firestore, 'users', order.customerId, 'orders', order.id, 'messages');
+    await addDoc(messagesCol, {
+        ...messageData,
+        timestamp: serverTimestamp()
+    });
+  };
+
+  const handleStatusChange = async (order: Order, newStatus: OrderStatus, reason?: string) => {
     if (!firestore) return;
-    setUpdatingOrderId(orderId);
-    const orderRef = doc(firestore, 'users', customerId, 'orders', orderId);
+    setUpdatingOrderId(order.id);
+    const orderRef = doc(firestore, 'users', order.customerId, 'orders', order.id);
     
     const updateData: { status: OrderStatus; cancellationReason?: string } = { status: newStatus };
     if (newStatus === 'cancelled' && reason) {
@@ -196,10 +213,14 @@ export function OrderList() {
 
     try {
       await updateDoc(orderRef, updateData);
+
+      if (newStatus === 'cooking') {
+        await sendAutoChatMessage(order);
+      }
       
-      let toastDescription = `El pedido #${orderId.slice(-6).toUpperCase()} ha sido actualizado.`;
+      let toastDescription = `El pedido #${order.id.slice(-6).toUpperCase()} ha sido actualizado.`;
       if (newStatus === 'cancelled') {
-        toastDescription = `El pedido #${orderId.slice(-6).toUpperCase()} ha sido cancelado.`
+        toastDescription = `El pedido #${order.id.slice(-6).toUpperCase()} ha sido cancelado.`
       }
 
       toast({
@@ -220,7 +241,7 @@ export function OrderList() {
 
   const handleConfirmCancel = (reason: string) => {
     if (!orderToCancel) return;
-    handleStatusChange(orderToCancel.id, orderToCancel.customerId, 'cancelled', reason);
+    handleStatusChange(orderToCancel, 'cancelled', reason);
     setOrderToCancel(null);
   }
 

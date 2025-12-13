@@ -1,3 +1,4 @@
+
 export type Product = {
   id: string;
   name: string;
@@ -54,4 +55,12 @@ export type AppUser = {
   role?: Role;
   phoneNumber?: string;
   deliveryAddress?: string;
+};
+
+export type ChatMessage = {
+  text: string;
+  senderId: string;
+  senderName: string;
+  senderRole: Role;
+  timestamp: any;
 };

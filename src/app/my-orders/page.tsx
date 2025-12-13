@@ -4,7 +4,7 @@
 import React, { useMemo, useState } from 'react';
 import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, orderBy, doc, updateDoc, where } from 'firebase/firestore';
-import type { Order, OrderStatus, AppUser } from '@/lib/types';
+import type { Order, OrderStatus, AppUser, ChatMessage } from '@/lib/types';
 import Header from '@/components/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,11 +36,23 @@ const statusConfig: Record<OrderStatus, { text: string; icon: React.ElementType;
   cancelled: { text: 'Cancelado', icon: Ban, color: 'text-red-500', progress: 'w-full bg-red-500' },
 };
 
-const OrderCard = ({ order, onCancel, onChat }: { order: Order, onCancel: (order: Order) => void, onChat: (order: Order) => void }) => {
+const OrderCard = ({ order, onCancel, onChat, currentUser }: { order: Order, onCancel: (order: Order) => void, onChat: (order: Order) => void, currentUser: AppUser }) => {
   const config = statusConfig[order.status];
   const subtotal = order.totalAmount - (order.deliveryFee || 0) - (order.tip || 0);
   const canChat = ['cooking', 'ready', 'delivering'].includes(order.status);
   
+  const firestore = useFirestore();
+  const messagesQuery = useMemoFirebase(() => {
+    if (!firestore || !canChat) return null;
+    return query(collection(firestore, 'users', order.customerId, 'orders', order.id, 'messages'), orderBy('timestamp', 'desc'));
+  }, [firestore, order.customerId, order.id, canChat]);
+  const { data: messages } = useCollection<ChatMessage>(messagesQuery);
+  const hasUnreadMessages = useMemo(() => {
+    if (!messages || messages.length === 0) return false;
+    return messages[0].senderId !== currentUser.uid;
+  }, [messages, currentUser.uid]);
+
+
   return (
     <Card className="shadow-md animate-fade-in w-full flex flex-col">
       <CardHeader>
@@ -128,7 +140,13 @@ const OrderCard = ({ order, onCancel, onChat }: { order: Order, onCancel: (order
                 <Button variant="destructive" size="sm" onClick={() => onCancel(order)}>Cancelar</Button>
             )}
              {canChat && (
-                <Button variant="outline" size="sm" onClick={() => onChat(order)}>
+                <Button variant="outline" size="sm" onClick={() => onChat(order)} className="relative">
+                    {hasUnreadMessages && (
+                        <span className="absolute top-0 right-0 -mt-1 -mr-1 flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                        </span>
+                    )}
                     <MessageSquare className='mr-2' size={14} /> Chat
                 </Button>
             )}
@@ -198,7 +216,7 @@ export default function MyOrdersPage() {
     }
   };
 
-  const pageLoading = isUserLoading || isUserDocLoading;
+  const pageLoading = isUserLoading || isUserDocLoading || !userDoc;
 
   if (pageLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>
@@ -230,7 +248,7 @@ export default function MyOrdersPage() {
               <h2 className="text-2xl font-semibold mb-4">Pedidos Activos</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {activeOrders.map(order => (
-                  <OrderCard key={order.id} order={order} onCancel={setOrderToCancel} onChat={setChatOrder} />
+                  <OrderCard key={order.id} order={order} onCancel={setOrderToCancel} onChat={setChatOrder} currentUser={userDoc} />
                 ))}
               </div>
             </>
@@ -241,7 +259,7 @@ export default function MyOrdersPage() {
             <h2 className="text-2xl font-semibold my-8 pt-4 border-t">Historial de Pedidos</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {pastOrders.map(order => (
-                <OrderCard key={order.id} order={order} onCancel={() => {}} onChat={setChatOrder} />
+                <OrderCard key={order.id} order={order} onCancel={() => {}} onChat={setChatOrder} currentUser={userDoc} />
               ))}
             </div>
           </>
