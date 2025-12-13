@@ -18,6 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { OrderList } from '@/components/order-list';
 import { addDoc, updateDoc } from 'firebase/firestore';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 // Inventory View Components
 const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product | null, onSave: (product: Omit<Product, 'id'> | Product) => void, onCancel: () => void, isSaving: boolean }) => {
@@ -118,6 +120,7 @@ const TeamManagement = () => {
           
           return { ...user, role };
         } catch (error) {
+          // This should ideally use our centralized error handler
           console.error(`Could not fetch roles for user ${user.uid}`, error);
           // Default to customer if role fetching fails
           return { ...user, role: 'customer' as Role };
@@ -141,9 +144,9 @@ const TeamManagement = () => {
     const driverRoleRef = doc(firestore, "roles_driver", uid);
 
     try {
-      // Always try to delete from both role collections to ensure clean state
-      await deleteDoc(adminRoleRef);
-      await deleteDoc(driverRoleRef);
+      // Non-blocking writes with centralized error handling
+      deleteDoc(adminRoleRef).catch(err => errorEmitter.emit('permission-error', new FirestorePermissionError({path: adminRoleRef.path, operation: 'delete'})));
+      deleteDoc(driverRoleRef).catch(err => errorEmitter.emit('permission-error', new FirestorePermissionError({path: driverRoleRef.path, operation: 'delete'})));
 
       if (newRole === 'admin') {
         await setDoc(adminRoleRef, { uid });
@@ -157,11 +160,11 @@ const TeamManagement = () => {
         description: `El rol del usuario ha sido cambiado a ${newRole}.`
       });
     } catch (error: any) {
-      console.error("Error setting user role:", error);
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: newRole === 'admin' ? adminRoleRef.path : driverRoleRef.path, operation: 'create', requestResourceData: {uid}}));
       toast({
         variant: "destructive",
         title: "Error al cambiar rol",
-        description: `No se pudo actualizar el rol. ${error.message}`
+        description: `No se pudo actualizar el rol. Permiso denegado.`
       });
     } finally {
       setIsRoleChanging(null);
@@ -337,11 +340,14 @@ export default function AdminPage() {
   const isAdmin = useMemo(() => !!adminRoleDoc, [adminRoleDoc]);
 
   useEffect(() => {
-    if (!isUserLoading && !isRoleLoading) {
-      if (!user || !isAdmin) {
-        router.push('/login?redirect=/admin');
+    const checkAuth = () => {
+      if (!isUserLoading && !isRoleLoading) {
+        if (!user || !isAdmin) {
+          router.push('/login?redirect=/admin');
+        }
       }
-    }
+    };
+    checkAuth();
   }, [user, isUserLoading, isAdmin, isRoleLoading, router]);
 
   if (isUserLoading || isRoleLoading || !user || !isAdmin) {

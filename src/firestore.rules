@@ -120,7 +120,7 @@ service cloud.firestore {
     match /products/{productId} {
       allow read: if true;
       // Allow create if user is signed in and the document doesn't exist (for seeding) OR if user is admin
-      allow create: if (isSignedIn() && !exists(/databases/$(database)/documents/products/$(productId))) || isAdmin();
+      allow create: (isSignedIn() && !exists(/databases/$(database)/documents/products/$(productId))) || isAdmin();
       allow update, delete: if isAdmin();
     }
     

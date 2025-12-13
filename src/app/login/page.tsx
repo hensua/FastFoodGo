@@ -48,21 +48,23 @@ export default function LoginPage() {
     if (!firestore || !firebaseUser) return;
     
     const userRef = doc(firestore, 'users', firebaseUser.uid);
-    const userSnap = await getDoc(userRef);
+    
+    try {
+      const userSnap = await getDoc(userRef);
 
-    if (!userSnap.exists()) {
-      const { displayName, email, photoURL, uid } = firebaseUser;
-      try {
+      if (!userSnap.exists()) {
+        const { displayName, email, photoURL, uid } = firebaseUser;
         await setDoc(userRef, {
           uid,
-          displayName,
+          displayName: displayName || email?.split('@')[0] || 'Usuario Anónimo',
           email,
           photoURL,
           createdAt: serverTimestamp(),
         });
-      } catch (e) {
-        console.error("Error creating user document:", e);
       }
+    } catch (e) {
+      console.error("Error creating user document:", e);
+      // Optional: Show a toast to the user about the profile creation failure
     }
     
     handleRedirect();
@@ -72,7 +74,7 @@ export default function LoginPage() {
     if (!isUserLoading && user) {
        handleRedirect();
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading]);
 
   const handleGoogleSignIn = async () => {
     if (!auth) return;
