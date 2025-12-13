@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,14 +14,23 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { LogOut, Shield } from 'lucide-react';
 import Link from 'next/link';
-import { useRole } from '@/hooks/use-role';
+import { doc } from 'firebase/firestore';
+
 
 export default function AuthButton() {
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
-  const { isAdmin } = useRole();
 
-  if (isUserLoading) {
+  const adminRoleRef = useMemoFirebase(() => 
+    firestore && user ? doc(firestore, 'roles_admin', user.uid) : null,
+    [firestore, user]
+  );
+  const { data: adminRoleDoc, isLoading: isRoleLoading } = useDoc(adminRoleRef);
+  const isAdmin = !!adminRoleDoc;
+
+
+  if (isUserLoading || (user && isRoleLoading)) {
     return <Skeleton className="h-10 w-10 rounded-full" />;
   }
 

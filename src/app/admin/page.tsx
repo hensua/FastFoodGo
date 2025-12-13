@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useFirestore, useMemoFirebase, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collectionGroup, query, where, onSnapshot, doc, updateDoc, addDoc, deleteDoc, collection } from 'firebase/firestore';
+import { useFirestore, useMemoFirebase, useCollection, errorEmitter, FirestorePermissionError, useDoc } from '@/firebase';
+import { collectionGroup, query, where, doc, updateDoc, addDoc, deleteDoc, collection } from 'firebase/firestore';
 import type { Order, OrderStatus, Product } from '@/lib/types';
 import Header from '@/components/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +12,6 @@ import { formatCurrency } from '@/lib/utils';
 import { Clock, ChefHat, PackageCheck, UtensilsCrossed, Package, TrendingUp, Trash2, Edit, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/provider';
-import { useRole } from '@/hooks/use-role';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -145,10 +144,9 @@ const ProductForm = ({ product, onSave, onCancel }: { product: Product | null, o
 };
 
 
-const AdminDashboard = () => {
+const AdminDashboard = ({ isAdmin }: { isAdmin: boolean }) => {
   const [activeTab, setActiveTab] = useState('kitchen');
   const firestore = useFirestore();
-  const { isAdmin } = useRole();
 
   // Product state
   const productsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'products') : null, [firestore]);
@@ -164,7 +162,7 @@ const AdminDashboard = () => {
     );
   }, [firestore, isAdmin]);
 
-  const { data: orders, isLoading: ordersLoading, error: ordersError } = useCollection<Order>(ordersQuery);
+  const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
 
   const handleStatusChange = async (orderId: string, customerId: string, newStatus: OrderStatus) => {
     if (!firestore) return;
@@ -324,27 +322,41 @@ const AdminDashboard = () => {
 
 export default function AdminPage() {
   const { user, isUserLoading } = useUser();
-  const { isAdmin, isRoleLoading } = useRole();
+  const firestore = useFirestore();
   const router = useRouter();
 
+  // Check for admin role by looking for a document in /roles_admin/{uid}
+  const adminRoleRef = useMemoFirebase(() => 
+    firestore && user ? doc(firestore, 'roles_admin', user.uid) : null, 
+    [firestore, user]
+  );
+  const { data: adminRoleDoc, isLoading: isRoleLoading } = useDoc(adminRoleRef);
+  const isAdmin = !!adminRoleDoc;
+
   useEffect(() => {
-    if (!isUserLoading && !isRoleLoading) {
-      if (!isAdmin) {
-        router.push('/login');
-      }
+    // If loading is finished and user is not an admin, redirect.
+    if (!isUserLoading && !isRoleLoading && !isAdmin) {
+      router.push('/login');
     }
   }, [user, isUserLoading, isAdmin, isRoleLoading, router]);
 
-  if (isUserLoading || isRoleLoading || !isAdmin) {
-    return <div className="h-screen flex items-center justify-center">Cargando...</div>;
+  // Show loading indicator while checking auth and role.
+  if (isUserLoading || isRoleLoading) {
+    return <div className="h-screen flex items-center justify-center">Verificando acceso...</div>;
+  }
+  
+  // If user is confirmed to be an admin, render the dashboard.
+  if (isAdmin) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header onCartClick={() => {}} />
+        <main className="container mx-auto px-4 py-8">
+          <AdminDashboard isAdmin={isAdmin} />
+        </main>
+      </div>
+    );
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <Header onCartClick={() => {}} />
-      <main className="container mx-auto px-4 py-8">
-        <AdminDashboard />
-      </main>
-    </div>
-  );
+  // Fallback, in case redirect hasn't happened yet.
+  return <div className="h-screen flex items-center justify-center">Redirigiendo...</div>;
 }
