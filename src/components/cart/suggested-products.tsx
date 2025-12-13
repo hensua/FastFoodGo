@@ -70,7 +70,7 @@ export default function SuggestedProducts({ currentProduct }: SuggestedProductsP
         )}
         <div className="space-y-4">
           {[...Array(2)].map((_, i) => (
-             <div key={i} className="flex items-center gap-4">
+             <div key={`skeleton-${i}`} className="flex items-center gap-4">
               <Skeleton className="h-16 w-16 rounded-md" />
               <div className="flex-grow space-y-2">
                 <Skeleton className="h-4 w-3/4" />
