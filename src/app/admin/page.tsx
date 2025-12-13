@@ -278,38 +278,49 @@ export default function AdminPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
+  const { toast } = useToast();
 
   const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
   
   const isAdmin = useMemo(() => userDoc?.role === 'admin', [userDoc]);
 
+  // This is the loading state for the initial check.
+  const isLoading = isUserLoading || !firestore || isRoleLoading;
+  
   useEffect(() => {
-    // Wait until both user and role are resolved before redirecting
-    if (!isUserLoading && !isRoleLoading && firestore) {
-      if (!user || !isAdmin) {
-        toast({
-          variant: "destructive",
-          title: "Acceso denegado",
-          description: "Debes ser un administrador para ver esta página.",
-        });
-        router.push('/login?redirect=/admin');
-      }
-    }
-  }, [user, isUserLoading, isAdmin, isRoleLoading, router, firestore]);
+    // Don't do anything until loading is complete
+    if (isLoading) return;
 
-  const isLoading = isUserLoading || isRoleLoading || !firestore || !user || !isAdmin;
+    // Once loading is done, check for access.
+    if (!user || !isAdmin) {
+      toast({
+        variant: "destructive",
+        title: "Acceso denegado",
+        description: "Debes ser un administrador para ver esta página.",
+      });
+      router.push('/login?redirect=/admin');
+    }
+  }, [user, isAdmin, isLoading, router, toast]);
 
   if (isLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
-  
-  return (
-    <div className="min-h-screen bg-background">
-      <Header onCartClick={() => {}} />
-      <main className="container mx-auto px-4 py-8">
-        <AdminDashboard />
-      </main>
-    </div>
-  );
+
+  // If we are not loading and the user is an admin, render the dashboard.
+  // The useEffect above handles the redirection for non-admins.
+  // We add an explicit check here to prevent flashing the content for non-admins before redirection.
+  if (isAdmin) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header onCartClick={() => {}} />
+        <main className="container mx-auto px-4 py-8">
+          <AdminDashboard />
+        </main>
+      </div>
+    );
+  }
+
+  // If the user is not an admin, we show a loading spinner while redirecting.
+  return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
 }
