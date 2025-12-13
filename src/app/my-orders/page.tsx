@@ -3,14 +3,14 @@
 
 import React, { useMemo, useState } from 'react';
 import { useFirestore, useCollection, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, doc, updateDoc, where } from 'firebase/firestore';
 import type { Order, OrderStatus } from '@/lib/types';
 import Header from '@/components/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { Loader2, ShoppingBag, Clock, ChefHat, Truck, CheckCircle2, KeyRound, Ban } from 'lucide-react';
+import { Loader2, ShoppingBag, Clock, ChefHat, Truck, CheckCircle2, KeyRound, Ban, Gift } from 'lucide-react';
 import Link from 'next/link';
 import {
   AlertDialog,
@@ -23,6 +23,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
+
 
 const statusConfig: Record<OrderStatus, { text: string; icon: React.ElementType; color: string; progress: string }> = {
   pending: { text: 'Pendiente', icon: Clock, color: 'text-gray-500', progress: 'w-1/6' },
@@ -35,6 +37,7 @@ const statusConfig: Record<OrderStatus, { text: string; icon: React.ElementType;
 
 const OrderCard = ({ order, onCancel }: { order: Order, onCancel: (order: Order) => void }) => {
   const config = statusConfig[order.status];
+  const subtotal = order.totalAmount - (order.deliveryFee || 0) - (order.tip || 0);
   
   return (
     <Card className="shadow-md animate-fade-in w-full flex flex-col">
@@ -43,9 +46,9 @@ const OrderCard = ({ order, onCancel }: { order: Order, onCancel: (order: Order)
           <div>
             <CardTitle>Pedido #{order.id.slice(-6).toUpperCase()}</CardTitle>
             <CardDescription>
-              {new Date(order.orderDate?.toDate()).toLocaleDateString('es-CO', {
+              {order.orderDate?.toDate ? new Date(order.orderDate.toDate()).toLocaleDateString('es-CO', {
                 year: 'numeric', month: 'long', day: 'numeric'
-              })}
+              }) : ''}
             </CardDescription>
           </div>
           <Badge variant={order.status === 'delivered' ? 'default' : 'secondary'} className={`${config.color.replace('text-', 'bg-').replace('-500', '/10')} border ${config.color.replace('text-','border-')}`}>
@@ -90,15 +93,30 @@ const OrderCard = ({ order, onCancel }: { order: Order, onCancel: (order: Order)
               </div>
             ))}
           </div>
+           <Separator className="my-2"/>
+            <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span>{formatCurrency(subtotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Domicilio</span>
+                    <span>{formatCurrency(order.deliveryFee)}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span className="text-muted-foreground">Propina</span>
+                    <span>{formatCurrency(order.tip)}</span>
+                </div>
+            </div>
         </div>
       </CardContent>
       <CardFooter className="flex justify-between items-center bg-muted/50 p-4">
-        <span className="text-sm">Total del Pedido</span>
-        <div className='flex items-center gap-2'>
-        {order.status === 'pending' && (
+         {order.status === 'pending' && (
             <Button variant="destructive" size="sm" onClick={() => onCancel(order)}>Cancelar</Button>
         )}
-        <span className="font-bold text-lg">{formatCurrency(order.totalAmount)}</span>
+        <div className="flex flex-col items-end flex-grow">
+          <span className="text-sm">Total del Pedido</span>
+          <span className="font-bold text-lg">{formatCurrency(order.totalAmount)}</span>
         </div>
       </CardFooter>
     </Card>

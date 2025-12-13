@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { Loader2, Truck, CheckCircle2, Navigation, History, BarChart2 } from 'lucide-react';
+import { Loader2, Truck, CheckCircle2, Navigation, History, BarChart2, Gift, CircleDollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import {
@@ -46,6 +46,16 @@ const OrderCard = ({ order, onAccept, isUpdating }: { order: Order; onAccept: (o
         </div>
         <div className="font-bold border-t pt-2">
           <span>Total: {formatCurrency(order.totalAmount)}</span>
+        </div>
+         <div className="text-sm mt-2 space-y-1 text-green-700">
+            <div className="flex justify-between items-center">
+                <span className="font-semibold flex items-center gap-1"><Truck size={14}/> Domicilio:</span>
+                <span>{formatCurrency(order.deliveryFee)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+                <span className="font-semibold flex items-center gap-1"><Gift size={14}/> Propina:</span>
+                <span>{formatCurrency(order.tip)}</span>
+            </div>
         </div>
       </CardContent>
       <CardFooter>
@@ -151,10 +161,10 @@ export default function DeliveryPage() {
 
   const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
-  const isDriver = userDoc?.role === 'driver';
+  const isDriver = useMemo(() => userDoc?.role === 'driver', [userDoc]);
 
   useEffect(() => {
-    if (!isUserLoading && !isRoleLoading && userDoc && !isDriver) {
+    if (!isUserLoading && !isRoleLoading && user && !isDriver) {
       toast({ variant: 'destructive', title: 'Acceso Denegado', description: 'No tienes permisos de repartidor.' });
       router.push('/');
     }
@@ -167,12 +177,12 @@ export default function DeliveryPage() {
 
   const myDeliveriesQuery = useMemoFirebase(() => {
     if (!firestore || !user || !isDriver) return null;
-    return query(collectionGroup(firestore, 'orders'), where('status', '==', 'delivering'), where('driverId', '==', user.uid));
+    return query(collectionGroup(firestore, 'orders'), where('driverId', '==', user.uid), where('status', '==', 'delivering'));
   }, [firestore, user, isDriver]);
   
   const myPastDeliveriesQuery = useMemoFirebase(() => {
     if (!firestore || !user || !isDriver) return null;
-    return query(collectionGroup(firestore, 'orders'), where('status', '==', 'delivered'), where('driverId', '==', user.uid), orderBy('orderDate', 'desc'));
+    return query(collectionGroup(firestore, 'orders'), where('driverId', '==', user.uid), where('status', '==', 'delivered'), orderBy('orderDate', 'desc'));
   }, [firestore, user, isDriver]);
 
   const { data: readyOrders, isLoading: readyOrdersLoading } = useCollection<Order>(readyOrdersQuery);
@@ -302,7 +312,7 @@ export default function DeliveryPage() {
                           <td className='p-2 font-mono text-primary'>#{order.id.slice(-6).toUpperCase()}</td>
                           <td className='p-2 text-muted-foreground'>{order.orderDate?.toDate ? new Date(order.orderDate.toDate()).toLocaleDateString() : 'N/A'}</td>
                           <td className='p-2'>{order.customerName}</td>
-                          <td className='p-2'>{formatCurrency(order.tip || 0)}</td>
+                          <td className='p-2 text-green-600 font-medium'>{formatCurrency(order.tip || 0)}</td>
                           <td className='p-2 text-right font-semibold'>{formatCurrency((order.deliveryFee || 0) + (order.tip || 0))}</td>
                         </tr>
                       ))}
@@ -318,11 +328,17 @@ export default function DeliveryPage() {
         {activeTab === 'stats' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <Card>
-              <CardHeader><CardTitle>Total Entregas</CardTitle></CardHeader>
+              <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+                <CardTitle className="text-sm font-medium">Total Entregas</CardTitle>
+                <Truck className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
               <CardContent><p className="text-4xl font-bold">{deliveryStats.count}</p></CardContent>
             </Card>
              <Card>
-              <CardHeader><CardTitle>Ingresos Totales</CardTitle></CardHeader>
+              <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+                <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
+                 <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
               <CardContent><p className="text-4xl font-bold">{formatCurrency(deliveryStats.earnings)}</p></CardContent>
             </Card>
           </div>
