@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
 import { collection, writeBatch, doc } from 'firebase/firestore';
-import type { Product } from '@/lib/types';
+import type { Product, AppUser } from '@/lib/types';
 import OrderPage from './order-page';
 import { products as initialProducts } from '@/lib/data';
 import { useRouter } from 'next/navigation';
@@ -21,9 +21,11 @@ function HomePageContent() {
         setIsSeeding(true);
         console.log('No products found, seeding database...');
         const batch = writeBatch(firestore);
-        initialProducts.forEach((product) => {
+        initialProducts.forEach((productData) => {
           const docRef = doc(collection(firestore, 'products'));
-          batch.set(docRef, product);
+          // Ensure the product has an ID before setting it.
+          const productWithId = { ...productData, id: docRef.id };
+          batch.set(docRef, productWithId);
         });
         try {
           await batch.commit();
@@ -51,13 +53,13 @@ export default function Home() {
   const firestore = useFirestore();
   const router = useRouter();
   
-  const adminRoleRef = useMemoFirebase(() => 
-    (firestore && user) ? doc(firestore, 'roles_admin', user.uid) : null,
+  const userDocRef = useMemoFirebase(() => 
+    (firestore && user) ? doc(firestore, 'users', user.uid) : null,
     [firestore, user]
   );
-  const { data: adminRoleDoc, isLoading: isRoleLoading } = useDoc(adminRoleRef);
+  const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
   
-  const isAdmin = useMemo(() => !!adminRoleDoc, [adminRoleDoc]);
+  const isAdmin = useMemo(() => userDoc?.role === 'admin', [userDoc]);
 
   const isLoading = isUserLoading || isRoleLoading;
 
@@ -80,3 +82,5 @@ export default function Home() {
   // Only render the customer-facing page if we are sure the user is not an admin
   return <HomePageContent />;
 }
+
+    

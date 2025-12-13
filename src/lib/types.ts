@@ -37,5 +37,7 @@ export type AppUser = {
   displayName?: string | null;
   photoURL?: string | null;
   createdAt?: any;
+  role?: Role;
 };
+
     

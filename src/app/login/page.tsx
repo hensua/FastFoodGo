@@ -60,6 +60,7 @@ export default function LoginPage() {
           email,
           photoURL,
           createdAt: serverTimestamp(),
+          role: 'customer', // Default role for new users
         });
       }
     } catch (e) {
@@ -227,3 +228,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    

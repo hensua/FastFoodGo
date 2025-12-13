@@ -11,7 +11,7 @@ import { Loader2 } from 'lucide-react';
 import CartItem from './cart/cart-item';
 import { ScrollArea } from './ui/scroll-area';
 import { formatCurrency } from '@/lib/utils';
-import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { collection, serverTimestamp, doc, setDoc } from 'firebase/firestore';
 
 export default function CheckoutForm() {
@@ -32,7 +32,7 @@ export default function CheckoutForm() {
     
     try {
       // Use Firestore's auto-generated ID for the order document
-      const newOrderRef = doc(collection(firestore, 'customers', user.uid, 'orders'));
+      const newOrderRef = doc(collection(firestore, 'users', user.uid, 'orders'));
 
       const orderData = {
         id: newOrderRef.id, // Use the generated ID
@@ -127,4 +127,5 @@ export default function CheckoutForm() {
     </div>
   );
 }
+
     

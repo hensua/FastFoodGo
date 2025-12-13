@@ -72,7 +72,7 @@ export function OrderList() {
 
   const handleStatusChange = async (orderId: string, customerId: string, newStatus: OrderStatus) => {
     if (!firestore) return;
-    const orderRef = doc(firestore, 'customers', customerId, 'orders', orderId);
+    const orderRef = doc(firestore, 'users', customerId, 'orders', orderId);
     try {
       await updateDoc(orderRef, { status: newStatus });
       toast({
@@ -119,3 +119,5 @@ export function OrderList() {
     </div>
   );
 }
+
+    

@@ -16,6 +16,7 @@ import { LogOut, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { doc } from 'firebase/firestore';
 import { useMemo } from 'react';
+import type { AppUser } from '@/lib/types';
 
 
 export default function AuthButton() {
@@ -23,12 +24,12 @@ export default function AuthButton() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  const adminRoleRef = useMemoFirebase(() => 
-    firestore && user ? doc(firestore, 'roles_admin', user.uid) : null,
+  const userDocRef = useMemoFirebase(() => 
+    firestore && user ? doc(firestore, 'users', user.uid) : null,
     [firestore, user]
   );
-  const { data: adminRoleDoc, isLoading: isRoleLoading } = useDoc(adminRoleRef);
-  const isAdmin = useMemo(() => !!adminRoleDoc, [adminRoleDoc]);
+  const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
+  const isAdmin = useMemo(() => userDoc?.role === 'admin', [userDoc]);
 
   if (isUserLoading || (user && isRoleLoading)) {
     return <Skeleton className="h-10 w-10 rounded-full" />;
@@ -85,3 +86,5 @@ export default function AuthButton() {
     </DropdownMenu>
   );
 }
+
+    

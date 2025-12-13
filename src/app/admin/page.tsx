@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useFirestore, useMemoFirebase, useCollection, useDoc } from '@/firebase';
-import { collection, doc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, getDoc, updateDoc } from 'firebase/firestore';
 import type { Order, Product, AppUser, Role } from '@/lib/types';
 import Header from '@/components/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,9 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { OrderList } from '@/components/order-list';
-import { addDoc, updateDoc } from 'firebase/firestore';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase/error-emitter';
+import { addDoc } from 'firebase/firestore';
 
 // Inventory View Components
 const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product | null, onSave: (product: Omit<Product, 'id'> | Product) => void, onCancel: () => void, isSaving: boolean }) => {
@@ -84,8 +82,6 @@ const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product
   );
 };
 
-type UserWithRole = AppUser & { role: Role; };
-
 // Team Management View
 const TeamManagement = () => {
   const firestore = useFirestore();
@@ -94,88 +90,36 @@ const TeamManagement = () => {
   const usersCollection = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
   const { data: users, isLoading: usersLoading } = useCollection<AppUser>(usersCollection);
 
-  const [usersWithRoles, setUsersWithRoles] = useState<UserWithRole[]>([]);
-  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isRoleChanging, setIsRoleChanging] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!users || !firestore) return;
-  
-    const fetchRoles = async () => {
-      setIsLoadingRoles(true);
-      const usersWithRolesPromises = users.map(async (user) => {
-        const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
-        const driverRoleRef = doc(firestore, 'roles_driver', user.uid);
-        
-        try {
-          const [adminDoc, driverDoc] = await Promise.all([
-            getDoc(adminRoleRef),
-            getDoc(driverRoleRef)
-          ]);
-  
-          let role: Role = 'customer';
-          if (adminDoc.exists()) role = 'admin';
-          else if (driverDoc.exists()) role = 'driver';
-          
-          return { ...user, role };
-        } catch (error) {
-          // This should ideally use our centralized error handler
-          console.error(`Could not fetch roles for user ${user.uid}`, error);
-          // Default to customer if role fetching fails
-          return { ...user, role: 'customer' as Role };
-        }
-      });
-      
-      const resolvedUsers = await Promise.all(usersWithRolesPromises);
-      setUsersWithRoles(resolvedUsers);
-      setIsLoadingRoles(false);
-    };
-
-    fetchRoles();
-
-  }, [users, firestore]);
-  
   const handleRoleChange = async (uid: string, newRole: Role) => {
-    if(!firestore) return;
+    if (!firestore) return;
     setIsRoleChanging(uid);
-    
-    const adminRoleRef = doc(firestore, "roles_admin", uid);
-    const driverRoleRef = doc(firestore, "roles_driver", uid);
+
+    const userRef = doc(firestore, "users", uid);
 
     try {
-      // Non-blocking writes with centralized error handling
-      deleteDoc(adminRoleRef).catch(err => errorEmitter.emit('permission-error', new FirestorePermissionError({path: adminRoleRef.path, operation: 'delete'})));
-      deleteDoc(driverRoleRef).catch(err => errorEmitter.emit('permission-error', new FirestorePermissionError({path: driverRoleRef.path, operation: 'delete'})));
-
-      if (newRole === 'admin') {
-        await setDoc(adminRoleRef, { uid });
-      } else if (newRole === 'driver') {
-        await setDoc(driverRoleRef, { uid });
-      }
-
-      setUsersWithRoles(prev => prev.map(u => u.uid === uid ? { ...u, role: newRole } : u));
+      await updateDoc(userRef, { role: newRole });
       toast({
         title: "Rol actualizado",
         description: `El rol del usuario ha sido cambiado a ${newRole}.`
       });
     } catch (error: any) {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: newRole === 'admin' ? adminRoleRef.path : driverRoleRef.path, operation: 'create', requestResourceData: {uid}}));
+      console.error("Error updating role:", error);
       toast({
         variant: "destructive",
         title: "Error al cambiar rol",
-        description: `No se pudo actualizar el rol. Permiso denegado.`
+        description: error.message || "No se pudo actualizar el rol. Permiso denegado."
       });
     } finally {
       setIsRoleChanging(null);
     }
   };
 
-  const filteredUsers = usersWithRoles.filter(user =>
+  const filteredUsers = users?.filter(user =>
     user.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const isLoading = usersLoading || isLoadingRoles;
 
   return (
     <Card>
@@ -189,8 +133,8 @@ const TeamManagement = () => {
         />
       </CardHeader>
       <CardContent>
-        {isLoading ? <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin" /></div> :
-         filteredUsers.length === 0 ? <div className="text-center text-muted-foreground py-8">No se encontraron usuarios.</div> :
+        {usersLoading ? <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin" /></div> :
+         !filteredUsers || filteredUsers.length === 0 ? <div className="text-center text-muted-foreground py-8">No se encontraron usuarios.</div> :
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className='border-b'>
@@ -229,6 +173,7 @@ const TeamManagement = () => {
   );
 };
 
+
 // Main Admin Dashboard Component
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('kitchen');
@@ -250,7 +195,8 @@ const AdminDashboard = () => {
         await updateDoc(productRef, dataToUpdate);
         toast({ title: "Producto actualizado", description: `${productData.name} fue actualizado con éxito.`});
       } else {
-        await addDoc(collection(firestore, 'products'), productData as Omit<Product, 'id'>);
+        const newDocRef = doc(collection(firestore, 'products'));
+        await setDoc(newDocRef, { ...productData, id: newDocRef.id });
         toast({ title: "Producto creado", description: `Se ha añadido un nuevo producto al catálogo.`});
       }
       setEditingProduct(null);
@@ -334,10 +280,10 @@ export default function AdminPage() {
   const firestore = useFirestore();
   const router = useRouter();
 
-  const adminRoleRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'roles_admin', user.uid) : null, [firestore, user]);
-  const { data: adminRoleDoc, isLoading: isRoleLoading } = useDoc(adminRoleRef);
+  const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+  const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
   
-  const isAdmin = useMemo(() => !!adminRoleDoc, [adminRoleDoc]);
+  const isAdmin = useMemo(() => userDoc?.role === 'admin', [userDoc]);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -363,3 +309,4 @@ export default function AdminPage() {
     </div>
   );
 }
+    
