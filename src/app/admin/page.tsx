@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { ChefHat, Package, Trash2, Edit, X, Users, Loader2, UtensilsCrossed, TrendingUp, Download, BarChart, ShoppingBag, Ban, Ticket, CircleDollarSign, XCircle, PackageCheck, Banknote, Landmark, Star } from 'lucide-react';
+import { ChefHat, Package, Trash2, Edit, X, Users, Loader2, UtensilsCrossed, TrendingUp, Download, BarChart, ShoppingBag, Ban, Ticket, CircleDollarSign, XCircle, PackageCheck, Banknote, Landmark, Star, Crown, Trophy, UserRound } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/provider';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,7 @@ import { format, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Label } from '@/components/ui/label';
 import { OrderList } from '@/components/order-list';
+import Image from 'next/image';
 
 // Inventory View Components
 const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product | null, onSave: (product: Omit<Product, 'id'> | Product) => void, onCancel: () => void, isSaving: boolean }) => {
@@ -281,66 +282,92 @@ const StatsDashboard = () => {
         fetchOrders();
     }, [firestore]);
 
-    const stats = useMemo(() => {
-        const totalOrders = orders.length;
+    const { generalStats, monthlySales, paymentStats, productStats, customerStats } = useMemo(() => {
         const deliveredOrders = orders.filter(o => o.status === 'delivered');
-        const cancelledOrders = orders.filter(o => o.status === 'cancelled');
         
+        // General Stats
         const totalSales = deliveredOrders.reduce((sum, o) => sum + o.totalAmount, 0);
         const avgTicket = deliveredOrders.length > 0 ? totalSales / deliveredOrders.length : 0;
-        
-        // Payment method stats
-        const cashOrders = deliveredOrders.filter(o => o.paymentMethod === 'cash');
-        const transferOrders = deliveredOrders.filter(o => o.paymentMethod === 'transfer');
-        const cashAmount = cashOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-        const transferAmount = transferOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-        const mostUsedPayment = cashOrders.length > transferOrders.length ? 'Efectivo' : 'Transferencia';
 
-
-        return {
+        const generalStats = {
             totalSales,
-            totalOrders,
+            totalOrders: orders.length,
             deliveredOrders: deliveredOrders.length,
-            cancelledOrders: cancelledOrders.length,
+            cancelledOrders: orders.filter(o => o.status === 'cancelled').length,
             avgTicket,
-            cashOrdersCount: cashOrders.length,
-            transferOrdersCount: transferOrders.length,
-            cashTotalAmount: cashAmount,
-            transferTotalAmount: transferAmount,
-            mostUsedPaymentMethod: mostUsedPayment,
         };
-    }, [orders]);
 
-    const monthlySales = useMemo(() => {
+        // Monthly Sales
         const salesByMonth: { [key: string]: number } = {};
         const last12Months = Array.from({ length: 12 }, (_, i) => subMonths(new Date(), i));
-
         last12Months.forEach(date => {
             const monthKey = format(date, 'MMM yyyy', { locale: es });
             salesByMonth[monthKey] = 0;
         });
-
-        orders.forEach(order => {
-            if (order.status === 'delivered' && order.orderDate) {
-                const orderDate = new Date(order.orderDate.seconds * 1000);
+        deliveredOrders.forEach(order => {
+            if (order.orderDate) {
+                const orderDate = order.orderDate.toDate();
                 const monthKey = format(orderDate, 'MMM yyyy', { locale: es });
                 if (monthKey in salesByMonth) {
                     salesByMonth[monthKey] += order.totalAmount;
                 }
             }
         });
+        const monthlySales = Object.entries(salesByMonth).map(([name, sales]) => ({ name, Ventas: sales })).reverse();
         
-        return Object.entries(salesByMonth).map(([name, sales]) => ({ name, Ventas: sales })).reverse();
+        // Payment Stats
+        const cashOrders = deliveredOrders.filter(o => o.paymentMethod === 'cash');
+        const transferOrders = deliveredOrders.filter(o => o.paymentMethod === 'transfer');
+        const paymentStats = {
+            cashOrdersCount: cashOrders.length,
+            transferOrdersCount: transferOrders.length,
+            cashTotalAmount: cashOrders.reduce((sum, o) => sum + o.totalAmount, 0),
+            transferTotalAmount: transferOrders.reduce((sum, o) => sum + o.totalAmount, 0),
+            mostUsedPaymentMethod: cashOrders.length > transferOrders.length ? 'Efectivo' : 'Transferencia',
+        };
+
+        // Product Stats
+        const productCounts: { [name: string]: { count: number; imageUrl?: string } } = {};
+        deliveredOrders.forEach(order => {
+            order.items.forEach(item => {
+                const name = item.product.name;
+                if (!productCounts[name]) {
+                    productCounts[name] = { count: 0, imageUrl: item.product.imageUrl };
+                }
+                productCounts[name].count += item.quantity;
+            });
+        });
+        const sortedProducts = Object.entries(productCounts)
+            .map(([name, data]) => ({ name, count: data.count, imageUrl: data.imageUrl }))
+            .sort((a, b) => b.count - a.count);
+        
+        const productStats = {
+            topSeller: sortedProducts.length > 0 ? sortedProducts[0] : null,
+            top5: sortedProducts.slice(0, 5),
+        };
+
+        // Customer Stats
+        const customerSpending: { [name: string]: number } = {};
+        deliveredOrders.forEach(order => {
+            const name = order.customerName || 'Cliente Anónimo';
+            if (!customerSpending[name]) customerSpending[name] = 0;
+            customerSpending[name] += order.totalAmount;
+        });
+        const topCustomers = Object.entries(customerSpending)
+            .map(([name, total]) => ({ name, total }))
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 5);
+
+        const customerStats = { top5: topCustomers };
+
+        return { generalStats, monthlySales, paymentStats, productStats, customerStats };
     }, [orders]);
+
 
     const downloadCSV = () => {
         const headers = ["Mes", "Ventas"];
         const rows = monthlySales.map(item => [item.name, item.Ventas]);
-
-        let csvContent = "data:text/csv;charset=utf-8," 
-            + headers.join(",") + "\n" 
-            + rows.map(e => e.join(",")).join("\n");
-        
+        let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
@@ -362,45 +389,35 @@ const StatsDashboard = () => {
                         <CardTitle className="text-sm font-medium">Ventas Totales</CardTitle>
                         <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(stats.totalSales)}</div>
-                    </CardContent>
+                    <CardContent><div className="text-2xl font-bold">{formatCurrency(generalStats.totalSales)}</div></CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Ticket Promedio</CardTitle>
                         <Ticket className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(stats.avgTicket)}</div>
-                    </CardContent>
+                    <CardContent><div className="text-2xl font-bold">{formatCurrency(generalStats.avgTicket)}</div></CardContent>
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Pedidos Totales</CardTitle>
                         <ShoppingBag className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.totalOrders}</div>
-                    </CardContent>
+                    <CardContent><div className="text-2xl font-bold">{generalStats.totalOrders}</div></CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Pedidos Entregados</CardTitle>
                         <PackageCheck className="h-4 w-4 text-green-500" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.deliveredOrders}</div>
-                    </CardContent>
+                    <CardContent><div className="text-2xl font-bold">{generalStats.deliveredOrders}</div></CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Pedidos Cancelados</CardTitle>
                         <Ban className="h-4 w-4 text-destructive" />
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.cancelledOrders}</div>
-                    </CardContent>
+                    <CardContent><div className="text-2xl font-bold">{generalStats.cancelledOrders}</div></CardContent>
                 </Card>
             </div>
             
@@ -411,10 +428,7 @@ const StatsDashboard = () => {
                             <CardTitle>Ventas en los Últimos 12 Meses</CardTitle>
                             <CardDescription>Un resumen de los ingresos generados mensualmente.</CardDescription>
                         </div>
-                        <Button onClick={downloadCSV} variant="outline">
-                            <Download className="mr-2 h-4 w-4" />
-                            Descargar CSV
-                        </Button>
+                        <Button onClick={downloadCSV} variant="outline"><Download className="mr-2 h-4 w-4" />Descargar CSV</Button>
                     </div>
                 </CardHeader>
                 <CardContent className="h-[350px]">
@@ -422,13 +436,7 @@ const StatsDashboard = () => {
                         <RechartsBarChart data={monthlySales}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                            <YAxis 
-                                stroke="#888888"
-                                fontSize={12}
-                                tickLine={false}
-                                axisLine={false}
-                                tickFormatter={(value) => `${formatCurrency(value as number)}`}
-                             />
+                            <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${formatCurrency(value as number)}`} />
                             <Tooltip formatter={(value: number) => [formatCurrency(value), "Ventas"]} cursor={{ fill: 'hsl(var(--muted))' }}/>
                             <Bar dataKey="Ventas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                         </RechartsBarChart>
@@ -436,46 +444,75 @@ const StatsDashboard = () => {
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Estadísticas de Pago</CardTitle>
-                    <CardDescription>Análisis de los métodos de pago utilizados por los clientes.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total en Efectivo</CardTitle>
-                            <Banknote className="h-4 w-4 text-muted-foreground" />
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <Card className="lg:col-span-1">
+                    <CardHeader><CardTitle>Estadísticas de Pago</CardTitle><CardDescription>Análisis de los métodos de pago.</CardDescription></CardHeader>
+                    <CardContent className="grid gap-4">
+                        <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                            <div className='flex items-center gap-2'><Banknote className="h-5 w-5 text-muted-foreground" /><div><p className='font-semibold'>Total en Efectivo</p><p className="text-xs text-muted-foreground">{paymentStats.cashOrdersCount} transacciones</p></div></div>
+                            <div className="font-bold">{formatCurrency(paymentStats.cashTotalAmount)}</div>
+                        </div>
+                        <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                            <div className='flex items-center gap-2'><Landmark className="h-5 w-5 text-muted-foreground" /><div><p className='font-semibold'>Total en Transferencia</p><p className="text-xs text-muted-foreground">{paymentStats.transferOrdersCount} transacciones</p></div></div>
+                            <div className="font-bold">{formatCurrency(paymentStats.transferTotalAmount)}</div>
+                        </div>
+                         <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                            <div className='flex items-center gap-2'><Star className="h-5 w-5 text-muted-foreground" /><div><p className='font-semibold'>Método Preferido</p><p className="text-xs text-muted-foreground">{Math.round(Math.max(paymentStats.cashOrdersCount, paymentStats.transferOrdersCount) / generalStats.deliveredOrders * 100 || 0)}% de los pedidos</p></div></div>
+                            <div className="font-bold">{paymentStats.mostUsedPaymentMethod}</div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                 {productStats.topSeller && (
+                    <Card className="flex flex-col lg:col-span-2">
+                        <CardHeader>
+                            <CardTitle>Producto Estrella</CardTitle>
+                            <CardDescription>El producto más vendido en la tienda.</CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(stats.cashTotalAmount)}</div>
-                            <p className="text-xs text-muted-foreground">{stats.cashOrdersCount} transacciones</p>
+                        <CardContent className="flex-grow flex flex-col md:flex-row gap-6 items-center justify-center text-center md:text-left">
+                            <Image src={productStats.topSeller.imageUrl || '/placeholder.png'} alt={productStats.topSeller.name} width={128} height={128} className="rounded-lg object-cover w-32 h-32"/>
+                            <div className='space-y-1'>
+                                <p className='text-sm font-semibold text-primary'>Top #1</p>
+                                <h3 className="text-2xl font-bold">{productStats.topSeller.name}</h3>
+                                <p className="text-3xl font-bold text-muted-foreground">{productStats.topSeller.count} <span className="text-base font-normal">unidades vendidas</span></p>
+                            </div>
                         </CardContent>
                     </Card>
-                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total en Transferencia</CardTitle>
-                            <Landmark className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(stats.transferTotalAmount)}</div>
-                             <p className="text-xs text-muted-foreground">{stats.transferOrdersCount} transacciones</p>
-                        </CardContent>
-                    </Card>
-                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Método Preferido</CardTitle>
-                            <Star className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                             <div className="text-2xl font-bold">{stats.mostUsedPaymentMethod}</div>
-                             <p className="text-xs text-muted-foreground">
-                                {Math.round(Math.max(stats.cashOrdersCount, stats.transferOrdersCount) / stats.deliveredOrders * 100 || 0)}% de los pedidos
-                             </p>
-                        </CardContent>
-                    </Card>
-                </CardContent>
-            </Card>
+                )}
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+                <Card>
+                    <CardHeader><CardTitle className="flex items-center gap-2"><Trophy className="text-yellow-500"/> Top 5 Productos Más Vendidos</CardTitle></CardHeader>
+                    <CardContent>
+                        <ul className="space-y-4">
+                            {productStats.top5.map((p, index) => (
+                                <li key={p.name} className="flex items-center gap-4">
+                                    <span className="font-bold text-lg text-muted-foreground w-6">#{index+1}</span>
+                                    <Image src={p.imageUrl || '/placeholder.png'} alt={p.name} width={40} height={40} className="rounded-md object-cover w-10 h-10"/>
+                                    <p className="font-semibold flex-grow">{p.name}</p>
+                                    <Badge variant="secondary" className="font-mono">{p.count} und.</Badge>
+                                </li>
+                            ))}
+                        </ul>
+                    </CardContent>
+                </Card>
+                 <Card>
+                    <CardHeader><CardTitle className="flex items-center gap-2"><Crown className="text-amber-500"/> Top 5 Clientes</CardTitle></CardHeader>
+                    <CardContent>
+                        <ul className="space-y-4">
+                            {customerStats.top5.map((c, index) => (
+                                <li key={c.name} className="flex items-center gap-4">
+                                    <span className="font-bold text-lg text-muted-foreground w-6">#{index+1}</span>
+                                    <div className='p-2 rounded-full bg-muted'><UserRound className='w-5 h-5 text-muted-foreground'/></div>
+                                    <p className="font-semibold flex-grow">{c.name}</p>
+                                    <Badge variant="secondary" className="font-mono">{formatCurrency(c.total)}</Badge>
+                                </li>
+                            ))}
+                        </ul>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 };
