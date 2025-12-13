@@ -17,6 +17,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { OrderList } from '@/components/order-list';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+
 
 // Inventory View Components
 const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product | null, onSave: (product: Omit<Product, 'id'> | Product) => void, onCancel: () => void, isSaving: boolean }) => {
@@ -181,8 +193,14 @@ const AdminDashboard = () => {
 
   const productsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'products') : null, [firestore]);
   const { data: products, isLoading: productsLoading } = useCollection<Product>(productsCollection);
+  
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
+  
+  // State for the delete confirmation dialog
+  const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
+
 
   const handleSaveProduct = async (productData: Omit<Product, 'id'> | Product) => {
     if (!firestore) return;
@@ -207,17 +225,20 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleDeleteProduct = async (productId: string) => {
-    if (!firestore) return;
-    if (window.confirm('¿Estás seguro de que quieres eliminar este producto?')) {
-      try {
-        await deleteDoc(doc(firestore, 'products', productId));
-        toast({ title: "Producto eliminado" });
-      } catch (error) {
-        console.error("Error deleting product:", error);
-        toast({ variant: "destructive", title: "Error al eliminar", description: "No se pudo eliminar el producto."});
-      }
-    }
+  const openDeleteDialog = (productId: string) => {
+    setProductToDelete(productId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteProduct = () => {
+    if (!firestore || !productToDelete) return;
+    
+    const productRef = doc(firestore, 'products', productToDelete);
+    deleteDocumentNonBlocking(productRef);
+    
+    toast({ title: "Producto eliminado", description: "El producto se ha eliminado con éxito." });
+    setDeleteDialogOpen(false);
+    setProductToDelete(null);
   };
 
   return (
@@ -254,7 +275,7 @@ const AdminDashboard = () => {
                             <td className="p-2">{p.stock}</td>
                             <td className='flex justify-end gap-1 p-2'>
                               <Button variant="ghost" size="icon" onClick={() => setEditingProduct(p)}><Edit className='h-4 w-4'/></Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleDeleteProduct(p.id)}><Trash2 className='h-4 w-4 text-destructive'/></Button>
+                              <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(p.id)}><Trash2 className='h-4 w-4 text-destructive'/></Button>
                             </td>
                           </tr>
                         ))
@@ -270,6 +291,22 @@ const AdminDashboard = () => {
       )}
       {activeTab === 'team' && <TeamManagement />}
       {activeTab === 'stats' && <div className="text-center p-8 bg-card rounded-lg shadow-sm">Reportes Próximamente...</div>}
+      
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Esto eliminará permanentemente el producto
+              de tu base de datos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteProduct}>Confirmar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
@@ -286,11 +323,11 @@ export default function AdminPage() {
   const isAdmin = useMemo(() => userDoc?.role === 'admin', [userDoc]);
 
   // This is the loading state for the initial check.
-  const isLoading = isUserLoading || !firestore || isRoleLoading;
+  const isLoading = isUserLoading || isRoleLoading;
   
   useEffect(() => {
     // Don't do anything until loading is complete
-    if (isLoading) return;
+    if (isLoading || !firestore) return;
 
     // Once loading is done, check for access.
     if (!user || !isAdmin) {
@@ -301,9 +338,9 @@ export default function AdminPage() {
       });
       router.push('/login?redirect=/admin');
     }
-  }, [user, isAdmin, isLoading, router, toast]);
+  }, [user, isAdmin, isLoading, router, toast, firestore]);
 
-  if (isLoading) {
+  if (isLoading || !firestore) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
 
