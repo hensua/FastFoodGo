@@ -98,23 +98,24 @@ export default function DeliveryPage() {
   // Redirect if not a driver
   const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
+  const isDriver = userDoc?.role === 'driver';
 
   useEffect(() => {
-    if (!isUserLoading && !isRoleLoading && userDoc && userDoc.role !== 'driver') {
+    if (!isUserLoading && !isRoleLoading && userDoc && !isDriver) {
       toast({ variant: 'destructive', title: 'Acceso Denegado', description: 'No tienes permisos de repartidor.' });
       router.push('/');
     }
-  }, [user, userDoc, isUserLoading, isRoleLoading, router, toast]);
+  }, [user, userDoc, isUserLoading, isRoleLoading, router, toast, isDriver]);
 
   const readyOrdersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user || !isDriver) return null; // FIX: Only query if user is a driver
     return query(collectionGroup(firestore, 'orders'), where('status', '==', 'ready'));
-  }, [firestore]);
+  }, [firestore, user, isDriver]);
 
   const myDeliveriesQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !user || !isDriver) return null; // FIX: Only query if user is a driver
     return query(collectionGroup(firestore, 'orders'), where('status', '==', 'delivering'), where('driverId', '==', user.uid));
-  }, [firestore, user]);
+  }, [firestore, user, isDriver]);
 
   const { data: readyOrders, isLoading: readyOrdersLoading } = useCollection<Order>(readyOrdersQuery);
   const { data: myDeliveries, isLoading: myDeliveriesLoading } = useCollection<Order>(myDeliveriesQuery);
@@ -160,7 +161,7 @@ export default function DeliveryPage() {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando...</div>;
   }
   
-  if(userDoc.role !== 'driver') {
+  if(!isDriver) {
       return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
   }
 
