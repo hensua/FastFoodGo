@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -6,11 +5,11 @@ import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@
 import { collectionGroup, query, where, doc, updateDoc, orderBy } from 'firebase/firestore';
 import type { Order, AppUser } from '@/lib/types';
 import Header from '@/components/header';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { Loader2, Truck, CheckCircle2, Navigation, History, BarChart2, Gift, CircleDollarSign } from 'lucide-react';
+import { Loader2, Truck, CheckCircle2, Navigation, History, BarChart2, Gift, CircleDollarSign, Calendar, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import {
@@ -22,6 +21,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { isWithinInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
 
 const OrderCard = ({ order, onAccept, isUpdating }: { order: Order; onAccept: (order: Order) => void; isUpdating: boolean }) => {
   return (
@@ -147,6 +147,154 @@ const PinDialog = ({ open, onOpenChange, onSubmit, isSubmitting, orderId }: { op
   );
 };
 
+const StatsPanel = ({ deliveries }: { deliveries: Order[] }) => {
+    const stats = useMemo(() => {
+        if (!deliveries || deliveries.length === 0) {
+            return {
+                totalEarnings: 0,
+                totalTips: 0,
+                totalDeliveryFees: 0,
+                totalDeliveries: 0,
+                avgEarningsPerDelivery: 0,
+                weeklyEarnings: 0,
+                monthlyEarnings: 0,
+                yearlyEarnings: 0,
+                weeklyAverageDeliveries: 0,
+                monthlyAverageDeliveries: 0,
+            };
+        }
+
+        const now = new Date();
+        const last7Days = { start: subDays(now, 6), end: now };
+        const thisMonth = { start: startOfMonth(now), end: endOfMonth(now) };
+        const thisYear = { start: startOfYear(now), end: endOfYear(now) };
+
+        const deliveriesInLast7Days = deliveries.filter(d => isWithinInterval(d.orderDate.toDate(), last7Days));
+        const deliveriesThisMonth = deliveries.filter(d => isWithinInterval(d.orderDate.toDate(), thisMonth));
+        const deliveriesThisYear = deliveries.filter(d => isWithinInterval(d.orderDate.toDate(), thisYear));
+
+        const totalEarnings = deliveries.reduce((acc, d) => acc + (d.deliveryFee || 0) + (d.tip || 0), 0);
+        const totalTips = deliveries.reduce((acc, d) => acc + (d.tip || 0), 0);
+        const totalDeliveryFees = deliveries.reduce((acc, d) => acc + (d.deliveryFee || 0), 0);
+        const totalDeliveries = deliveries.length;
+        
+        const weeklyEarnings = deliveriesInLast7Days.reduce((acc, d) => acc + (d.deliveryFee || 0) + (d.tip || 0), 0);
+        const monthlyEarnings = deliveriesThisMonth.reduce((acc, d) => acc + (d.deliveryFee || 0) + (d.tip || 0), 0);
+        const yearlyEarnings = deliveriesThisYear.reduce((acc, d) => acc + (d.deliveryFee || 0) + (d.tip || 0), 0);
+        
+        const avgEarningsPerDelivery = totalDeliveries > 0 ? totalEarnings / totalDeliveries : 0;
+        
+        return {
+            totalEarnings,
+            totalTips,
+            totalDeliveryFees,
+            totalDeliveries,
+            avgEarningsPerDelivery,
+            weeklyEarnings,
+            monthlyEarnings,
+            yearlyEarnings,
+            weeklyAverageDeliveries: deliveriesInLast7Days.length, // Total in last 7 days, could be averaged
+            monthlyAverageDeliveries: deliveriesThisMonth.length,
+        };
+
+    }, [deliveries]);
+
+    if (!deliveries || deliveries.length === 0) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Estadísticas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-center text-muted-foreground py-10">Aún no has completado ninguna entrega para mostrar estadísticas.</p>
+                </CardContent>
+            </Card>
+        );
+    }
+    
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Ingresos Totales */}
+            <Card className="lg:col-span-3 bg-primary/5 border-primary">
+                <CardHeader>
+                    <CardTitle className="text-primary">Ingresos Totales</CardTitle>
+                    <CardDescription>Suma de todos los domicilios y propinas.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-4xl font-bold">{formatCurrency(stats.totalEarnings)}</p>
+                </CardContent>
+            </Card>
+
+            {/* Desglose de Ingresos */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Truck size={18}/> Ingresos por Domicilios</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-3xl font-bold">{formatCurrency(stats.totalDeliveryFees)}</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Gift size={18}/> Total en Propinas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-3xl font-bold">{formatCurrency(stats.totalTips)}</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><CircleDollarSign size={18}/> Ingreso Promedio / Entrega</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-3xl font-bold">{formatCurrency(stats.avgEarningsPerDelivery)}</p>
+                </CardContent>
+            </Card>
+            
+            {/* Ingresos por Periodo */}
+             <Card className="md:col-span-2 lg:col-span-3">
+                <CardHeader>
+                     <CardTitle className="flex items-center gap-2"><Calendar size={18}/> Ingresos por Período</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                     <div>
+                        <p className="text-sm text-muted-foreground">Últimos 7 días</p>
+                        <p className="text-2xl font-semibold">{formatCurrency(stats.weeklyEarnings)}</p>
+                    </div>
+                     <div>
+                        <p className="text-sm text-muted-foreground">Este Mes</p>
+                        <p className="text-2xl font-semibold">{formatCurrency(stats.monthlyEarnings)}</p>
+                    </div>
+                     <div>
+                        <p className="text-sm text-muted-foreground">Este Año</p>
+                        <p className="text-2xl font-semibold">{formatCurrency(stats.yearlyEarnings)}</p>
+                    </div>
+                </CardContent>
+             </Card>
+
+            {/* Promedio de Entregas */}
+            <Card className="md:col-span-2 lg:col-span-3">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Star size={18}/> Entregas Realizadas</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                     <div>
+                        <p className="text-sm text-muted-foreground">Últimos 7 días</p>
+                        <p className="text-2xl font-semibold">{stats.weeklyAverageDeliveries}</p>
+                    </div>
+                     <div>
+                        <p className="text-sm text-muted-foreground">Este Mes</p>
+                        <p className="text-2xl font-semibold">{stats.monthlyAverageDeliveries}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground">Total Histórico</p>
+                        <p className="text-2xl font-semibold">{stats.totalDeliveries}</p>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+};
 
 export default function DeliveryPage() {
   const firestore = useFirestore();
@@ -233,15 +381,6 @@ export default function DeliveryPage() {
     }
   };
 
-  const deliveryStats = useMemo(() => {
-    if (!pastDeliveries) return { count: 0, earnings: 0 };
-    const earnings = pastDeliveries.reduce((acc, order) => acc + (order.deliveryFee || 0) + (order.tip || 0), 0);
-    return {
-      count: pastDeliveries.length,
-      earnings: earnings,
-    };
-  }, [pastDeliveries]);
-
   const isLoading = isUserLoading || isRoleLoading;
 
   if (isLoading || (!isUserLoading && !user)) {
@@ -326,22 +465,7 @@ export default function DeliveryPage() {
         )}
         
         {activeTab === 'stats' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                <CardTitle className="text-sm font-medium">Total Entregas</CardTitle>
-                <Truck className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent><p className="text-4xl font-bold">{deliveryStats.count}</p></CardContent>
-            </Card>
-             <Card>
-              <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
-                 <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent><p className="text-4xl font-bold">{formatCurrency(deliveryStats.earnings)}</p></CardContent>
-            </Card>
-          </div>
+            <StatsPanel deliveries={pastDeliveries || []} />
         )}
       </main>
 
