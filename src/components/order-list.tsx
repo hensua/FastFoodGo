@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { useFirestore, useCollection, useUser } from '@/firebase';
 import { collectionGroup, query, where, doc, updateDoc } from 'firebase/firestore';
-import type { Order, OrderStatus } from '@/lib/types';
+import type { Order, OrderStatus, AppUser } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -61,12 +61,15 @@ const OrderCard = ({ order, onStatusChange }: { order: Order, onStatusChange: (o
 
 export function OrderList() {
   const firestore = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
 
   const ordersQuery = useMemo(() => {
-    if (!firestore) return null;
+    // Only create the query if firestore is available and the user is logged in
+    // The security rules will handle role-based access
+    if (!firestore || !user) return null;
     return query(collectionGroup(firestore, 'orders'), where('status', 'in', ['pending', 'cooking', 'ready']));
-  }, [firestore]);
+  }, [firestore, user]);
 
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
 
@@ -94,6 +97,11 @@ export function OrderList() {
     cooking: orders?.filter(o => o.status === 'cooking') || [],
     ready: orders?.filter(o => o.status === 'ready') || [],
   }), [orders]);
+  
+  // Don't render anything if there's no user, as the query won't run anyway
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
