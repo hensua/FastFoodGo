@@ -9,7 +9,7 @@ interface ProductListProps {
 
 export default function ProductList({ products, onProductClick }: ProductListProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-20">
+    <div className="grid grid-cols-[repeat(auto-fill,140px)] justify-center sm:justify-start gap-4 pb-20">
       {products.map((product) => (
         <ProductCard key={product.id} product={product} onClick={() => onProductClick(product)} />
       ))}

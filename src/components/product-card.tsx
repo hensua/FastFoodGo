@@ -11,7 +11,8 @@ import { Button } from "./ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { useCart } from "./cart-provider";
 import { Minus, Plus, ShoppingCart } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { cn } from "@/lib/utils";
 
 interface ProductCardProps {
   product: Product;
@@ -21,81 +22,137 @@ interface ProductCardProps {
 export default function ProductCard({ product, onClick }: ProductCardProps) {
   const { addToCart, updateQuantity, cartItems } = useCart();
   
-  const [quantityInCart, setQuantityInCart] = useState(0);
+  const itemInCart = cartItems.find(item => item.product.id === product.id);
+  const quantityInCart = itemInCart ? itemInCart.quantity : 0;
+
+  const [isExpanded, setIsExpanded] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const resetTimer = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    timerRef.current = setTimeout(() => {
+      setIsExpanded(false);
+    }, 3000); // 3 segundos para volver a contraerse
+  };
 
   useEffect(() => {
-    const itemInCart = cartItems.find(item => item.product.id === product.id);
-    setQuantityInCart(itemInCart ? itemInCart.quantity : 0);
-  }, [cartItems, product.id]);
+    // Si la cantidad es 0, no debería estar expandido
+    if (quantityInCart === 0) {
+      setIsExpanded(false);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    } else {
+      // Si está expandido, inicia el temporizador para colapsar
+      if(isExpanded) {
+        resetTimer();
+      }
+    }
+
+    // Limpieza al desmontar el componente
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [quantityInCart, isExpanded]);
+
+  const handleInteraction = (e: React.MouseEvent, action: () => void) => {
+    e.stopPropagation();
+    action();
+    setIsExpanded(true);
+    resetTimer();
+  };
 
   const handleAddToCart = (e: React.MouseEvent) => {
-    e.stopPropagation(); 
-    addToCart(product);
+    handleInteraction(e, () => addToCart(product));
   }
 
   const handleIncreaseQuantity = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    updateQuantity(product.id, quantityInCart + 1);
+    handleInteraction(e, () => updateQuantity(product.id, quantityInCart + 1));
   }
 
   const handleDecreaseQuantity = (e: React.MouseEvent) => {
+    handleInteraction(e, () => updateQuantity(product.id, quantityInCart - 1));
+  }
+
+  const handleCompactClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    updateQuantity(product.id, quantityInCart - 1);
+    setIsExpanded(true);
+    resetTimer();
   }
 
   return (
     <Card 
-      className="flex h-full flex-col overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer group"
+      className="flex h-full w-[140px] flex-col overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer group"
       onClick={onClick}
     >
-      <div className="bg-gray-100 relative overflow-hidden aspect-[4/3]">
+      <div className="bg-gray-100 relative overflow-hidden h-[112px]">
         <Image
           src={product.imageUrl}
           alt={product.name}
           data-ai-hint={product.imageHint}
           fill
           className="object-cover group-hover:scale-105 transition-transform duration-500"
+          sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 20vw"
         />
         {product.tag && (
-          <div className="absolute top-2 right-2 bg-yellow-400 text-gray-900 text-xs font-bold px-2 py-1 rounded-full shadow-md">
+          <div className="absolute top-1 right-1 bg-yellow-400 text-gray-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-md">
             {product.tag}
           </div>
         )}
       </div>
-      <CardContent className="p-3 flex-1 flex flex-col">
-        <h3 className="font-bold text-base leading-tight truncate">{product.name}</h3>
-        <p className="text-gray-500 text-xs mb-2 line-clamp-2 flex-1 h-8">{product.description}</p>
-        <div className="flex justify-between items-center mt-auto">
-          <span className="font-bold text-base text-orange-600">{formatCurrency(product.price)}</span>
-          {quantityInCart === 0 ? (
-            <Button 
-              onClick={handleAddToCart} 
-              size="icon"
-              className="h-8 w-8 bg-yellow-400 text-gray-900 hover:bg-yellow-500"
-            >
-              <Plus />
-            </Button>
-          ) : (
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handleDecreaseQuantity}
+      <CardContent className="p-2 flex-1 flex flex-col">
+        <h3 className="font-bold text-sm leading-tight truncate mb-1">{product.name}</h3>
+        <p className="text-gray-500 text-[11px] leading-snug line-clamp-2 flex-1">{product.description}</p>
+        <div className="flex justify-between items-center mt-1">
+          <span className="font-bold text-sm text-orange-600">{formatCurrency(product.price)}</span>
+          
+          <div className="relative h-8 w-8 flex items-center justify-end">
+            {quantityInCart === 0 ? (
+                <Button 
+                    onClick={handleAddToCart} 
+                    size="icon"
+                    className="h-7 w-7 bg-yellow-400 text-gray-900 hover:bg-yellow-500 rounded-full"
+                >
+                    <Plus className="h-4 w-4"/>
+                </Button>
+            ) : !isExpanded ? (
+                <Button
+                    onClick={handleCompactClick}
+                    size="icon"
+                    className="h-7 w-7 bg-primary text-primary-foreground rounded-full font-bold text-xs"
+                >
+                    {quantityInCart}
+                </Button>
+            ) : (
+              <div 
+                className={cn(
+                  "flex items-center gap-1 bg-white border border-gray-200 rounded-full transition-all duration-300 h-7",
+                   isExpanded ? 'w-20 px-1' : 'w-7'
+                )}
+                onClick={(e) => e.stopPropagation()}
               >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <span className="font-bold w-6 text-center">{quantityInCart}</span>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handleIncreaseQuantity}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 rounded-full"
+                    onClick={handleDecreaseQuantity}
+                  >
+                    <Minus className="h-3 w-3" />
+                  </Button>
+                  <span className="font-bold text-sm w-4 text-center">{quantityInCart}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 rounded-full"
+                    onClick={handleIncreaseQuantity}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -44,17 +45,6 @@ export default function OrderPage({ products, loading }: OrderPageProps) {
   return (
     <div className="min-h-screen bg-background">
       <Header onCartClick={() => setCartOpen(true)} />
-      
-      {/* Botón Flotante Chef */}
-      <button 
-        onClick={() => setIsChefOpen(true)}
-        className="fixed bottom-6 right-6 z-30 bg-indigo-600 text-white p-4 rounded-full shadow-lg shadow-indigo-300 hover:scale-110 transition-transform animate-bounce flex items-center gap-2 font-bold"
-      >
-        <Sparkles size={20} className="text-yellow-300" /> Chef Virtual
-      </button>
-
-      {/* Aquí podrías añadir el AIChefModal en el futuro */}
-      {/* <AIChefModal isOpen={isChefOpen} onClose={() => setIsChefOpen(false)} products={products} /> */}
 
       <main className="container mx-auto px-4 py-8">
         <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-8 mb-8 text-white shadow-lg relative overflow-hidden">
@@ -68,17 +58,12 @@ export default function OrderPage({ products, loading }: OrderPageProps) {
         </div>
         
         <div className="flex gap-2 overflow-x-auto pb-4 mb-6">
-          <Button
-            onClick={() => setSelectedCategory('Todas')}
-            className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-bold transition-colors ${selectedCategory === 'Todas' ? 'bg-gray-800 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
-          >
-            Todas
-          </Button>
-          {categories.slice(1).map((category) => (
+          {categories.map((category) => (
             <Button
               key={category}
               onClick={() => setSelectedCategory(category)}
-              className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-bold transition-colors ${selectedCategory === category ? 'bg-gray-800 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
+              variant={selectedCategory === category ? 'default' : 'outline'}
+              className="px-4 py-2 rounded-full whitespace-nowrap text-sm font-bold transition-colors"
             >
               {category}
             </Button>
