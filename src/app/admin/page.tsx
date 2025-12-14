@@ -262,8 +262,7 @@ const TeamManagement = () => {
   );
 };
 
-// Stats Dashboard View
-const StatsDashboard = () => {
+const useOrderStats = () => {
     const firestore = useFirestore();
     const [orders, setOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -286,10 +285,9 @@ const StatsDashboard = () => {
         fetchOrders();
     }, [firestore]);
 
-    const { generalStats, monthlySales, paymentStats, productStats, customerStats } = useMemo(() => {
+    const stats = useMemo(() => {
         const deliveredOrders = orders.filter(o => o.status === 'delivered');
         
-        // General Stats
         const totalSales = deliveredOrders.reduce((sum, o) => sum + o.totalAmount, 0);
         const avgTicket = deliveredOrders.length > 0 ? totalSales / deliveredOrders.length : 0;
 
@@ -301,7 +299,6 @@ const StatsDashboard = () => {
             avgTicket,
         };
 
-        // Monthly Sales
         const salesByMonth: { [key: string]: number } = {};
         const last12Months = Array.from({ length: 12 }, (_, i) => subMonths(new Date(), i));
         last12Months.forEach(date => {
@@ -309,7 +306,7 @@ const StatsDashboard = () => {
             salesByMonth[monthKey] = 0;
         });
         deliveredOrders.forEach(order => {
-            if (order.orderDate) {
+            if (order.orderDate && order.orderDate.toDate) {
                 const orderDate = order.orderDate.toDate();
                 const monthKey = format(orderDate, 'MMM yyyy', { locale: es });
                 if (monthKey in salesByMonth) {
@@ -319,7 +316,6 @@ const StatsDashboard = () => {
         });
         const monthlySales = Object.entries(salesByMonth).map(([name, sales]) => ({ name, Ventas: sales })).reverse();
         
-        // Payment Stats
         const cashOrders = deliveredOrders.filter(o => o.paymentMethod === 'cash');
         const transferOrders = deliveredOrders.filter(o => o.paymentMethod === 'transfer');
         const paymentStats = {
@@ -330,7 +326,6 @@ const StatsDashboard = () => {
             mostUsedPaymentMethod: cashOrders.length > transferOrders.length ? 'Efectivo' : 'Transferencia',
         };
 
-        // Product Stats
         const productCounts: { [name: string]: { count: number; imageUrl?: string } } = {};
         deliveredOrders.forEach(order => {
             order.items.forEach(item => {
@@ -350,7 +345,6 @@ const StatsDashboard = () => {
             top5: sortedProducts.slice(0, 5),
         };
 
-        // Customer Stats
         const customerSpending: { [name: string]: number } = {};
         deliveredOrders.forEach(order => {
             const name = order.customerName || 'Cliente Anónimo';
@@ -367,8 +361,61 @@ const StatsDashboard = () => {
         return { generalStats, monthlySales, paymentStats, productStats, customerStats };
     }, [orders]);
 
+    return { stats, isLoading };
+};
+
+// Simplified dashboard for hosts
+const HostStatsDashboard = () => {
+    const { stats, isLoading } = useOrderStats();
+
+    if (isLoading) {
+        return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8" /> Cargando reportes...</div>;
+    }
+    
+    const { generalStats } = stats;
+
+    return (
+        <div className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Pedidos Totales</CardTitle>
+                        <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent><div className="text-2xl font-bold">{generalStats.totalOrders}</div></CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Pedidos Entregados</CardTitle>
+                        <PackageCheck className="h-4 w-4 text-green-500" />
+                    </CardHeader>
+                    <CardContent><div className="text-2xl font-bold">{generalStats.deliveredOrders}</div></CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Pedidos Cancelados</CardTitle>
+                        <Ban className="h-4 w-4 text-destructive" />
+                    </CardHeader>
+                    <CardContent><div className="text-2xl font-bold">{generalStats.cancelledOrders}</div></CardContent>
+                </Card>
+            </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Acceso Limitado a Reportes</CardTitle>
+                    <CardDescription>Contacta a un administrador para ver el desglose completo de ventas, productos y clientes.</CardDescription>
+                </CardHeader>
+            </Card>
+        </div>
+    );
+};
+
+
+// Full dashboard for admins
+const StatsDashboard = () => {
+    const { stats, isLoading } = useOrderStats();
 
     const downloadCSV = () => {
+        const { monthlySales } = stats;
         const headers = ["Mes", "Ventas"];
         const rows = monthlySales.map(item => [item.name, item.Ventas]);
         let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
@@ -384,6 +431,8 @@ const StatsDashboard = () => {
     if (isLoading) {
         return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8" /> Cargando reportes...</div>;
     }
+    
+    const { generalStats, monthlySales, paymentStats, productStats, customerStats } = stats;
 
     return (
         <div className="space-y-6">
@@ -534,11 +583,11 @@ const AdminDashboard = ({ userRole }: { userRole: Role }) => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   
-  // State for the delete confirmation dialog
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
 
   const isFullAdmin = userRole === 'admin';
+  const hasStoreAccess = userRole === 'admin' || userRole === 'host';
 
 
   const handleSaveProduct = async (productData: Omit<Product, 'id'> | Product) => {
@@ -596,9 +645,11 @@ const AdminDashboard = ({ userRole }: { userRole: Role }) => {
               <>
                 <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'inventory' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Package size={16} /> Inventario</button>
                 <button onClick={() => setActiveTab('team')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'team' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Users size={16} /> Equipo</button>
-                <button onClick={() => setActiveTab('stats')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'stats' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><TrendingUp size={16} /> Reportes</button>
               </>
             )}
+             {hasStoreAccess && (
+                 <button onClick={() => setActiveTab('stats')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'stats' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><TrendingUp size={16} /> Reportes</button>
+             )}
         </div>
       </div>
 
@@ -639,7 +690,10 @@ const AdminDashboard = ({ userRole }: { userRole: Role }) => {
       )}
       
       {isFullAdmin && activeTab === 'team' && <TeamManagement />}
-      {isFullAdmin && activeTab === 'stats' && <StatsDashboard />}
+      
+      {activeTab === 'stats' && hasStoreAccess && (
+          isFullAdmin ? <StatsDashboard /> : <HostStatsDashboard />
+      )}
       
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -672,14 +726,11 @@ export default function AdminPage() {
   const userRole = useMemo(() => userDoc?.role, [userDoc]);
   const hasAccess = userRole === 'admin' || userRole === 'host';
 
-  // This is the loading state for the initial check.
   const isLoading = isUserLoading || isRoleLoading;
   
   useEffect(() => {
-    // Don't do anything until loading is complete
     if (isLoading || !firestore) return;
 
-    // Once loading is done, check for access.
     if (!user || !hasAccess) {
       toast({
         variant: "destructive",
@@ -694,9 +745,6 @@ export default function AdminPage() {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
 
-  // If we are not loading and the user has access, render the dashboard.
-  // The useEffect above handles the redirection for non-admins.
-  // We add an explicit check here to prevent flashing the content before redirection.
   if (hasAccess) {
     return (
       <div className="min-h-screen bg-background">
@@ -708,6 +756,5 @@ export default function AdminPage() {
     );
   }
 
-  // If the user is not an admin, we show a loading spinner while redirecting.
   return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
 }
