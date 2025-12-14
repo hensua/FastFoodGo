@@ -152,8 +152,19 @@ const TeamManagement = () => {
     setRoleChangeData(null);
   
     try {
+      const batch = writeBatch(firestore);
       const userRef = doc(firestore, 'users', user.uid);
-      await updateDoc(userRef, { role: newRole });
+      batch.update(userRef, { role: newRole });
+
+      const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
+
+      if (newRole === 'admin') {
+        batch.set(adminRoleRef, { uid: user.uid, grantedAt: serverTimestamp() });
+      } else if (user.role === 'admin' && newRole !== 'admin') {
+        batch.delete(adminRoleRef);
+      }
+      
+      await batch.commit();
 
       toast({
         title: "Rol actualizado",
@@ -796,44 +807,38 @@ export default function AdminPage() {
   const { data: userDoc, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
   
   const isLoading = isUserLoading || isUserDocLoading;
-
+  const hasAccess = userDoc?.role === 'admin' || userDoc?.role === 'host';
+  
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (isLoading) return; // Wait until all data is loaded
+
+    if (!user) {
       toast({
         variant: "destructive",
         title: "Acceso denegado",
         description: "Debes iniciar sesión para ver esta página.",
       });
       router.push('/login?redirect=/admin');
-    }
-  }, [isLoading, user, router, toast]);
-
-  if (isLoading) {
-    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
-  }
-  
-  const hasAccess = userDoc?.role === 'admin' || userDoc?.role === 'host';
-
-  if (!hasAccess) {
-     toast({
+    } else if (!hasAccess) {
+      toast({
         variant: "destructive",
         title: "Acceso denegado",
         description: "Debes ser un administrador o anfitrión para ver esta página.",
       });
       router.push('/');
-      return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
+    }
+  }, [isLoading, user, hasAccess, router, toast]);
+
+  if (isLoading || !user || !hasAccess) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
   
-  if (userDoc) {
-     return (
-        <div className="min-h-screen bg-background">
-          <Header onCartClick={() => {}} showCart={false} />
-          <main className="container mx-auto px-4 py-8">
-            <AdminDashboard userDoc={userDoc} />
-          </main>
-        </div>
-      );
-  }
-
-  return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Cargando panel...</div>;
+  return (
+    <div className="min-h-screen bg-background">
+      <Header onCartClick={() => {}} showCart={false} />
+      <main className="container mx-auto px-4 py-8">
+        <AdminDashboard userDoc={userDoc} />
+      </main>
+    </div>
+  );
 }
