@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -116,13 +117,13 @@ const TeamManagement = () => {
   const [isRoleChanging, setIsRoleChanging] = useState<string | null>(null);
   const [roleChangeData, setRoleChangeData] = useState<{ user: AppUser; newRole: Role; } | null>(null);
   
-  const staffQuery = useMemoFirebase(() => 
+  const usersCollection = useMemoFirebase(() => 
       firestore 
           ? query(collection(firestore, 'users'), where('role', 'in', ['admin', 'host', 'driver'])) 
           : null,
       [firestore]
   );
-  const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(staffQuery);
+  const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(usersCollection);
 
   const { admins, hosts, drivers } = useMemo(() => {
     const admins: AppUser[] = [];
@@ -824,5 +825,3 @@ export default function AdminPage() {
     </div>
   );
 }
-
-    
