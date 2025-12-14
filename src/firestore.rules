@@ -104,22 +104,24 @@ service cloud.firestore {
      *   - Assigned drivers can read the order they are delivering.
      */
     match /users/{userId}/orders/{orderId} {
+      // A host can get any specific order, but cannot list them from here.
+      // They use a collectionGroup query which is handled by another rule.
       allow get: if isOwner(userId) || isAdmin() || isHost() || (isDriver() && resource.data.driverId == request.auth.uid);
       allow list: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) || isAdmin();
       // Allow customer to cancel, admin/host to manage status, and driver to update delivery status.
-      allow update: if isOwner(userId) || isAdmin() || isHost() || isDriver();
+      allow update: if isOwner(userId) || isAdmin() || isHost() || (isDriver() && resource.data.driverId == request.auth.uid);
       allow delete: if isAdmin();
     }
     
     /**
      * @description
      *   This rule is specifically for the `collectionGroup` query on 'orders'.
-     *   It allows an administrator to list all orders across all users, which is
+     *   It allows an administrator or a host to list all orders across all users, which is
      *   necessary for the main kitchen view and for generating stats.
      */
     match /{path=**}/orders/{orderId} {
-       allow list: if isAdmin();
+       allow list: if isAdmin() || isHost();
     }
     
     /**
