@@ -1,3 +1,4 @@
+
 import type { Product } from './types';
 import { PlaceHolderImages } from './placeholder-images';
 
@@ -51,6 +52,7 @@ export const products: Omit<Product, 'id'>[] = [
     price: 4500,
     category: 'Bebidas',
     stock: 300,
+    tag: '350ml',
     ...getImage('ice-cold-soda'),
   },
   {
