@@ -38,7 +38,7 @@ import { FirestorePermissionError, errorEmitter } from '@/firebase';
 // Inventory View Components
 const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product | null, onSave: (product: Omit<Product, 'id'> | Product) => void, onCancel: () => void, isSaving: boolean }) => {
   const [formData, setFormData] = useState<Omit<Product, 'id' | 'imageHint'>>(
-    product || { name: '', description: '', price: 0, imageUrl: '', category: 'Otros', stock: 0 }
+    product || { name: '', description: '', price: 0, imageUrl: '', category: 'Otros', stockQuantity: 0 }
   );
 
   useEffect(() => {
@@ -46,13 +46,13 @@ const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product
       const { imageHint, ...rest } = product;
       setFormData(rest as Omit<Product, 'id' | 'imageHint'>);
     } else {
-      setFormData({ name: '', description: '', price: 0, imageUrl: '', category: 'Otros', stock: 0 });
+      setFormData({ name: '', description: '', price: 0, imageUrl: '', category: 'Otros', stockQuantity: 0 });
     }
   }, [product]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: name === 'price' || name === 'stock' ? Number(value) : value }));
+    setFormData(prev => ({ ...prev, [name]: name === 'price' || name === 'stockQuantity' ? Number(value) : value }));
   };
   
   const handleCategoryChange = (value: string) => {
@@ -82,8 +82,8 @@ const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product
               <Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} placeholder="" required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="stock">Stock</Label>
-              <Input id="stock" name="stock" type="number" value={formData.stock || 0} onChange={handleChange} placeholder="" />
+              <Label htmlFor="stockQuantity">Stock</Label>
+              <Input id="stockQuantity" name="stockQuantity" type="number" value={formData.stockQuantity || 0} onChange={handleChange} placeholder="" />
             </div>
           </div>
           <Select name="category" value={formData.category} onValueChange={handleCategoryChange}>
@@ -291,32 +291,16 @@ type TimeFilter = 'day' | 'week' | 'month' | 'year' | 'all';
 const useOrderStats = (filter: TimeFilter) => {
     const firestore = useFirestore();
     
-    // Using a collectionGroup query which is more efficient for admins.
+    // Admin-only hook. This uses a collectionGroup query which is more efficient for admins.
     // This requires a specific security rule and Firestore index.
     const allOrdersQuery = useMemoFirebase(() => firestore ? collectionGroup(firestore, 'orders') : null, [firestore]);
     const { data: orders, isLoading } = useCollection<Order>(allOrdersQuery);
 
     const stats = useMemo(() => {
         if (!orders) {
-            // Return a default zero-state if orders are not loaded yet
-            const zeroStats = {
-                totalSales: 0,
-                totalOrders: 0,
-                deliveredOrders: 0,
-                cancelledOrders: 0,
-                avgTicket: 0,
-            };
-            const zeroMonthly = Array.from({ length: 12 }, (_, i) => {
-                const monthKey = format(subMonths(new Date(), i), 'MMM yyyy', { locale: es });
-                return { name: monthKey, Ventas: 0 };
-            }).reverse();
-            return {
-                generalStats: zeroStats,
-                monthlySales: zeroMonthly,
-                paymentStats: { cashOrdersCount: 0, transferOrdersCount: 0, cashTotalAmount: 0, transferTotalAmount: 0, mostUsedPaymentMethod: '-' },
-                productStats: { topSeller: null, top5: [] },
-                customerStats: { top5: [] },
-            };
+            const zeroStats = { totalSales: 0, totalOrders: 0, deliveredOrders: 0, cancelledOrders: 0, avgTicket: 0, };
+            const zeroMonthly = Array.from({ length: 12 }, (_, i) => ({ name: format(subMonths(new Date(), i), 'MMM yyyy', { locale: es }), Ventas: 0 })).reverse();
+            return { generalStats: zeroStats, monthlySales: zeroMonthly, paymentStats: { cashOrdersCount: 0, transferOrdersCount: 0, cashTotalAmount: 0, transferTotalAmount: 0, mostUsedPaymentMethod: '-' }, productStats: { topSeller: null, top5: [] }, customerStats: { top5: [] }, };
         }
 
         const filteredByTime = orders.filter(o => {
@@ -326,7 +310,7 @@ const useOrderStats = (filter: TimeFilter) => {
             if (filter === 'week') return isThisWeek(date, { weekStartsOn: 1 });
             if (filter === 'month') return isThisMonth(date);
             if (filter === 'year') return isThisYear(date);
-            return true; // 'all'
+            return true;
         });
 
         const deliveredOrders = filteredByTime.filter(o => o.status === 'delivered');
@@ -334,24 +318,14 @@ const useOrderStats = (filter: TimeFilter) => {
         const totalSales = deliveredOrders.reduce((sum, o) => sum + o.totalAmount, 0);
         const avgTicket = deliveredOrders.length > 0 ? totalSales / deliveredOrders.length : 0;
 
-        const generalStats = {
-            totalSales,
-            totalOrders: filteredByTime.length,
-            deliveredOrders: deliveredOrders.length,
-            cancelledOrders: filteredByTime.filter(o => o.status === 'cancelled').length,
-            avgTicket,
-        };
+        const generalStats = { totalSales, totalOrders: filteredByTime.length, deliveredOrders: deliveredOrders.length, cancelledOrders: filteredByTime.filter(o => o.status === 'cancelled').length, avgTicket, };
 
         const salesByMonth: { [key: string]: number } = {};
         const last12Months = Array.from({ length: 12 }, (_, i) => subMonths(new Date(), i));
-        last12Months.forEach(date => {
-            const monthKey = format(date, 'MMM yyyy', { locale: es });
-            salesByMonth[monthKey] = 0;
-        });
+        last12Months.forEach(date => { salesByMonth[format(date, 'MMM yyyy', { locale: es })] = 0; });
         orders.filter(o => o.status === 'delivered').forEach(order => {
             if (order.orderDate?.toDate) {
-                const orderDate = order.orderDate.toDate();
-                const monthKey = format(orderDate, 'MMM yyyy', { locale: es });
+                const monthKey = format(order.orderDate.toDate(), 'MMM yyyy', { locale: es });
                 if (monthKey in salesByMonth) {
                     salesByMonth[monthKey] += order.totalAmount;
                 }
@@ -366,27 +340,20 @@ const useOrderStats = (filter: TimeFilter) => {
             transferOrdersCount: transferOrders.length,
             cashTotalAmount: cashOrders.reduce((sum, o) => sum + o.totalAmount, 0),
             transferTotalAmount: transferOrders.reduce((sum, o) => sum + o.totalAmount, 0),
-            mostUsedPaymentMethod: cashOrders.length > transferOrders.length ? 'Efectivo' : 'Transferencia',
+            mostUsedPaymentMethod: cashOrders.length >= transferOrders.length ? 'Efectivo' : 'Transferencia',
         };
 
         const productCounts: { [name: string]: { count: number; imageUrl?: string } } = {};
         deliveredOrders.forEach(order => {
             order.items.forEach(item => {
                 const name = item.product.name;
-                if (!productCounts[name]) {
-                    productCounts[name] = { count: 0, imageUrl: item.product.imageUrl };
-                }
+                if (!productCounts[name]) productCounts[name] = { count: 0, imageUrl: item.product.imageUrl };
                 productCounts[name].count += item.quantity;
             });
         });
-        const sortedProducts = Object.entries(productCounts)
-            .map(([name, data]) => ({ name, count: data.count, imageUrl: data.imageUrl }))
-            .sort((a, b) => b.count - a.count);
+        const sortedProducts = Object.entries(productCounts).map(([name, data]) => ({ name, count: data.count, imageUrl: data.imageUrl })).sort((a, b) => b.count - a.count);
         
-        const productStats = {
-            topSeller: sortedProducts.length > 0 ? sortedProducts[0] : null,
-            top5: sortedProducts.slice(0, 5),
-        };
+        const productStats = { topSeller: sortedProducts.length > 0 ? sortedProducts[0] : null, top5: sortedProducts.slice(0, 5), };
 
         const customerSpending: { [name: string]: number } = {};
         deliveredOrders.forEach(order => {
@@ -394,10 +361,7 @@ const useOrderStats = (filter: TimeFilter) => {
             if (!customerSpending[name]) customerSpending[name] = 0;
             customerSpending[name] += order.totalAmount;
         });
-        const topCustomers = Object.entries(customerSpending)
-            .map(([name, total]) => ({ name, total }))
-            .sort((a, b) => b.total - a.total)
-            .slice(0, 5);
+        const topCustomers = Object.entries(customerSpending).map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total).slice(0, 5);
 
         const customerStats = { top5: topCustomers };
 
@@ -670,6 +634,7 @@ const AdminDashboard = ({ userRole }: { userRole: Role }) => {
   const hasStoreAccess = userRole === 'admin' || userRole === 'host';
 
   const pendingOrdersQuery = useMemoFirebase(() => {
+    // Only fetch pending orders for sound notification if user is NOT a full admin.
     if (!firestore || isFullAdmin) return null;
     return query(collectionGroup(firestore, 'orders'), where('status', '==', 'pending'));
   }, [firestore, isFullAdmin]);
@@ -677,6 +642,7 @@ const AdminDashboard = ({ userRole }: { userRole: Role }) => {
   const { data: pendingOrders } = useCollection<Order>(pendingOrdersQuery);
   
   useEffect(() => {
+    // Only play sound if user is NOT a full admin.
     if (pendingOrders && !isFullAdmin) {
       if (pendingOrders.length > pendingOrdersCountRef.current) {
         audioRef.current?.play().catch(e => console.error("Error playing sound:", e));
@@ -773,7 +739,7 @@ const AdminDashboard = ({ userRole }: { userRole: Role }) => {
                             <td className='p-2 font-medium'>{p.name}</td>
                             <td className="p-2"><Badge variant="secondary">{p.category}</Badge></td>
                             <td className="p-2">{formatCurrency(p.price)}</td>
-                            <td className="p-2">{p.stock}</td>
+                            <td className="p-2">{p.stockQuantity}</td>
                             <td className='flex justify-end gap-1 p-2'>
                               <Button variant="ghost" size="icon" onClick={() => setEditingProduct(p)}><Edit className='h-4 w-4'/></Button>
                               <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(p.id)}><Trash2 className='h-4 w-4 text-destructive'/></Button>
@@ -831,7 +797,7 @@ export default function AdminPage() {
   const isLoading = isUserLoading || isRoleLoading;
   
   useEffect(() => {
-    if (isLoading || !firestore) return;
+    if (isLoading) return;
 
     if (!user || !hasAccess) {
       toast({
@@ -841,22 +807,18 @@ export default function AdminPage() {
       });
       router.push('/login?redirect=/admin');
     }
-  }, [user, hasAccess, isLoading, router, toast, firestore]);
+  }, [user, hasAccess, isLoading, router, toast]);
 
-  if (isLoading || !firestore) {
+  if (isLoading || !user || !hasAccess) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
 
-  if (hasAccess) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header onCartClick={() => {}} showCart={false} />
-        <main className="container mx-auto px-4 py-8">
-          <AdminDashboard userRole={userRole!} />
-        </main>
-      </div>
-    );
-  }
-
-  return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
+  return (
+    <div className="min-h-screen bg-background">
+      <Header onCartClick={() => {}} showCart={false} />
+      <main className="container mx-auto px-4 py-8">
+        <AdminDashboard userRole={userRole!} />
+      </main>
+    </div>
+  );
 }

@@ -21,8 +21,10 @@ function HomePageContent() {
         const batch = writeBatch(firestore);
         initialProducts.forEach((productData) => {
           const newDocRef = doc(collection(firestore, 'products'));
-          const productWithId = { ...productData, id: newDocRef.id };
-          batch.set(newDocRef, productWithId);
+          // Ensure correct field name 'stockQuantity'
+          const productWithId = { ...productData, id: newDocRef.id, stock: productData.stockQuantity };
+          const { stockQuantity, ...finalProduct } = productWithId;
+          batch.set(newDocRef, finalProduct);
         });
         try {
           await batch.commit();
@@ -38,9 +40,13 @@ function HomePageContent() {
     }
   }, [products, isProductsLoading, firestore]);
 
+  const productList = useMemo(() => {
+      return (products || []).map(p => ({ ...p, stock: p.stockQuantity }));
+  }, [products]);
+
   const isLoading = isProductsLoading || products === null;
 
-  return <OrderPage products={products || []} loading={isLoading} />;
+  return <OrderPage products={productList || []} loading={isLoading} />;
 }
 
 export default function Home() {
@@ -56,13 +62,11 @@ export default function Home() {
   
   const userRole = useMemo(() => userDoc?.role, [userDoc]);
   
-  const isCheckingRole = isUserLoading || isRoleLoading;
+  const isCheckingRole = isUserLoading || (user && isRoleLoading);
 
   useEffect(() => {
-    // Don't do anything until we're done loading user and role.
     if (isCheckingRole) return;
     
-    // Only redirect if a user is logged in and has a specific role.
     if (user && userRole) {
         if (userRole === 'admin' || userRole === 'host') {
             router.push('/admin');
@@ -70,15 +74,11 @@ export default function Home() {
             router.push('/delivery');
         }
     }
-    // If no user or no specific role, do nothing and let the customer page render.
   }, [isCheckingRole, user, userRole, router]);
 
-  // Show loading spinner only on initial load when we are actively checking a logged-in user's role.
-  // When a user logs out, `user` becomes null, `isCheckingRole` becomes false, and we render HomePageContent immediately.
-  if (isCheckingRole && user) {
+  if (isCheckingRole) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo a tu panel...</div>;
   }
 
-  // For customers, guests, or after logging out, show the customer-facing page directly.
   return <HomePageContent />;
 }

@@ -1,180 +1,55 @@
-/**
- * Core Philosophy: This ruleset implements a dual-access security model. It combines a strict user-ownership
- * model for personal data (like orders and favorites) with a global admin role for site-wide management (like
- * managing products). Public data, such as the product catalog, is readable by everyone, including unauthenticated
- * users, to facilitate browsing.
- *
- * Data Structure: The data is organized hierarchically to enforce security through path-based ownership. All
- * user-specific data, including orders and favorite products, is nested under the `/users/{userId}` path. This
- * ensures that a user's data is logically and securely co-located. A top-level `/products` collection holds
- * public menu information, and a `/roles_admin` collection manages administrative privileges.
- *
- * Key Security Decisions:
- * - Admin Access: A user is considered an admin if a document with their UID exists in the `/roles_admin`
- *   collection. This provides a simple and performant way to check for global administrative privileges.
- *   Admins have read/write access to all data.
- * - User Data Privacy: All collections under `/users/{userId}` are strictly private. Only the authenticated
- *   owner of that data tree can read or write to it. Listing users from the top-level `/users` collection is
- *   explicitly forbidden to protect user privacy.
- * - Order Immutability: Once an order is created by a user, it cannot be modified or deleted by them. This
- *   reflects a typical e-commerce workflow where order changes are handled by administrators.
- * - Public Product Catalog: The `/products` collection is publicly readable to allow anyone to browse the menu,
- *   but only admins can create, update, or delete products.
- *
- * Denormalization for Authorization: The rules heavily leverage path-based security (e.g., `/users/{userId}/...`),
- * which encodes ownership directly into the document path. This avoids the need for slow and costly `get()`
- * calls when checking user-specific permissions. The `userId` field is also denormalized onto documents like
- * Orders and FavoriteProducts to ensure data consistency between the path and the document content upon creation.
- *
- * Structural Segregation: The design uses separate top-level collections for different security contexts.
- * Private data is stored in user subcollections (`/users/{userId}/orders`), while public data resides in a
- * shared top-level collection (`/products`). This segregation is more secure and performant for list queries than
- * using a single collection with a boolean flag.
- */
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ------------------------------------------------------------------------
-    // Helper Functions
-    // ------------------------------------------------------------------------
-
-    /**
-     * Checks if the user is authenticated.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * Checks if the currently authenticated user's ID matches the provided userId.
-     */
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    /**
-     * Checks if the user has administrative privileges.
-     * Admin status is granted if a document with the user's UID exists in the /roles_admin collection.
-     */
     function isAdmin() {
-      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+    
+    function isHost() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'host';
     }
 
-    /**
-     * Verifies that a document being updated or deleted actually exists.
-     */
-    function isExistingDoc() {
-      return resource != null;
-    }
-
-    /**
-     * Validates relational integrity on create, ensuring the document's internal
-     * userId matches the userId in the path.
-     */
-    function newDocHasCorrectOwner(userId) {
-      return request.resource.data.userId == userId;
-    }
-
-    /**
-     * Ensures a field remains unchanged during an update.
-     */
-    function isImmutable(fieldName) {
-      return request.resource.data[fieldName] == resource.data[fieldName];
-    }
-
-
-    // ------------------------------------------------------------------------
-    // Collection Rules
-    // ------------------------------------------------------------------------
-
-    /**
-     * @description Publicly readable catalog of products. Only admins can manage entries.
-     * @path        /products/{productId}
-     * @allow       (get, list) for any user, signed in or not, to browse the menu.
-     * @allow       (create, update, delete) for an authenticated admin.
-     * @deny        (create, update, delete) for any non-admin user.
-     * @principle   Public read with role-based writes.
-     */
     match /products/{productId} {
-      allow get, list: if true;
-      allow create, update, delete: if isSignedIn() && isAdmin();
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    /**
-     * @description A user's profile document.
-     * @path        /users/{userId}
-     * @allow       (create) for a new user creating their own profile document.
-     * @allow       (get, update) for the document owner or an admin.
-     * @deny        (list) for anyone, to protect user privacy.
-     * @deny        (delete) for users, as this should be a managed process. Admins can delete.
-     * @principle   Restricts access to a user's own data tree and enforces self-creation.
-     */
     match /users/{userId} {
-      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isSignedIn() && (isOwner(userId) || isAdmin()) && isExistingDoc() && isImmutable('id');
-      allow delete: if isSignedIn() && isAdmin() && isExistingDoc();
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
     }
 
-    /**
-     * @description A user's order history, stored in a private subcollection.
-     * @path        /users/{userId}/orders/{orderId}
-     * @allow       (create, get, list) for the user who owns the order.
-     * @deny        (update, delete) for the user, preventing modification after placement.
-     * @allow       (get, list, update, delete) for admins for management purposes.
-     * @principle   Enforces document ownership within a user's private data space.
-     */
     match /users/{userId}/orders/{orderId} {
-      allow get, list: if isSignedIn() && (isOwner(userId) || isAdmin());
-      allow create: if isSignedIn() && isOwner(userId) && newDocHasCorrectOwner(userId);
-      allow update: if isSignedIn() && isAdmin() && isExistingDoc() && isImmutable('userId');
-      allow delete: if isSignedIn() && isAdmin() && isExistingDoc();
+      allow get: if isOwner(userId) || isAdmin() || isHost();
+      allow list: if isOwner(userId) || isAdmin() || isHost();
+      allow create: if isOwner(userId);
+      allow update: if (isOwner(userId) && request.resource.data.status == 'cancelled') || isAdmin() || isHost() || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver' && resource.data.driverId == request.auth.uid);
+      allow delete: if isAdmin();
     }
 
-    /**
-     * @description The specific items within a user's order.
-     * @path        /users/{userId}/orders/{orderId}/orderItems/{orderItemId}
-     * @allow       (create, get, list) for the user who owns the parent order.
-     * @deny        (update, delete) for the user to preserve order integrity.
-     * @allow       (get, list, update, delete) for admins.
-     * @principle   Inherits ownership from the parent document path.
-     */
-    match /users/{userId}/orders/{orderId}/orderItems/{orderItemId} {
-      allow get, list: if isSignedIn() && (isOwner(userId) || isAdmin());
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.orderId == orderId;
-      allow update: if isSignedIn() && isAdmin() && isExistingDoc() && isImmutable('orderId');
-      allow delete: if isSignedIn() && isAdmin() && isExistingDoc();
+    match /users/{userId}/orders/{orderId}/messages/{messageId} {
+      allow read, write: if isOwner(userId) || isAdmin() || isHost() || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver' && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid);
+    }
+    
+    match /{path=**}/orders/{orderId} {
+       allow list: if isAdmin() || isHost();
     }
 
-    /**
-     * @description A user's list of favorite products.
-     * @path        /users/{userId}/favoriteProducts/{favoriteProductId}
-     * @allow       (create, get, list, update, delete) for the user who owns the favorites list.
-     * @allow       (get, list) for an admin for support purposes.
-     * @deny        (create, update, delete) by an admin, as this is user-preference data.
-     * @principle   Grants full CRUD control to the document owner for their personal data.
-     */
-    match /users/{userId}/favoriteProducts/{favoriteProductId} {
-      allow get, list: if isSignedIn() && (isOwner(userId) || isAdmin());
-      allow create: if isSignedIn() && isOwner(userId) && newDocHasCorrectOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId) && isExistingDoc() && isImmutable('userId');
-      allow delete: if isSignedIn() && isOwner(userId) && isExistingDoc();
-    }
-
-    /**
-     * @description Manages global admin roles. Existence of a doc grants admin rights.
-     * @path        /roles_admin/{userId}
-     * @allow       (get, list) only for other admins to see the admin list.
-     * @allow       (create, delete) only for other admins to grant/revoke privileges.
-     * @deny        (get, list, create, update, delete) for all non-admin users.
-     * @principle   Secures administrative role management to prevent privilege escalation.
-     */
     match /roles_admin/{userId} {
-      allow get, list: if isSignedIn() && isAdmin();
-      allow create, delete: if isSignedIn() && isAdmin();
-      allow update: if false;
+      allow read, write: if isAdmin();
     }
   }
 }

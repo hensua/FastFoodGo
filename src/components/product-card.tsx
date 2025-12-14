@@ -86,7 +86,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
       className="flex h-full flex-col overflow-hidden transition-all duration-300 md:hover:shadow-lg md:hover:-translate-y-1 cursor-pointer group"
       onClick={onClick}
     >
-      <div className="bg-gray-100 relative overflow-hidden h-[112px]">
+      <div className="bg-gray-100 relative overflow-hidden aspect-square">
         <Image
           src={product.imageUrl}
           alt={product.name}

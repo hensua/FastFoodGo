@@ -19,7 +19,7 @@ export const products: Omit<Product, 'id'>[] = [
     description: 'Una jugosa hamburguesa de res con lechuga, tomate y nuestra salsa especial.',
     price: 18900,
     category: 'Hamburguesas',
-    stock: 100,
+    stockQuantity: 100,
     ...getImage('classic-burger'),
   },
   {
@@ -27,7 +27,7 @@ export const products: Omit<Product, 'id'>[] = [
     description: 'Doradas, crujientes y perfectamente saladas. El mejor acompañamiento.',
     price: 8900,
     category: 'Acompañamientos',
-    stock: 200,
+    stockQuantity: 200,
     ...getImage('crispy-fries'),
   },
   {
@@ -35,7 +35,7 @@ export const products: Omit<Product, 'id'>[] = [
     description: 'Una porción caliente de nuestra clásica pizza de queso con una rica base de tomate.',
     price: 9900,
     category: 'Pizzas',
-    stock: 50,
+    stockQuantity: 50,
     ...getImage('cheese-pizza'),
   },
   {
@@ -43,7 +43,7 @@ export const products: Omit<Product, 'id'>[] = [
     description: '6 piezas de tiernos y jugosos nuggets de pollo. Perfectos para dipear.',
     price: 12900,
     category: 'Acompañamientos',
-    stock: 150,
+    stockQuantity: 150,
     ...getImage('chicken-nuggets'),
   },
   {
@@ -51,7 +51,7 @@ export const products: Omit<Product, 'id'>[] = [
     description: 'Elige entre nuestra selección de refrescantes gaseosas.',
     price: 4500,
     category: 'Bebidas',
-    stock: 300,
+    stockQuantity: 300,
     tag: '350ml',
     ...getImage('ice-cold-soda'),
   },
@@ -60,7 +60,7 @@ export const products: Omit<Product, 'id'>[] = [
     description: 'Una malteada rica y cremosa para satisfacer tu antojo de dulce.',
     price: 11900,
     category: 'Bebidas',
-    stock: 80,
+    stockQuantity: 80,
     ...getImage('chocolate-milkshake'),
   },
   {
@@ -68,7 +68,7 @@ export const products: Omit<Product, 'id'>[] = [
     description: 'Un delicioso perro caliente de res servido en un pan suave y tibio.',
     price: 14900,
     category: 'Otros',
-    stock: 90,
+    stockQuantity: 90,
     ...getImage('classic-hotdog'),
   },
   {
@@ -76,7 +76,7 @@ export const products: Omit<Product, 'id'>[] = [
     description: 'Crujientes aros de cebolla rebozados, fritos a la perfección.',
     price: 10900,
     category: 'Acompañamientos',
-    stock: 120,
+    stockQuantity: 120,
     ...getImage('onion-rings'),
   },
 ];

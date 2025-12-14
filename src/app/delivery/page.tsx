@@ -311,17 +311,19 @@ export default function DeliveryPage() {
 
   const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
-  const isDriver = useMemo(() => userDoc?.role === 'driver', [userDoc]);
+  const userRole = useMemo(() => userDoc?.role, [userDoc]);
+  const isDriver = userRole === 'driver';
 
   useEffect(() => {
-    if (!isUserLoading && !isRoleLoading && user && !isDriver) {
+    if (isUserLoading || isRoleLoading) return;
+
+    if (!user) {
+      router.push('/login?redirect=/delivery');
+    } else if (user && !isDriver) {
       toast({ variant: 'destructive', title: 'Acceso Denegado', description: 'No tienes permisos de repartidor.' });
       router.push('/');
     }
-     if (!isUserLoading && !user) {
-      router.push('/login?redirect=/delivery');
-    }
-  }, [user, userDoc, isUserLoading, isRoleLoading, router, toast, isDriver]);
+  }, [user, isDriver, isUserLoading, isRoleLoading, router, toast]);
 
   const assignedOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !user || !isDriver) return null;
@@ -386,12 +388,8 @@ export default function DeliveryPage() {
 
   const isLoading = isUserLoading || isRoleLoading;
 
-  if (isLoading || (!isUserLoading && !user)) {
+  if (isLoading || !user || !isDriver) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando...</div>;
-  }
-  
-  if(!isUserLoading && user && !isDriver) {
-      return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
   }
 
   return (
