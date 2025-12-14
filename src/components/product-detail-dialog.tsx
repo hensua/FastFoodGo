@@ -16,6 +16,9 @@ import { useCart } from '@/components/cart-provider';
 import { formatCurrency } from '@/lib/utils';
 import { Plus, Minus, Heart } from 'lucide-react';
 import { ScrollArea } from './ui/scroll-area';
+import SuggestedProducts from './cart/suggested-products';
+import { products as allProducts } from '@/lib/data';
+
 
 interface ProductDetailDialogProps {
   product: Product;
@@ -47,22 +50,23 @@ export default function ProductDetailDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md p-0 max-h-[90vh] flex flex-col rounded-lg">
-        <div className="relative">
-            <div className="relative aspect-video w-full overflow-hidden bg-muted rounded-t-lg">
+      <DialogContent className="sm:max-w-md p-0 max-h-[90vh] flex flex-col rounded-lg overflow-hidden">
+        <ScrollArea className="flex-grow">
+          <div className="relative bg-muted rounded-t-lg">
+            <div className="relative aspect-video w-full overflow-hidden p-6">
               <Image
                 src={product.imageUrl}
                 alt={product.name}
                 data-ai-hint={product.imageHint}
                 fill
-                className="object-contain p-6"
+                className="object-contain"
               />
             </div>
              <Button variant="ghost" size="icon" className="absolute bottom-[-20px] right-6 h-12 w-12 rounded-full bg-white shadow-lg hover:bg-gray-100">
                 <Heart className="h-6 w-6 text-gray-500" />
             </Button>
-        </div>
-        <ScrollArea className="overflow-y-auto">
+          </div>
+          
           <div className="p-6 space-y-4">
             <DialogHeader className="p-0 text-left">
               <DialogTitle className="text-3xl font-bold">{product.name}</DialogTitle>
@@ -98,9 +102,11 @@ export default function ProductDetailDialog({
                 <h4 className='font-bold mt-4 mb-1'>Acerca del producto</h4>
                 <DialogDescription className="text-base">{product.description}</DialogDescription>
             </div>
+
+            <SuggestedProducts currentProduct={product} allProducts={allProducts} />
           </div>
         </ScrollArea>
-        <DialogFooter className="p-4 pt-4 border-t sticky bottom-0 bg-background z-10 flex-row">
+        <DialogFooter className="p-4 border-t bg-background">
           <Button size="lg" className="w-full h-12 text-base" onClick={handleAddToCart}>
             Añadir {formatCurrency(totalPrice)}
           </Button>
