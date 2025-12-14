@@ -16,9 +16,8 @@ import { useCart } from '@/components/cart-provider';
 import { formatCurrency } from '@/lib/utils';
 import { Plus, Minus, Heart } from 'lucide-react';
 import SuggestedProducts from './cart/suggested-products';
-import { ScrollArea } from './ui/scroll-area';
 import { products as allProducts } from '@/lib/data';
-
+import { ScrollArea } from './ui/scroll-area';
 
 interface ProductDetailDialogProps {
   product: Product;
@@ -53,7 +52,7 @@ export default function ProductDetailDialog({
       <DialogContent className="sm:max-w-md p-0 max-h-[90vh] flex flex-col rounded-lg overflow-hidden">
         <ScrollArea className="flex-grow">
           <div className="relative bg-muted">
-             <div className="relative aspect-square w-full overflow-hidden p-6">
+            <div className="relative aspect-square w-full overflow-hidden p-6">
               <Image
                 src={product.imageUrl}
                 alt={product.name}
