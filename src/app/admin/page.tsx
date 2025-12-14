@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { ChefHat, Package, Trash2, Edit, X, Users, Loader2, UtensilsCrossed, TrendingUp, Download, BarChart, ShoppingBag, Ban, Ticket, CircleDollarSign, XCircle, PackageCheck, Banknote, Landmark, Star, Crown, Trophy, UserRound } from 'lucide-react';
+import { ChefHat, Package, Trash2, Edit, X, Users, Loader2, UtensilsCrossed, TrendingUp, Download, BarChart, ShoppingBag, Ban, Ticket, CircleDollarSign, XCircle, PackageCheck, Banknote, Landmark, Star, Crown, Trophy, UserRound, Store } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/provider';
 import { Input } from '@/components/ui/input';
@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { format, subMonths } from 'date-fns';
+import { format, subMonths, isToday, isThisWeek, isThisMonth, isThisYear } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Label } from '@/components/ui/label';
 import { OrderList } from '@/components/order-list';
@@ -262,7 +262,9 @@ const TeamManagement = () => {
   );
 };
 
-const useOrderStats = () => {
+type TimeFilter = 'day' | 'week' | 'month' | 'year' | 'all';
+
+const useOrderStats = (filter: TimeFilter) => {
     const firestore = useFirestore();
     const [orders, setOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -286,16 +288,26 @@ const useOrderStats = () => {
     }, [firestore]);
 
     const stats = useMemo(() => {
-        const deliveredOrders = orders.filter(o => o.status === 'delivered');
+        const filteredByTime = orders.filter(o => {
+            if (!o.orderDate?.toDate) return false;
+            const date = o.orderDate.toDate();
+            if (filter === 'day') return isToday(date);
+            if (filter === 'week') return isThisWeek(date, { weekStartsOn: 1 });
+            if (filter === 'month') return isThisMonth(date);
+            if (filter === 'year') return isThisYear(date);
+            return true; // 'all'
+        });
+
+        const deliveredOrders = filteredByTime.filter(o => o.status === 'delivered');
         
         const totalSales = deliveredOrders.reduce((sum, o) => sum + o.totalAmount, 0);
         const avgTicket = deliveredOrders.length > 0 ? totalSales / deliveredOrders.length : 0;
 
         const generalStats = {
             totalSales,
-            totalOrders: orders.length,
+            totalOrders: filteredByTime.length,
             deliveredOrders: deliveredOrders.length,
-            cancelledOrders: orders.filter(o => o.status === 'cancelled').length,
+            cancelledOrders: filteredByTime.filter(o => o.status === 'cancelled').length,
             avgTicket,
         };
 
@@ -305,8 +317,8 @@ const useOrderStats = () => {
             const monthKey = format(date, 'MMM yyyy', { locale: es });
             salesByMonth[monthKey] = 0;
         });
-        deliveredOrders.forEach(order => {
-            if (order.orderDate && order.orderDate.toDate) {
+        orders.filter(o => o.status === 'delivered').forEach(order => {
+            if (order.orderDate?.toDate) {
                 const orderDate = order.orderDate.toDate();
                 const monthKey = format(orderDate, 'MMM yyyy', { locale: es });
                 if (monthKey in salesByMonth) {
@@ -359,14 +371,38 @@ const useOrderStats = () => {
         const customerStats = { top5: topCustomers };
 
         return { generalStats, monthlySales, paymentStats, productStats, customerStats };
-    }, [orders]);
+    }, [orders, filter]);
 
     return { stats, isLoading };
 };
 
+const TimeFilterControls = ({ filter, setFilter }: { filter: TimeFilter; setFilter: (f: TimeFilter) => void }) => {
+    const filters: { label: string, value: TimeFilter }[] = [
+        { label: 'Día', value: 'day' },
+        { label: 'Semana', value: 'week' },
+        { label: 'Mes', value: 'month' },
+        { label: 'Año', value: 'year' },
+        { label: 'Todos', value: 'all' },
+    ];
+    return (
+        <div className="flex justify-center gap-1 p-1 bg-muted rounded-lg flex-wrap mb-6">
+            {filters.map(f => (
+                <button
+                    key={f.value}
+                    onClick={() => setFilter(f.value)}
+                    className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${filter === f.value ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                    {f.label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
 // Simplified dashboard for hosts
 const HostStatsDashboard = () => {
-    const { stats, isLoading } = useOrderStats();
+    const [filter, setFilter] = useState<TimeFilter>('day');
+    const { stats, isLoading } = useOrderStats(filter);
 
     if (isLoading) {
         return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8" /> Cargando reportes...</div>;
@@ -376,7 +412,8 @@ const HostStatsDashboard = () => {
 
     return (
         <div className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <TimeFilterControls filter={filter} setFilter={setFilter} />
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Pedidos Totales</CardTitle>
@@ -386,10 +423,20 @@ const HostStatsDashboard = () => {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Pedidos Entregados</CardTitle>
+                        <CardTitle className="text-sm font-medium">Pedidos por Domicilio</CardTitle>
                         <PackageCheck className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent><div className="text-2xl font-bold">{generalStats.deliveredOrders}</div></CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Pedidos en Tienda</CardTitle>
+                        <Store className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">0</div>
+                        <p className="text-xs text-muted-foreground">Próximamente</p>
+                    </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -412,7 +459,8 @@ const HostStatsDashboard = () => {
 
 // Full dashboard for admins
 const StatsDashboard = () => {
-    const { stats, isLoading } = useOrderStats();
+    const [filter, setFilter] = useState<TimeFilter>('day');
+    const { stats, isLoading } = useOrderStats(filter);
 
     const downloadCSV = () => {
         const { monthlySales } = stats;
@@ -436,6 +484,8 @@ const StatsDashboard = () => {
 
     return (
         <div className="space-y-6">
+            <TimeFilterControls filter={filter} setFilter={setFilter} />
+
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -460,17 +510,20 @@ const StatsDashboard = () => {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Pedidos Entregados</CardTitle>
+                        <CardTitle className="text-sm font-medium">Pedidos por Domicilio</CardTitle>
                         <PackageCheck className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent><div className="text-2xl font-bold">{generalStats.deliveredOrders}</div></CardContent>
                 </Card>
-                <Card>
+                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Pedidos Cancelados</CardTitle>
-                        <Ban className="h-4 w-4 text-destructive" />
+                        <CardTitle className="text-sm font-medium">Pedidos en Tienda</CardTitle>
+                        <Store className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent><div className="text-2xl font-bold">{generalStats.cancelledOrders}</div></CardContent>
+                    <CardContent>
+                        <div className="text-2xl font-bold">0</div>
+                        <p className="text-xs text-muted-foreground">Próximamente</p>
+                    </CardContent>
                 </Card>
             </div>
             
@@ -479,7 +532,7 @@ const StatsDashboard = () => {
                     <div className="flex justify-between items-center">
                         <div>
                             <CardTitle>Ventas en los Últimos 12 Meses</CardTitle>
-                            <CardDescription>Un resumen de los ingresos generados mensualmente.</CardDescription>
+                            <CardDescription>Un resumen de los ingresos generados mensualmente (no afectado por el filtro).</CardDescription>
                         </div>
                         <Button onClick={downloadCSV} variant="outline"><Download className="mr-2 h-4 w-4" />Descargar CSV</Button>
                     </div>
@@ -499,7 +552,7 @@ const StatsDashboard = () => {
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <Card className="lg:col-span-1">
-                    <CardHeader><CardTitle>Estadísticas de Pago</CardTitle><CardDescription>Análisis de los métodos de pago.</CardDescription></CardHeader>
+                    <CardHeader><CardTitle>Estadísticas de Pago</CardTitle><CardDescription>Análisis de los métodos de pago ({filter === 'all' ? 'total' : `último ${filter}`}).</CardDescription></CardHeader>
                     <CardContent className="grid gap-4">
                         <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
                             <div className='flex items-center gap-2'><Banknote className="h-5 w-5 text-muted-foreground" /><div><p className='font-semibold'>Total en Efectivo</p><p className="text-xs text-muted-foreground">{paymentStats.cashOrdersCount} transacciones</p></div></div>
@@ -510,7 +563,7 @@ const StatsDashboard = () => {
                             <div className="font-bold">{formatCurrency(paymentStats.transferTotalAmount)}</div>
                         </div>
                          <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                            <div className='flex items-center gap-2'><Star className="h-5 w-5 text-muted-foreground" /><div><p className='font-semibold'>Método Preferido</p><p className="text-xs text-muted-foreground">{Math.round(Math.max(paymentStats.cashOrdersCount, paymentStats.transferOrdersCount) / generalStats.deliveredOrders * 100 || 0)}% de los pedidos</p></div></div>
+                            <div className='flex items-center gap-2'><Star className="h-5 w-5 text-muted-foreground" /><div><p className='font-semibold'>Método Preferido</p><p className="text-xs text-muted-foreground">{Math.round(Math.max(paymentStats.cashOrdersCount, paymentStats.transferOrdersCount) / (generalStats.deliveredOrders || 1) * 100)}% de los pedidos</p></div></div>
                             <div className="font-bold">{paymentStats.mostUsedPaymentMethod}</div>
                         </div>
                     </CardContent>
@@ -520,7 +573,7 @@ const StatsDashboard = () => {
                     <Card className="flex flex-col lg:col-span-2">
                         <CardHeader>
                             <CardTitle>Producto Estrella</CardTitle>
-                            <CardDescription>El producto más vendido en la tienda.</CardDescription>
+                            <CardDescription>El producto más vendido en el período seleccionado.</CardDescription>
                         </CardHeader>
                         <CardContent className="flex-grow flex flex-col md:flex-row gap-6 items-center justify-center text-center md:text-left">
                             <Image src={productStats.topSeller.imageUrl || '/placeholder.png'} alt={productStats.topSeller.name} width={128} height={128} className="rounded-lg object-cover w-32 h-32"/>
@@ -758,3 +811,5 @@ export default function AdminPage() {
 
   return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
 }
+
+    
