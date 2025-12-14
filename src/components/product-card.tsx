@@ -10,7 +10,7 @@ import {
 import { Button } from "./ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { useCart } from "./cart-provider";
-import { Minus, Plus, ShoppingCart } from "lucide-react";
+import { Minus, Plus } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 
@@ -128,8 +128,8 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
             ) : (
               <div 
                 className={cn(
-                  "flex items-center gap-1 bg-white border border-gray-200 rounded-full transition-all duration-300 h-7",
-                   isExpanded ? 'w-20 px-1' : 'w-7'
+                  "flex items-center gap-0 bg-white border border-gray-200 rounded-md transition-all duration-300 h-7",
+                   isExpanded ? 'w-[70px] px-1' : 'w-7'
                 )}
                 onClick={(e) => e.stopPropagation()}
               >
