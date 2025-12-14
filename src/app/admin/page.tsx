@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useFirestore, useMemoFirebase, useCollection, useDoc } from '@/firebase';
-import { collection, doc, updateDoc, deleteDoc, setDoc, collectionGroup, query, getDocs } from 'firebase/firestore';
+import { collection, doc, updateDoc, deleteDoc, setDoc, collectionGroup, query, getDocs, where } from 'firebase/firestore';
 import type { Order, Product, AppUser, Role } from '@/lib/types';
 import Header from '@/components/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -828,5 +828,3 @@ export default function AdminPage() {
 
   return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
 }
-
-    
