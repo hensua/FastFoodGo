@@ -58,21 +58,22 @@ service cloud.firestore {
 
     match /products/{productId} {
       allow read: if true;
-      allow create: if (isSignedIn() && !exists(/databases/$(database)/documents/products/$(productId))) || isAdmin();
+      allow create: if isAdmin();
       allow update, delete: if isAdmin();
     }
     
     match /users/{userId} {
       allow get: if isSignedIn();
-      allow list: if isAdmin();
-      allow create: if isOwner(userId);
-      allow update: if (isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin();
+      allow list: if isAdmin() || isHost();
+      allow create: if request.auth.uid == userId;
+      allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
     }
     
     match /users/{userId}/orders/{orderId} {
         allow get: if isOwner(userId) || isAdmin() || isHost() || (isDriver() && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid);
-        allow list, create: if isOwner(userId) || isAdmin() || isHost();
+        allow list: if isOwner(userId) || isAdmin() || isHost();
+        allow create: if isOwner(userId);
         
         allow update: if 
             // The customer can only cancel their own order if it's 'pending'.
