@@ -52,13 +52,13 @@ export default function ProductDetailDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md p-0 max-h-[90vh] flex flex-col rounded-lg">
         <ScrollArea className="overflow-y-auto">
-            <div className="relative aspect-square w-full overflow-hidden">
+            <div className="relative aspect-video w-full overflow-hidden bg-muted p-6">
               <Image
                 src={product.imageUrl}
                 alt={product.name}
                 data-ai-hint={product.imageHint}
                 fill
-                className="object-cover rounded-t-lg"
+                className="object-contain rounded-lg"
               />
             </div>
             <div className="p-6 space-y-4">
@@ -86,7 +86,7 @@ export default function ProductDetailDialog({
              <DialogFooter className="p-4 pt-4 border-t sticky bottom-0 bg-background z-10 flex-row items-center justify-center gap-2">
                <div className="flex items-center gap-2">
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="icon"
                     className="h-12 w-12"
                     onClick={() => setQuantity(q => Math.max(1, q - 1))}
@@ -96,7 +96,7 @@ export default function ProductDetailDialog({
                   </Button>
                   <span className="text-2xl font-bold w-12 text-center">{quantity}</span>
                    <Button
-                    variant="outline"
+                    variant="default"
                     size="icon"
                     className="h-12 w-12"
                     onClick={() => setQuantity(q => q + 1)}
