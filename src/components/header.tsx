@@ -50,5 +50,3 @@ export default function Header({ onCartClick, showCart = true }: HeaderProps) {
     </header>
   );
 }
-
-    

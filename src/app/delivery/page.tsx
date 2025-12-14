@@ -108,11 +108,6 @@ const DeliveringCard = ({ order, onDeliver, isUpdating }: { order: Order; onDeli
 const PinDialog = ({ open, onOpenChange, onSubmit, isSubmitting, orderId }: { open: boolean; onOpenChange: (open: boolean) => void; onSubmit: (pin: string) => void; isSubmitting: boolean; orderId: string | null }) => {
   const [pin, setPin] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(pin);
-  };
-
   useEffect(() => {
     if (open) {
       setPin('');

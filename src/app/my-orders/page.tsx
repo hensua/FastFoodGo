@@ -279,7 +279,7 @@ export default function MyOrdersPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onCartClick={() => {}} showCart={userDoc?.role === 'customer'} />
+      <Header onCartClick={() => {}} showCart={false} />
       <main className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">Mis Pedidos</h1>
         
