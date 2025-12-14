@@ -1,7 +1,14 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    /*********************************************************************
+     *                                                                   *
+     *                      HELPER FUNCTIONS                             *
+     *                                                                   *
+     *********************************************************************/
 
     function isSignedIn() {
       return request.auth != null;
@@ -10,46 +17,90 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-
-    function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
     }
     
-    function isHost() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'host';
+    function getRole(userId) {
+      return getUserData(userId).role;
     }
+
+    function isAdmin() {
+      return isSignedIn() && getRole(request.auth.uid) == 'admin';
+    }
+
+    function isHost() {
+      return isSignedIn() && getRole(request.auth.uid) == 'host';
+    }
+    
+    function isDriver() {
+      return isSignedIn() && getRole(request.auth.uid) == 'driver';
+    }
+    
+    function isCustomer() {
+      return isSignedIn() && getRole(request.auth.uid) == 'customer';
+    }
+    
+    function getOrder(userId, orderId) {
+        return get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId));
+    }
+    
+    function isParticipant(userId, orderId) {
+      let order = getOrder(userId, orderId).data;
+      return isOwner(userId) || isAdmin() || isHost() || (isDriver() && order.driverId == request.auth.uid);
+    }
+
+    /*********************************************************************
+     *                                                                   *
+     *                        TOP-LEVEL COLLECTIONS                      *
+     *                                                                   *
+     *********************************************************************/
 
     match /products/{productId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin();
     }
-
+    
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
-      allow create: if isOwner(userId) || isAdmin();
+      allow get: if isSignedIn();
+      allow list: if isAdmin() || isHost();
+      allow create: if request.auth.uid == userId;
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
     }
-
+    
     match /users/{userId}/orders/{orderId} {
-      allow get: if isOwner(userId) || isAdmin() || isHost();
-      allow list: if isOwner(userId) || isAdmin() || isHost();
-      allow create: if isOwner(userId);
-      allow update: if (isOwner(userId) && request.resource.data.status == 'cancelled') || isAdmin() || isHost() || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver' && resource.data.driverId == request.auth.uid);
-      allow delete: if isAdmin();
-    }
+        allow get: if isOwner(userId) || isAdmin() || isHost() || (isDriver() && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid);
+        allow list: if isOwner(userId) || isAdmin() || isHost();
+        allow create: if isOwner(userId);
+        
+        allow update: if 
+            // The customer can only cancel their own order if it's 'pending'.
+            (isOwner(userId) && request.resource.data.status == 'cancelled' && resource.data.status == 'pending') ||
+            // Admin or Host can manage most order state transitions.
+            isAdmin() || isHost() ||
+            // A driver can update an order they are assigned to.
+            (isDriver() && resource.data.driverId == request.auth.uid && (
+                  // Driver can mark as 'delivering' if it's 'ready'.
+                  (resource.data.status == 'ready' && request.resource.data.status == 'delivering') ||
+                  // Driver can mark as 'delivered' if they provide the correct PIN.
+                  (request.resource.data.status == 'delivered' && resource.data.pin == request.resource.data.pin)
+                )
+            );
 
-    match /users/{userId}/orders/{orderId}/messages/{messageId} {
-      allow read, write: if isOwner(userId) || isAdmin() || isHost() || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver' && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid);
+        allow delete: if isOwner(userId) || isAdmin();
+        
+        match /messages/{messageId} {
+            allow get, list: if isParticipant(userId, orderId);
+            allow create: if (isParticipant(userId, orderId) && request.resource.data.senderId == request.auth.uid) || isAdmin();
+            allow update, delete: if false;
+        }
     }
     
     match /{path=**}/orders/{orderId} {
-       allow list: if isAdmin() || isHost();
-    }
-
-    match /roles_admin/{userId} {
-      allow read, write: if isAdmin();
+        allow list: if isAdmin() || isHost() || isDriver();
     }
   }
 }
