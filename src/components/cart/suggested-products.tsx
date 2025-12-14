@@ -69,7 +69,7 @@ export default function SuggestedProducts({ currentProduct, allProducts = [] }: 
 
   return (
     <div className="mt-4">
-      {currentProduct && <Separator className="my-4" />}
+      <h4 className='font-bold mt-6 mb-2'>También te podría gustar</h4>
       <div className="flex flex-col gap-4">
         {suggestions.map((product) => (
           <div key={product.id} className="flex items-center gap-4">
