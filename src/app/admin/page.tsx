@@ -292,8 +292,6 @@ type TimeFilter = 'day' | 'week' | 'month' | 'year' | 'all';
 const useOrderStats = (filter: TimeFilter) => {
     const firestore = useFirestore();
     
-    // Admin-only hook. This uses a collectionGroup query which is more efficient for admins.
-    // This requires a specific security rule and Firestore index.
     const allOrdersQuery = useMemoFirebase(() => firestore ? collectionGroup(firestore, 'orders') : null, [firestore]);
     const { data: orders, isLoading } = useCollection<Order>(allOrdersQuery);
 
@@ -352,7 +350,7 @@ const useOrderStats = (filter: TimeFilter) => {
                 productCounts[name].count += item.quantity;
             });
         });
-        const sortedProducts = Object.entries(productCounts).map(([name, data]) => ({ name, count: data.count, imageUrl: data.imageUrl })).sort((a, b) => b.count - a.count);
+        const sortedProducts = Object.entries(productCounts).map(([name, data]) => ({ name, data.count, imageUrl: data.imageUrl })).sort((a, b) => b.count - a.count);
         
         const productStats = { topSeller: sortedProducts.length > 0 ? sortedProducts[0] : null, top5: sortedProducts.slice(0, 5), };
 
@@ -701,7 +699,7 @@ const AdminDashboard = ({ userRole }: { userRole: Role }) => {
 
   return (
     <div>
-       <audio ref={audioRef} src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUReb19vAgAAAAAAP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP-P/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/_A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/w//hP/un+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+npBQ==" className='hidden' />
+       <audio ref={audioRef} src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUReb19vAgAAAAAAP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP-P/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/_A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/w//hP/un+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+npBQ==" className='hidden' />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
         <h2 className="text-2xl font-bold flex items-center gap-2">
             <UtensilsCrossed className="text-primary" /> Panel de Control
@@ -792,15 +790,15 @@ export default function AdminPage() {
   
   const userRole = userDoc?.role;
   const hasAccess = userRole === 'admin' || userRole === 'host';
-  const isLoading = isUserLoading || isRoleLoading;
+  const isLoading = isUserLoading || (user && isRoleLoading);
   
+  // This effect will run ONLY when loading is complete.
   useEffect(() => {
-    // Wait until loading is completely finished
     if (isLoading) {
-      return; 
+      return; // Do nothing while loading.
     }
 
-    // After loading, if there's no user or no access, redirect.
+    // After loading, if there's no user or they don't have access, show toast and redirect.
     if (!user || !hasAccess) {
       toast({
         variant: "destructive",
@@ -811,15 +809,10 @@ export default function AdminPage() {
     }
   }, [user, hasAccess, isLoading, router, toast]);
 
-  // While loading, show a full-screen loader.
-  // This prevents the brief flash of the admin panel or "access denied" messages.
   if (isLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
   
-  // After loading, if the user has access, render the dashboard.
-  // The useEffect above handles the redirection for users without access.
-  // We add an extra check here to prevent rendering the dashboard for a split second before redirection.
   if (hasAccess && user) {
     return (
       <div className="min-h-screen bg-background">
@@ -831,7 +824,7 @@ export default function AdminPage() {
     );
   }
 
-  // If for some reason the component gets here (e.g., redirection is in progress),
-  // return null or a loader to avoid rendering anything else.
+  // If the user does not have access, we show a redirection message while the useEffect triggers the router.
+  // This prevents rendering the dashboard for a split second before redirection.
   return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
 }
