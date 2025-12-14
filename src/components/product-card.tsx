@@ -109,7 +109,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
         <div className="flex justify-between items-center mt-1">
           <span className="font-bold text-sm text-orange-600 flex-grow">{formatCurrency(product.price)}</span>
           
-          <div className="relative h-6 flex items-center justify-end" onClick={handleCompactClick}>
+          <div className="relative h-6 flex items-center justify-end">
             {quantityInCart === 0 ? (
                 <Button 
                     onClick={handleAddToCart} 
@@ -124,7 +124,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
                   "flex items-center justify-center bg-primary text-primary-foreground rounded-md transition-all duration-300 h-6 text-sm",
                    isExpanded ? 'w-[60px] px-1' : 'w-6'
                 )}
-                onClick={(e) => e.stopPropagation()}
+                onClick={handleCompactClick}
               >
                  {isExpanded ? (
                     <>
