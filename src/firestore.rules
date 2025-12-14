@@ -23,7 +23,7 @@ rules_version = '2';
  *   `/roles_admin/{userId}`. This is a robust pattern that avoids complex `get()`
  *   calls in other rules, preventing recursive permission issues.
  * - Explicit List Operations: Listing documents (e.g., all users or all orders
- *   from a specific user) is explicitly granted only to appropriate roles (admin).
+ *   from a specific user) is explicitly granted only to appropriate roles (admin/host).
  *   Unrestricted `collectionGroup` queries are implicitly denied unless explicitly
  *   allowed.
  * - Denormalization for Authorization: Order documents contain `customerId` and
@@ -52,15 +52,9 @@ service cloud.firestore {
       // This is more performant and secure than checking a role field.
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
-    
-    function isHost() {
-      // This function relies on the user's role field.
-      // It should only be used in rules where the user already has 'get' access to their own document.
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'host';
-    }
 
-    function isDriver() {
-       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver';
+    function isHost() {
+        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'host';
     }
 
 
@@ -87,11 +81,14 @@ service cloud.firestore {
      * - Admins can list and manage all user profiles.
      */
      match /users/{userId} {
-        allow get, update: if isOwner(userId) || isAdmin();
+        // Any signed-in user can read their own profile. Admins can read any profile.
+        allow get: if isOwner(userId) || isAdmin();
         // Admins need to list users for the "Team" tab and stats.
         allow list: if isAdmin();
-        // A user can create their own document.
-        allow create: if isOwner(userId);
+        // A user can create their own document, and admins can create users.
+        allow create: if isOwner(userId) || isAdmin();
+        // A user can update their own document, and admins can update any.
+        allow update: if isOwner(userId) || isAdmin();
         allow delete: if isAdmin();
      }
 
@@ -104,13 +101,12 @@ service cloud.firestore {
      *   - Assigned drivers can read the order they are delivering.
      */
     match /users/{userId}/orders/{orderId} {
-      // A host can get any specific order, but cannot list them from here.
-      // They use a collectionGroup query which is handled by another rule.
-      allow get: if isOwner(userId) || isAdmin() || isHost() || (isDriver() && resource.data.driverId == request.auth.uid);
+      // Owner, admin, or host can get the order. A driver can get it if they are assigned.
+      allow get: if isOwner(userId) || isAdmin() || isHost() || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver' && resource.data.driverId == request.auth.uid);
       allow list: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) || isAdmin();
       // Allow customer to cancel, admin/host to manage status, and driver to update delivery status.
-      allow update: if isOwner(userId) || isAdmin() || isHost() || (isDriver() && resource.data.driverId == request.auth.uid);
+      allow update: if isOwner(userId) || isAdmin() || isHost() || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver' && resource.data.driverId == request.auth.uid);
       allow delete: if isAdmin();
     }
     
@@ -132,7 +128,7 @@ service cloud.firestore {
      *   - Admins and hosts can read/write for support.
      */
     match /users/{userId}/orders/{orderId}/messages/{messageId} {
-       allow read, write: if isOwner(userId) || isAdmin() || isHost() || (isDriver() && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid);
+       allow read, write: if isOwner(userId) || isAdmin() || isHost() || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver' && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid);
     }
     
     /**
