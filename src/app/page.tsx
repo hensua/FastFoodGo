@@ -21,10 +21,9 @@ function HomePageContent() {
         const batch = writeBatch(firestore);
         initialProducts.forEach((productData) => {
           const newDocRef = doc(collection(firestore, 'products'));
-          // Ensure correct field name 'stockQuantity'
-          const productWithId = { ...productData, id: newDocRef.id, stock: productData.stockQuantity };
-          const { stockQuantity, ...finalProduct } = productWithId;
-          batch.set(newDocRef, finalProduct);
+          // Ensure correct field name 'stockQuantity' is used from the start
+          const productWithId = { ...productData, id: newDocRef.id };
+          batch.set(newDocRef, productWithId);
         });
         try {
           await batch.commit();
@@ -41,6 +40,7 @@ function HomePageContent() {
   }, [products, isProductsLoading, firestore]);
 
   const productList = useMemo(() => {
+      // Ensure stockQuantity is correctly mapped to stock if needed by components, or just use stockQuantity directly
       return (products || []).map(p => ({ ...p, stock: p.stockQuantity }));
   }, [products]);
 
@@ -62,11 +62,14 @@ export default function Home() {
   
   const userRole = useMemo(() => userDoc?.role, [userDoc]);
   
-  const isCheckingRole = isUserLoading || (user && isRoleLoading);
+  // This combined loading state is the single source of truth.
+  const isCheckingAuth = isUserLoading || (user && isRoleLoading);
 
   useEffect(() => {
-    if (isCheckingRole) return;
+    // Don't do anything until all authentication and role checks are complete.
+    if (isCheckingAuth) return;
     
+    // Once loading is done, if we have a user and a role, decide where to redirect.
     if (user && userRole) {
         if (userRole === 'admin' || userRole === 'host') {
             router.push('/admin');
@@ -74,11 +77,17 @@ export default function Home() {
             router.push('/delivery');
         }
     }
-  }, [isCheckingRole, user, userRole, router]);
+    // If there's no user or the role is 'customer', this effect does nothing,
+    // and the component will proceed to render HomePageContent.
+  }, [isCheckingAuth, user, userRole, router]);
 
-  if (isCheckingRole) {
-    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo a tu panel...</div>;
+  // While we are checking for auth/role, show a full-screen loader.
+  // This prevents the customer view from flashing before a redirect.
+  if (isCheckingAuth) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
   }
 
+  // If loading is finished and the user is NOT a special role (or not logged in), show the customer page.
+  // The useEffect handles redirection for special roles, so we don't need to check here again.
   return <HomePageContent />;
 }

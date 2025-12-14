@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useAuth, useUser, useFirestore } from '@/firebase';
+import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Chrome, Loader2 } from 'lucide-react';
@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, User, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
+import type { AppUser } from '@/lib/types';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Por favor, introduce un correo electrónico válido.' }),
@@ -32,6 +33,9 @@ export default function LoginPage() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isSigningUp, setIsSigningUp] = useState(false);
 
+  const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+  const { data: userDoc, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
+
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -39,10 +43,19 @@ export default function LoginPage() {
       password: '',
     },
   });
-
+  
   const handleRedirect = () => {
-    const intendedPath = searchParams.get('redirect') || '/';
-    router.push(intendedPath);
+    if (!userDoc) return;
+    
+    const role = userDoc.role;
+    if (role === 'admin' || role === 'host') {
+        router.push('/admin');
+    } else if (role === 'driver') {
+        router.push('/delivery');
+    } else {
+        const intendedPath = searchParams.get('redirect') || '/';
+        router.push(intendedPath);
+    }
   };
   
   const handleUserSetup = async (firebaseUser: User) => {
@@ -64,19 +77,30 @@ export default function LoginPage() {
           role: 'customer', // Default role for new users
         });
       }
+      // No need to redirect here, the useEffect will handle it
     } catch (e) {
       console.error("Error creating user document:", e);
-      // Optional: Show a toast to the user about the profile creation failure
+      toast({
+          variant: "destructive",
+          title: "Error de perfil",
+          description: "No se pudo crear tu perfil de usuario. Por favor, intenta iniciar sesión de nuevo."
+      });
     }
-    
-    handleRedirect();
   };
-
+  
+  // This useEffect is the single source of truth for redirection.
+  // It waits for ALL user data (auth and firestore doc) to be loaded.
   useEffect(() => {
-    if (!isUserLoading && user) {
+    // Only proceed if all loading is complete
+    if (isUserLoading || (user && isUserDocLoading)) {
+      return;
+    }
+    // If loading is done and we have a user and their document, redirect.
+    if (user && userDoc) {
        handleRedirect();
     }
-  }, [user, isUserLoading]);
+    // If loading is done and there's no user, stay on the login page.
+  }, [user, userDoc, isUserLoading, isUserDocLoading, router]);
 
   const handleGoogleSignIn = async () => {
     if (!auth) return;
@@ -143,7 +167,9 @@ export default function LoginPage() {
   };
 
 
-  if (isUserLoading || (!isUserLoading && user)) {
+  // If the user state is loading, or if the user is logged in but we are waiting for their role, show a loader.
+  // This prevents the login form from flashing while redirection is being determined.
+  if (isUserLoading || (user && !userDoc)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -151,6 +177,7 @@ export default function LoginPage() {
     );
   }
 
+  // If we are done loading AND the user is not logged in, show the login form.
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm">
