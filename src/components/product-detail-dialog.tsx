@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import type { Product } from '@/lib/types';
 import { useCart } from '@/components/cart-provider';
 import { formatCurrency } from '@/lib/utils';
-import { Plus, Minus, Sparkles } from 'lucide-react';
+import { Plus, Minus, Sparkles, Heart } from 'lucide-react';
 import SuggestedProducts from './cart/suggested-products';
 import { ScrollArea } from './ui/scroll-area';
 import { products as allProducts } from '@/lib/data';
@@ -66,15 +66,35 @@ export default function ProductDetailDialog({
                     <DialogTitle className="text-3xl font-bold">{product.name}</DialogTitle>
                     <DialogDescription className="text-base pt-2">{product.description}</DialogDescription>
                 </DialogHeader>
-
-                <div>
-                  <p className="text-3xl font-bold text-primary">
-                    {formatCurrency(product.price)}
-                  </p>
-                </div>
                 
-                <div className="mt-2">
-                  <h4 className="flex items-center gap-2 text-lg font-semibold">
+                <div className="flex justify-between items-center mt-4">
+                   <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 rounded-full"
+                            onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                            disabled={quantity <= 1}
+                        >
+                            <Minus className="h-4 w-4" />
+                        </Button>
+                        <span className="text-xl font-bold w-10 text-center">{quantity}</span>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 rounded-full"
+                            onClick={() => setQuantity(q => q + 1)}
+                        >
+                            <Plus className="h-4 w-4" />
+                        </Button>
+                   </div>
+                   <p className="text-2xl font-bold text-primary">
+                        {formatCurrency(totalPrice)}
+                    </p>
+                </div>
+
+                <div className="mt-6">
+                  <h4 className="flex items-center gap-2 text-lg font-semibold mb-2">
                     <Sparkles className="h-5 w-5 text-accent" />
                     <span>También te podría gustar...</span>
                   </h4>
@@ -83,29 +103,12 @@ export default function ProductDetailDialog({
                   </div>
                 </div>
             </div>
-             <DialogFooter className="p-4 pt-4 border-t sticky bottom-0 bg-background z-10 flex-row items-center justify-center gap-2">
-               <div className="flex items-center gap-2">
-                  <Button
-                    variant="default"
-                    size="icon"
-                    className="h-12 w-12"
-                    onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                    disabled={quantity <= 1}
-                  >
-                    <Minus className="h-5 w-5" />
-                  </Button>
-                  <span className="text-2xl font-bold w-12 text-center">{quantity}</span>
-                   <Button
-                    variant="default"
-                    size="icon"
-                    className="h-12 w-12"
-                    onClick={() => setQuantity(q => q + 1)}
-                  >
-                    <Plus className="h-5 w-5" />
-                  </Button>
-               </div>
+             <DialogFooter className="p-4 pt-4 border-t sticky bottom-0 bg-background z-10 flex-row items-center justify-center gap-4">
+                <Button variant="outline" size="icon" className="h-12 w-12 rounded-full">
+                    <Heart className="h-6 w-6" />
+                </Button>
               <Button size="lg" className="w-full h-12 text-base" onClick={handleAddToCart}>
-                 Añadir {formatCurrency(totalPrice)}
+                 Añadir al carrito
               </Button>
             </DialogFooter>
         </ScrollArea>
