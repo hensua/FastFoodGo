@@ -17,15 +17,13 @@ rules_version = '2';
  *     for security and performance.
  *   - Hosts can view all orders to manage the kitchen but have limited write access.
  *   - Drivers can only read orders specifically assigned to them.
- * - Public Data: The product catalog (`/products`) is world-readable but
- *   writable only by admins.
  *
  * Key Security Decisions:
  * - Admin Role Segregation: Admin status is granted by a document's existence in
  *   `/roles_admin/{userId}`. This is a robust pattern that avoids complex `get()`
  *   calls in other rules, preventing recursive permission issues.
  * - Explicit List Operations: Listing documents (e.g., all users or all orders
- *   from a specific user) is explicitly granted only to appropriate roles (admin, host).
+ *   from a specific user) is explicitly granted only to appropriate roles (admin).
  *   Unrestricted `collectionGroup` queries are implicitly denied.
  * - Denormalization for Authorization: Order documents contain `customerId` and
  *   `driverId`. This denormalization allows security rules to grant access without
@@ -103,9 +101,8 @@ service cloud.firestore {
      *   - Assigned drivers can read the order they are delivering.
      */
     match /users/{userId}/orders/{orderId} {
-      allow get: if isOwner(userId) || isAdmin() || (isDriver() && resource.data.driverId == request.auth.uid);
-      // list is needed for collectionGroup queries by admins/hosts
-      allow list: if isAdmin() || isHost();
+      allow get: if isOwner(userId) || isAdmin() || isHost() || (isDriver() && resource.data.driverId == request.auth.uid);
+      allow list: if isAdmin();
       allow create: if isOwner(userId) || isAdmin();
       // Allow customer to cancel, admin/host to manage status
       allow update: if isOwner(userId) || isAdmin() || isHost();
