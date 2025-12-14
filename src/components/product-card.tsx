@@ -34,7 +34,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
     }
     timerRef.current = setTimeout(() => {
       setIsExpanded(false);
-    }, 3000); // 3 segundos para volver a contraerse
+    }, 3000);
   };
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
 
   return (
     <Card 
-      className="flex h-full w-[140px] flex-col overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer group"
+      className="flex h-full flex-col overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer group"
       onClick={onClick}
     >
       <div className="bg-gray-100 relative overflow-hidden h-[112px]">
@@ -101,18 +101,20 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
           </div>
         )}
       </div>
-      <CardContent className="p-2 flex-1 flex flex-col">
-        <h3 className="font-bold text-sm leading-tight truncate mb-1">{product.name}</h3>
-        <p className="text-gray-500 text-[11px] leading-snug line-clamp-2 flex-1">{product.description}</p>
+      <CardContent className="p-2 flex-1 flex flex-col justify-between">
+        <div>
+            <h3 className="font-bold text-sm leading-tight truncate mb-1">{product.name}</h3>
+            <p className="text-gray-500 text-[11px] leading-snug line-clamp-2">{product.description}</p>
+        </div>
         <div className="flex justify-between items-center mt-1">
-          <span className="font-bold text-sm text-orange-600">{formatCurrency(product.price)}</span>
+          <span className="font-bold text-sm text-orange-600 flex-grow">{formatCurrency(product.price)}</span>
           
-          <div className="relative h-8 flex items-center justify-end" onClick={handleCompactClick}>
+          <div className="relative h-7 flex items-center justify-end" onClick={handleCompactClick}>
             {quantityInCart === 0 ? (
                 <Button 
                     onClick={handleAddToCart} 
                     size="icon"
-                    className="h-6 w-6 bg-yellow-400 text-gray-900 hover:bg-yellow-500 rounded-md"
+                    className="h-[22.94px] w-[20.8px] bg-yellow-400 text-gray-900 hover:bg-yellow-500 rounded-md p-1"
                 >
                     <Plus className="h-4 w-4"/>
                 </Button>
