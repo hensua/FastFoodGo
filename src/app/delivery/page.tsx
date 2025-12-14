@@ -114,6 +114,13 @@ const PinDialog = ({ open, onOpenChange, onSubmit, isSubmitting, orderId }: { op
     }
   }, [open]);
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pin.length === 4) {
+      onSubmit(pin);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -311,6 +318,9 @@ export default function DeliveryPage() {
       toast({ variant: 'destructive', title: 'Acceso Denegado', description: 'No tienes permisos de repartidor.' });
       router.push('/');
     }
+     if (!isUserLoading && !user) {
+      router.push('/login?redirect=/delivery');
+    }
   }, [user, userDoc, isUserLoading, isRoleLoading, router, toast, isDriver]);
 
   const assignedOrdersQuery = useMemoFirebase(() => {
@@ -472,5 +482,3 @@ export default function DeliveryPage() {
     </div>
   );
 }
-
-    
