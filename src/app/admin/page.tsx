@@ -630,24 +630,11 @@ const AdminDashboard = ({ userRole }: { userRole: Role }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
   
-  const notificationSoundRef = useRef<HTMLAudioElement>(null);
-  const pendingOrdersRef = useRef(0);
-
   const productsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'products') : null, [firestore]);
   const { data: products, isLoading: productsLoading } = useCollection<Product>(productsCollection);
 
   const pendingOrdersQuery = useMemoFirebase(() => firestore ? query(collectionGroup(firestore, 'orders'), where('status', '==', 'pending')) : null, [firestore]);
   const { data: pendingOrders } = useCollection<Order>(pendingOrdersQuery);
-  
-  useEffect(() => {
-    if (pendingOrders) {
-      const newCount = pendingOrders.length;
-      if (newCount > pendingOrdersRef.current) {
-        notificationSoundRef.current?.play().catch(e => console.error("Error playing sound:", e));
-      }
-      pendingOrdersRef.current = newCount;
-    }
-  }, [pendingOrders]);
   
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
@@ -704,7 +691,6 @@ const AdminDashboard = ({ userRole }: { userRole: Role }) => {
 
   return (
     <div>
-      <audio ref={notificationSoundRef} src="/notification.mp3" preload="auto" />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
         <h2 className="text-2xl font-bold flex items-center gap-2">
             <UtensilsCrossed className="text-primary" /> Panel de Control
