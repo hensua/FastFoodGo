@@ -50,61 +50,61 @@ export default function ProductDetailDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md p-0 max-h-[90vh] flex flex-col rounded-lg overflow-hidden">
-        <ScrollArea className="flex-grow">
-          <div className="relative bg-muted">
-            <div className="relative aspect-square w-full overflow-hidden p-4 h-72">
-              <Image
-                src={product.imageUrl}
-                alt={product.name}
-                data-ai-hint={product.imageHint}
-                fill
-                className="object-contain rounded-lg"
-              />
-            </div>
-            <Button variant="ghost" size="icon" className="absolute bottom-[-20px] right-6 h-12 w-12 rounded-full bg-white shadow-lg hover:bg-gray-100">
-                <Heart className="h-6 w-6 text-gray-500" />
-            </Button>
-          </div>
-          
-          <div className="p-6 space-y-4">
-            <DialogHeader className="p-0 text-left">
-              <DialogTitle className="text-3xl font-bold">{product.name}</DialogTitle>
-            </DialogHeader>
-
-            <div className="flex justify-between items-center mt-4">
-              <p className="text-2xl font-bold text-primary">
-                {formatCurrency(product.price)}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="default"
-                  size="icon"
-                  className="h-8 w-8 rounded-full"
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  disabled={quantity <= 1}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <span className="text-xl font-bold w-10 text-center">{quantity}</span>
-                <Button
-                  variant="default"
-                  size="icon"
-                  className="h-8 w-8 rounded-full"
-                  onClick={() => setQuantity((q) => q + 1)}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
+        <ScrollArea className="flex-1">
+          <DialogHeader className="p-0 text-left">
+            <div className="relative bg-muted">
+              <div className="relative aspect-square w-full overflow-hidden p-4 h-72">
+                <Image
+                  src={product.imageUrl}
+                  alt={product.name}
+                  data-ai-hint={product.imageHint}
+                  fill
+                  className="object-contain rounded-md"
+                />
               </div>
-            </div>
-
-            <div>
-                <h4 className='font-bold mt-4 mb-1'>Acerca del producto</h4>
-                <DialogDescription className="text-base">{product.description}</DialogDescription>
+              <Button variant="ghost" size="icon" className="absolute bottom-[-20px] right-6 h-12 w-12 rounded-full bg-white shadow-lg hover:bg-gray-100">
+                  <Heart className="h-6 w-6 text-gray-500" />
+              </Button>
             </div>
             
-            <h4 className='font-bold mt-6 mb-2'>También te podría gustar</h4>
-            <SuggestedProducts currentProduct={product} allProducts={allProducts} />
-          </div>
+            <div className="p-6 space-y-4">
+              <DialogTitle className="text-3xl font-bold">{product.name}</DialogTitle>
+
+              <div className="flex justify-between items-center mt-4">
+                <p className="text-2xl font-bold text-primary">
+                  {formatCurrency(product.price)}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="default"
+                    size="icon"
+                    className="h-8 w-8 rounded-full"
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    disabled={quantity <= 1}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xl font-bold w-10 text-center">{quantity}</span>
+                  <Button
+                    variant="default"
+                    size="icon"
+                    className="h-8 w-8 rounded-full"
+                    onClick={() => setQuantity((q) => q + 1)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                  <h4 className='font-bold mt-4 mb-1'>Acerca del producto</h4>
+                  <DialogDescription className="text-base">{product.description}</DialogDescription>
+              </div>
+              
+              <h4 className='font-bold mt-6 mb-2'>También te podría gustar</h4>
+              <SuggestedProducts currentProduct={product} allProducts={allProducts} />
+            </div>
+          </DialogHeader>
         </ScrollArea>
         <DialogFooter className="p-4 border-t bg-background">
           <Button size="lg" className="w-full h-12 text-base" onClick={handleAddToCart}>
