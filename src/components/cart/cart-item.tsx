@@ -16,8 +16,6 @@ export default function CartItem({ item }: CartItemProps) {
   const { updateQuantity, removeFromCart } = useCart();
 
   const handleRemove = () => {
-    // This needs to be smarter to handle items with different notes as different entries
-    // For now, it will remove all items of this product ID
     removeFromCart(item.product.id);
   };
 
@@ -44,7 +42,7 @@ export default function CartItem({ item }: CartItemProps) {
             variant="outline"
             size="icon"
             className="h-8 w-8"
-            onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.note)}
+            onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
           >
             <Minus className="h-4 w-4" />
           </Button>
@@ -58,7 +56,7 @@ export default function CartItem({ item }: CartItemProps) {
             variant="outline"
             size="icon"
             className="h-8 w-8"
-            onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.note)}
+            onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
           >
             <Plus className="h-4 w-4" />
           </Button>

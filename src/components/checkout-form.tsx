@@ -74,7 +74,6 @@ export default function CheckoutForm() {
              imageUrl: item.product.imageUrl
           },
           quantity: item.quantity,
-          note: item.note || null,
         })),
       };
 

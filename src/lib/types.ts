@@ -36,7 +36,7 @@ export type Order = {
   customerPhoneNumber?: string;
   
   status: OrderStatus;
-  items: CartItem[];
+  items: Omit<CartItem, 'note'>[];
 
   // Cancellation reason
   cancellationReason?: string;

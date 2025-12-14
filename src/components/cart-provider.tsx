@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface CartContextType {
   cartItems: CartItem[];
-  addToCart: (product: Product, quantity?: number, note?: string) => void;
+  addToCart: (product: Product, quantity?: number) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
@@ -20,19 +20,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const { toast } = useToast();
 
-  const addToCart = (product: Product, quantity: number = 1, note?: string) => {
+  const addToCart = (product: Product, quantity: number = 1) => {
     setCartItems((prevItems) => {
       const existingItem = prevItems.find(
-        (item) => item.product.id === product.id && item.note === note
+        (item) => item.product.id === product.id
       );
       if (existingItem) {
         return prevItems.map((item) =>
-          item.product.id === product.id && item.note === note
+          item.product.id === product.id
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       }
-      return [...prevItems, { product, quantity, note }];
+      return [...prevItems, { product, quantity }];
     });
     toast({
       title: "Añadido al carrito",
@@ -41,24 +41,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const removeFromCart = (productId: string) => {
-    // This needs to be smarter if there are notes
     setCartItems((prevItems) =>
       prevItems.filter((item) => item.product.id !== productId)
     );
   };
   
-  const updateQuantity = (productId: string, quantity: number, note?: string) => {
+  const updateQuantity = (productId: string, quantity: number) => {
     if (quantity <= 0) {
         setCartItems((prevItems) =>
             prevItems.filter(
-                (item) => !(item.product.id === productId && item.note === note)
+                (item) => item.product.id !== productId
             )
         );
       return;
     }
     setCartItems((prevItems) =>
       prevItems.map((item) =>
-        item.product.id === productId && item.note === note
+        item.product.id === productId
             ? { ...item, quantity }
             : item
       )
