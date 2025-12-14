@@ -36,7 +36,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
     toast({
       title: "Añadido al carrito",
-      description: `${product.name} ha sido añadido a tu carrito.`,
+      description: `${quantity} x ${product.name} ha sido añadido a tu carrito.`,
     });
   };
 

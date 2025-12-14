@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import {
   Dialog,
@@ -11,11 +11,10 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import type { Product } from '@/lib/types';
 import { useCart } from '@/components/cart-provider';
 import { formatCurrency } from '@/lib/utils';
-import { PlusCircle, Sparkles } from 'lucide-react';
+import { Plus, Minus, Sparkles } from 'lucide-react';
 import SuggestedProducts from './cart/suggested-products';
 import { ScrollArea } from './ui/scroll-area';
 
@@ -32,12 +31,21 @@ export default function ProductDetailDialog({
   onOpenChange,
 }: ProductDetailDialogProps) {
   const { addToCart } = useCart();
-  const [note, setNote] = useState('');
+  const [quantity, setQuantity] = useState(1);
+
+  // Reset quantity to 1 every time the dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      setQuantity(1);
+    }
+  }, [isOpen]);
 
   const handleAddToCart = () => {
-    addToCart(product, 1);
+    addToCart(product, quantity);
     onOpenChange(false);
   };
+
+  const totalPrice = product.price * quantity;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -77,10 +85,29 @@ export default function ProductDetailDialog({
           </div>
         </ScrollArea>
 
-        <DialogFooter className="p-6 pt-0 border-t sticky bottom-0 bg-background z-10">
-          <Button size="lg" className="w-full" onClick={handleAddToCart}>
-            <PlusCircle className="mr-2 h-5 w-5" />
-            Añadir al carrito
+        <DialogFooter className="p-4 pt-0 border-t sticky bottom-0 bg-background z-10 flex-row items-center gap-2">
+           <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-12 w-12"
+                onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                disabled={quantity <= 1}
+              >
+                <Minus className="h-5 w-5" />
+              </Button>
+              <span className="text-2xl font-bold w-12 text-center">{quantity}</span>
+               <Button
+                variant="outline"
+                size="icon"
+                className="h-12 w-12"
+                onClick={() => setQuantity(q => q + 1)}
+              >
+                <Plus className="h-5 w-5" />
+              </Button>
+           </div>
+          <Button size="lg" className="w-full h-12 text-base" onClick={handleAddToCart}>
+             Añadir {formatCurrency(totalPrice)}
           </Button>
         </DialogFooter>
       </DialogContent>
