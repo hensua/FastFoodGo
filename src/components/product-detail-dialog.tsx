@@ -15,8 +15,8 @@ import type { Product } from '@/lib/types';
 import { useCart } from '@/components/cart-provider';
 import { formatCurrency } from '@/lib/utils';
 import { Plus, Minus, Heart } from 'lucide-react';
-import { ScrollArea } from './ui/scroll-area';
 import SuggestedProducts from './cart/suggested-products';
+import { ScrollArea } from './ui/scroll-area';
 import { products as allProducts } from '@/lib/data';
 
 
@@ -52,17 +52,17 @@ export default function ProductDetailDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md p-0 max-h-[90vh] flex flex-col rounded-lg overflow-hidden">
         <ScrollArea className="flex-grow">
-          <div className="relative bg-muted rounded-t-lg">
-            <div className="relative aspect-video w-full overflow-hidden p-6">
+          <div className="relative bg-muted">
+             <div className="relative aspect-square w-full overflow-hidden p-6">
               <Image
                 src={product.imageUrl}
                 alt={product.name}
                 data-ai-hint={product.imageHint}
                 fill
-                className="object-contain"
+                className="object-contain rounded-lg"
               />
             </div>
-             <Button variant="ghost" size="icon" className="absolute bottom-[-20px] right-6 h-12 w-12 rounded-full bg-white shadow-lg hover:bg-gray-100">
+            <Button variant="ghost" size="icon" className="absolute bottom-[-20px] right-6 h-12 w-12 rounded-full bg-white shadow-lg hover:bg-gray-100">
                 <Heart className="h-6 w-6 text-gray-500" />
             </Button>
           </div>
@@ -102,7 +102,8 @@ export default function ProductDetailDialog({
                 <h4 className='font-bold mt-4 mb-1'>Acerca del producto</h4>
                 <DialogDescription className="text-base">{product.description}</DialogDescription>
             </div>
-
+            
+            <h4 className='font-bold mt-6 mb-2'>También te podría gustar</h4>
             <SuggestedProducts currentProduct={product} allProducts={allProducts} />
           </div>
         </ScrollArea>

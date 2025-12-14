@@ -47,13 +47,6 @@ export default function SuggestedProducts({ currentProduct, allProducts = [] }: 
   if (isLoading) {
     return (
       <div className="mt-4">
-        {!currentProduct && <Separator className="my-4" />}
-        {!currentProduct && (
-          <h4 className="flex items-center gap-2 text-lg font-semibold mb-4">
-            <Sparkles className="h-5 w-5 text-accent" />
-            <span>También te podría gustar...</span>
-          </h4>
-        )}
         <div className="space-y-4">
           {[...Array(2)].map((_, i) => (
              <div key={`skeleton-${i}`} className="flex items-center gap-4">
@@ -76,13 +69,7 @@ export default function SuggestedProducts({ currentProduct, allProducts = [] }: 
 
   return (
     <div className="mt-4">
-      {!currentProduct && <Separator className="my-4" />}
-      {!currentProduct && (
-        <h4 className="flex items-center gap-2 text-lg font-semibold mb-4">
-          <Sparkles className="h-5 w-5 text-accent" />
-          <span>También te podría gustar...</span>
-        </h4>
-      )}
+      {currentProduct && <Separator className="my-4" />}
       <div className="flex flex-col gap-4">
         {suggestions.map((product) => (
           <div key={product.id} className="flex items-center gap-4">
