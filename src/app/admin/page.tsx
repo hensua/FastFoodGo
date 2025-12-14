@@ -829,8 +829,13 @@ export default function AdminPage() {
     }
   }, [isLoading, user, hasAccess, router, toast]);
 
-  if (isLoading || !user || !hasAccess) {
+  if (isLoading || !userDoc) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
+  }
+  
+  if (!hasAccess) {
+    // This part will likely not be reached due to the redirect in useEffect, but it's a good failsafe.
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
   }
   
   return (
