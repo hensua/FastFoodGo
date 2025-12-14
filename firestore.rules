@@ -1,35 +1,6 @@
+
 rules_version = '2';
 
-/**
- * @fileoverview Firestore Security Rules for the FastFoodGo application.
- *
- * @description
- * This ruleset implements a multi-role security model for a food delivery app,
- * catering to Customers, Drivers, Hosts, and Admins. It prioritizes strict
- * authorization through path-based ownership and role-checking.
- *
- * Core Philosophy:
- * - Customer Data Privacy: A user's personal data (profile, orders) is stored
- *   in a private subcollection under `/users/{userId}`, accessible only by them
- *   or an admin.
- * - Role-Based Access: Admin, Host, and Driver roles grant specific permissions.
- *   - Admins have god-mode access, managed via a separate `/roles_admin` collection
- *     for security and performance.
- *   - Hosts can view all orders to manage the kitchen but have limited write access.
- *   - Drivers can only read orders specifically assigned to them.
- *
- * Key Security Decisions:
- * - Admin Role Segregation: Admin status is granted by a document's existence in
- *   `/roles_admin/{userId}`. This is a robust pattern that avoids complex `get()`
- *   calls in other rules, preventing recursive permission issues.
- * - Explicit List Operations: Listing documents (e.g., all users or all orders
- *   from a specific user) is explicitly granted only to appropriate roles (admin/host).
- *   Unrestricted `collectionGroup` queries are implicitly denied unless explicitly
- *   allowed.
- * - Denormalization for Authorization: Order documents contain `customerId` and
- *   `driverId`. This denormalization allows security rules to grant access without
- *   needing slow or insecure cross-collection `get()` calls.
- */
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -47,9 +18,9 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // Best practice: Check for existence in a separate admin role collection.
+    // This is more performant and secure than checking a role field in the user's doc.
     function isAdmin() {
-      // Best practice: Check for existence in a separate admin role collection.
-      // This is more performant and secure than checking a role field.
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
     
@@ -147,3 +118,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
