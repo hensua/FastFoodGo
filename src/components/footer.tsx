@@ -4,7 +4,7 @@ import { UtensilsCrossed, Twitter, Instagram, Facebook } from 'lucide-react';
 
 export default function Footer() {
   return (
-    <footer className="bg-card border-t mt-12">
+    <footer className="bg-card border-t mt-8">
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row justify-between items-center space-y-6 md:space-y-0">
           <div className="flex items-center gap-2">
