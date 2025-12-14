@@ -80,7 +80,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onCartClick={() => {}} />
+      <Header onCartClick={() => {}} showCart={false} />
       <main className="container mx-auto px-4 py-8 flex justify-center">
         <Card className="w-full max-w-2xl">
           <CardHeader>

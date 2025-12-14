@@ -14,10 +14,9 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 interface ChatViewProps {
   order: Order;
   currentUser: AppUser;
-  onMessageSent: () => void;
 }
 
-export function ChatView({ order, currentUser, onMessageSent }: ChatViewProps) {
+export function ChatView({ order, currentUser }: ChatViewProps) {
   const firestore = useFirestore();
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -63,7 +62,6 @@ export function ChatView({ order, currentUser, onMessageSent }: ChatViewProps) {
           timestamp: serverTimestamp()
       });
       setNewMessage('');
-      onMessageSent(); // Notify parent that a message was sent
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {

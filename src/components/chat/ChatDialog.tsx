@@ -17,10 +17,9 @@ interface ChatDialogProps {
   user: AppUser;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  onMessageSent: () => void;
 }
 
-export function ChatDialog({ order, user, isOpen, onOpenChange, onMessageSent }: ChatDialogProps) {
+export function ChatDialog({ order, user, isOpen, onOpenChange }: ChatDialogProps) {
   if (!isOpen) return null;
 
   return (
@@ -35,7 +34,7 @@ export function ChatDialog({ order, user, isOpen, onOpenChange, onMessageSent }:
           </DialogDescription>
         </DialogHeader>
         <div className="flex-grow overflow-hidden px-6 pb-6">
-          <ChatView order={order} currentUser={user} onMessageSent={onMessageSent} />
+          <ChatView order={order} currentUser={user} />
         </div>
       </DialogContent>
     </Dialog>

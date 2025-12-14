@@ -50,6 +50,11 @@ const OrderCard = ({ order, onStatusChange, onCancel, onChat, onAssignDriver, dr
           <div>
             <span className='font-bold text-lg'>#{order.id.slice(-6).toUpperCase()}</span>
             <p className="text-xs text-muted-foreground font-normal">{order.customerName || 'Cliente Anónimo'}</p>
+            <p className="text-xs text-muted-foreground font-normal">
+                 {order.orderDate?.toDate ? new Date(order.orderDate.toDate()).toLocaleTimeString('es-CO', {
+                    hour: '2-digit', minute: '2-digit'
+                  }) : ''}
+            </p>
           </div>
           <Badge className={order.paymentMethod === 'transfer' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}>
             {order.paymentMethod === 'cash' ? 'Efectivo' : 'Transferencia'}
@@ -217,8 +222,8 @@ export function OrderList() {
 
     const messageData: Omit<ChatMessage, 'timestamp'> = {
       text: `Hola ${order.customerName}, ¿deseas agregar una nota general de tu pedido?`,
-      senderId: userDoc.uid, // Use admin's UID
-      senderName: 'FastFoodGo', // But display as system
+      senderId: userDoc.uid, // Use admin's/host's UID
+      senderName: 'FastFoodGo',
       senderRole: 'admin',
     };
     
@@ -360,7 +365,6 @@ export function OrderList() {
               user={userDoc}
               isOpen={!!chatOrder}
               onOpenChange={() => setChatOrder(null)}
-              onMessageSent={() => {}}
           />
       )}
     </>

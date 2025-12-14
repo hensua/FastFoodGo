@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useFirestore, useMemoFirebase, useCollection, useDoc } from '@/firebase';
 import { collection, doc, updateDoc, deleteDoc, setDoc, collectionGroup, query, getDocs } from 'firebase/firestore';
 import type { Order, Product, AppUser, Role } from '@/lib/types';
@@ -629,9 +629,25 @@ const AdminDashboard = ({ userRole }: { userRole: Role }) => {
   const [activeTab, setActiveTab] = useState('kitchen');
   const firestore = useFirestore();
   const { toast } = useToast();
+  
+  const notificationSoundRef = useRef<HTMLAudioElement>(null);
+  const pendingOrdersRef = useRef(0);
 
   const productsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'products') : null, [firestore]);
   const { data: products, isLoading: productsLoading } = useCollection<Product>(productsCollection);
+
+  const pendingOrdersQuery = useMemoFirebase(() => firestore ? query(collectionGroup(firestore, 'orders'), where('status', '==', 'pending')) : null, [firestore]);
+  const { data: pendingOrders } = useCollection<Order>(pendingOrdersQuery);
+  
+  useEffect(() => {
+    if (pendingOrders) {
+      const newCount = pendingOrders.length;
+      if (newCount > pendingOrdersRef.current) {
+        notificationSoundRef.current?.play().catch(e => console.error("Error playing sound:", e));
+      }
+      pendingOrdersRef.current = newCount;
+    }
+  }, [pendingOrders]);
   
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
@@ -688,6 +704,7 @@ const AdminDashboard = ({ userRole }: { userRole: Role }) => {
 
   return (
     <div>
+      <audio ref={notificationSoundRef} src="/notification.mp3" preload="auto" />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
         <h2 className="text-2xl font-bold flex items-center gap-2">
             <UtensilsCrossed className="text-primary" /> Panel de Control
@@ -801,7 +818,7 @@ export default function AdminPage() {
   if (hasAccess) {
     return (
       <div className="min-h-screen bg-background">
-        <Header onCartClick={() => {}} />
+        <Header onCartClick={() => {}} showCart={false} />
         <main className="container mx-auto px-4 py-8">
           <AdminDashboard userRole={userRole!} />
         </main>

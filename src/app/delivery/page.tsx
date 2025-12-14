@@ -335,7 +335,7 @@ export default function DeliveryPage() {
 
   const { data: assignedOrders, isLoading: assignedOrdersLoading } = useCollection<Order>(assignedOrdersQuery);
   const { data: myDeliveries, isLoading: myDeliveriesLoading } = useCollection<Order>(myDeliveriesQuery);
-  const { data: pastDeliveries, isLoading: pastDeliveriesLoading } = useCollection<Order>(myPastDeliveriesQuery);
+  const { data: pastDeliveries, isLoading: pastDeliveriesLoading } = useCollection<Order>(pastDeliveriesQuery);
 
   const handleStartDelivery = async (order: Order) => {
     if (!firestore || !user || !userDoc) return;
@@ -391,7 +391,7 @@ export default function DeliveryPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onCartClick={() => {}} />
+      <Header onCartClick={() => {}} showCart={false} />
       <main className="container mx-auto px-4 py-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
           <h1 className="text-2xl font-bold flex items-center gap-2">

@@ -57,8 +57,8 @@ const OrderCard = ({
           <div>
             <CardTitle>Pedido #{order.id.slice(-6).toUpperCase()}</CardTitle>
             <CardDescription>
-              {order.orderDate?.toDate ? new Date(order.orderDate.toDate()).toLocaleDateString('es-CO', {
-                year: 'numeric', month: 'long', day: 'numeric'
+              {order.orderDate?.toDate ? new Date(order.orderDate.toDate()).toLocaleString('es-CO', {
+                year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
               }) : ''}
             </CardDescription>
           </div>
@@ -205,6 +205,7 @@ const useUnreadMessages = (orders: Order[] | undefined, currentUser: AppUser | n
 export default function MyOrdersPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const router = useRouter();
   const { toast } = useToast();
 
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
@@ -278,7 +279,7 @@ export default function MyOrdersPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onCartClick={() => {}} />
+      <Header onCartClick={() => {}} showCart={userDoc?.role === 'customer'} />
       <main className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">Mis Pedidos</h1>
         

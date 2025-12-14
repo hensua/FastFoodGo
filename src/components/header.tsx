@@ -9,9 +9,10 @@ import Link from "next/link";
 
 interface HeaderProps {
   onCartClick: () => void;
+  showCart?: boolean;
 }
 
-export default function Header({ onCartClick }: HeaderProps) {
+export default function Header({ onCartClick, showCart = true }: HeaderProps) {
   const { totalItems } = useCart();
 
   return (
@@ -24,23 +25,25 @@ export default function Header({ onCartClick }: HeaderProps) {
           </h1>
         </Link>
         <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative"
-            onClick={onCartClick}
-            aria-label={`Open cart with ${totalItems} items`}
-          >
-            <ShoppingCart className="h-6 w-6" />
-            {totalItems > 0 && (
-              <Badge
-                variant="destructive"
-                className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full p-0"
-              >
-                {totalItems}
-              </Badge>
-            )}
-          </Button>
+          {showCart && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative"
+              onClick={onCartClick}
+              aria-label={`Open cart with ${totalItems} items`}
+            >
+              <ShoppingCart className="h-6 w-6" />
+              {totalItems > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full p-0"
+                >
+                  {totalItems}
+                </Badge>
+              )}
+            </Button>
+          )}
           <AuthButton />
         </div>
       </div>
