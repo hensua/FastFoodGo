@@ -216,7 +216,7 @@ export default function MyOrdersPage() {
   const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userDoc, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
 
-  const myOrdersQuery = useMemo(() => {
+  const myOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return query(
         collection(firestore, 'users', user.uid, 'orders'), 
