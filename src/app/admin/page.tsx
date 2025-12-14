@@ -620,30 +620,12 @@ const AdminDashboard = ({ userDoc }: { userDoc: AppUser }) => {
   const [activeTab, setActiveTab] = useState('kitchen');
   const firestore = useFirestore();
   const { toast } = useToast();
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const pendingOrdersCountRef = useRef<number>(0);
   
   const productsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'products') : null, [firestore]);
   const { data: products, isLoading: productsLoading } = useCollection<Product>(productsCollection);
 
   const isFullAdmin = userDoc.role === 'admin';
   const hasStoreAccess = userDoc.role === 'admin' || userDoc.role === 'host';
-
-  const pendingOrdersQuery = useMemoFirebase(() => {
-    if (!firestore || !hasStoreAccess) return null;
-    return query(collectionGroup(firestore, 'orders'), where('status', '==', 'pending'));
-  }, [firestore, hasStoreAccess]);
-
-  const { data: pendingOrders } = useCollection<Order>(pendingOrdersQuery);
-  
-  useEffect(() => {
-    if (pendingOrders && hasStoreAccess) {
-      if (pendingOrders.length > pendingOrdersCountRef.current) {
-        audioRef.current?.play().catch(e => console.error("Error playing sound:", e));
-      }
-      pendingOrdersCountRef.current = pendingOrders.length;
-    }
-  }, [pendingOrders, hasStoreAccess]);
   
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
@@ -711,7 +693,6 @@ const AdminDashboard = ({ userDoc }: { userDoc: AppUser }) => {
 
   return (
     <div>
-      <audio ref={audioRef} src="/notification.mp3" className="hidden" />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
         <h2 className="text-2xl font-bold flex items-center gap-2">
             <UtensilsCrossed className="text-primary" /> Panel de Control
