@@ -83,7 +83,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
 
   return (
     <Card 
-      className="flex h-full flex-col overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer group"
+      className="flex h-full flex-col overflow-hidden transition-all duration-300 md:hover:shadow-lg md:hover:-translate-y-1 cursor-pointer group"
       onClick={onClick}
     >
       <div className="bg-gray-100 relative overflow-hidden h-[112px]">
@@ -92,7 +92,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
           alt={product.name}
           data-ai-hint={product.imageHint}
           fill
-          className="object-cover group-hover:scale-105 transition-transform duration-500"
+          className="object-cover md:group-hover:scale-105 transition-transform duration-500"
           sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 20vw"
         />
         {product.tag && (
