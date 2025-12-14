@@ -2,33 +2,6 @@ rules_version = '2';
 
 /**
  * @fileoverview Firestore Security Rules for the FastFoodGo application.
- *
- * @description
- * This ruleset implements a multi-role security model for a food delivery app,
- * catering to Customers, Drivers, Hosts, and Admins. It prioritizes strict
- * authorization through path-based ownership and role-checking.
- *
- * Core Philosophy:
- * - Customer Data Privacy: A user's personal data (profile, orders) is stored
- *   in a private subcollection under `/users/{userId}`, accessible only by them
- *   or an admin.
- * - Role-Based Access: Admin, Host, and Driver roles grant specific permissions.
- *   - Admins have god-mode access, managed via a separate `/roles_admin` collection
- *     for security and performance.
- *   - Hosts can view all orders to manage the kitchen but have limited write access.
- *   - Drivers can only read orders specifically assigned to them.
- *
- * Key Security Decisions:
- * - Admin Role Segregation: Admin status is granted by a document's existence in
- *   `/roles_admin/{userId}`. This is a robust pattern that avoids complex `get()`
- *   calls in other rules, preventing recursive permission issues.
- * - Explicit List Operations: Listing documents (e.g., all users or all orders
- *   from a specific user) is explicitly granted only to appropriate roles (admin/host).
- *   Unrestricted `collectionGroup` queries are implicitly denied unless explicitly
- *   allowed.
- * - Denormalization for Authorization: Order documents contain `customerId` and
- *   `driverId`. This denormalization allows security rules to grant access without
- *   needing slow or insecure cross-collection `get()` calls.
  */
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -47,14 +20,22 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isAdmin() {
-      // Best practice: Check for existence in a separate admin role collection.
-      // This is more performant and secure than checking a role field.
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    function getUserRole(userId) {
+      // Use a direct get() call to check the role from the user's document.
+      // This is used for individual document access checks.
+      return get(/databases/$(database)/documents/users/$(userId)).data.role;
     }
 
+    function isAdmin() {
+      return isSignedIn() && getUserRole(request.auth.uid) == 'admin';
+    }
+    
     function isHost() {
-        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'host';
+        return isSignedIn() && getUserRole(request.auth.uid) == 'host';
+    }
+    
+    function isDriver() {
+      return isSignedIn() && getUserRole(request.auth.uid) == 'driver';
     }
 
 
@@ -78,67 +59,61 @@ service cloud.firestore {
      * @description
      * Stores public user information.
      * - Users can create and manage their own profile.
-     * - Admins can list and manage all user profiles.
+     * - Admins can manage all user profiles.
+     * - Listing all users is disallowed due to security rule limitations
+     *   (a 'list' cannot depend on a 'get' from the same collection).
+     *   The app will query users by specific roles instead.
      */
      match /users/{userId} {
-        // Any signed-in user can read their own profile. Admins can read any profile.
-        allow get: if isOwner(userId) || isAdmin();
-        // Admins need to list users for the "Team" tab and stats.
-        allow list: if isAdmin();
-        // A user can create their own document, and admins can create users.
-        allow create: if isOwner(userId) || isAdmin();
-        // A user can update their own document, and admins can update any.
+        allow get: if isSignedIn();
+        allow create: if isOwner(userId);
+        // A user can update their own doc, but admins have full update power.
         allow update: if isOwner(userId) || isAdmin();
         allow delete: if isAdmin();
+        // NOTE: `allow list` is intentionally omitted to prevent recursive rule errors.
      }
 
     /**
      * @description
      *   A user's order history, stored in a private subcollection.
-     *   - Customers can manage their own orders.
-     *   - Admins have full access.
-     *   - Hosts can view orders for kitchen management.
-     *   - Assigned drivers can read the order they are delivering.
      */
     match /users/{userId}/orders/{orderId} {
-      // Owner, admin, or host can get the order. A driver can get it if they are assigned.
-      allow get: if isOwner(userId) || isAdmin() || isHost() || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver' && resource.data.driverId == request.auth.uid);
-      allow list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) || isAdmin();
-      // Allow customer to cancel, admin/host to manage status, and driver to update delivery status.
-      allow update: if isOwner(userId) || isAdmin() || isHost() || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver' && resource.data.driverId == request.auth.uid);
+      function getOrder() {
+        return get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId));
+      }
+      function isOrderDriver() {
+        return isDriver() && getOrder().data.driverId == request.auth.uid;
+      }
+      
+      allow get: if isOwner(userId) || isAdmin() || isHost() || isOrderDriver();
+      allow list: if isOwner(userId) || isAdmin() || isHost();
+      allow create: if isOwner(userId);
+      allow update: if 
+            // The customer can only cancel their own order if it's 'pending'.
+            (isOwner(userId) && request.resource.data.status == 'cancelled' && resource.data.status == 'pending') ||
+            // Admin or Host can manage most order state transitions.
+            isAdmin() || isHost() ||
+            // An assigned driver can update the status to 'delivering' or 'delivered'.
+            (isOrderDriver() && (
+                  (resource.data.status == 'ready' && request.resource.data.status == 'delivering') ||
+                  (resource.data.status == 'delivering' && request.resource.data.status == 'delivered' && resource.data.pin == request.resource.data.pin)
+                )
+            );
       allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read, write: if isOwner(userId) || isAdmin() || isHost() || isOrderDriver();
+      }
     }
     
     /**
      * @description
-     *   This rule is specifically for the `collectionGroup` query on 'orders'.
-     *   It allows an administrator or a host to list all orders across all users, which is
-     *   necessary for the main kitchen view and for generating stats.
+     *   This rule is for the `collectionGroup` query on 'orders'.
+     *   It allows administrators, hosts, and drivers to list orders across all users,
+     *   which is necessary for their respective panels.
      */
     match /{path=**}/orders/{orderId} {
-       allow list: if isAdmin() || isHost();
-    }
-    
-    /**
-     * @description
-     *   Chat messages for a specific order.
-     *   - The customer who owns the order can read/write.
-     *   - The assigned driver can read/write.
-     *   - Admins and hosts can read/write for support.
-     */
-    match /users/{userId}/orders/{orderId}/messages/{messageId} {
-       allow read, write: if isOwner(userId) || isAdmin() || isHost() || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver' && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid);
-    }
-    
-    /**
-     * @description Manages global admin roles. Existence of a doc grants admin rights.
-     * @path        /roles_admin/{userId}
-     * @allow       (get, list, create, delete) only for other admins to grant/revoke privileges.
-     * @deny        all other access to prevent privilege escalation.
-     */
-    match /roles_admin/{userId} {
-      allow read, write: if isAdmin();
+       allow list: if isAdmin() || isHost() || isDriver();
     }
   }
 }

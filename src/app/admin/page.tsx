@@ -114,12 +114,16 @@ const TeamManagement = () => {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const usersCollection = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
-  const { data: users, isLoading: usersLoading } = useCollection<AppUser>(usersCollection);
+  const adminsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'users'), where('role', '==', 'admin')) : null, [firestore]);
+  const hostsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'users'), where('role', '==', 'host')) : null, [firestore]);
+  const driversQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'users'), where('role', '==', 'driver')) : null, [firestore]);
+  
+  const { data: admins, isLoading: adminsLoading } = useCollection<AppUser>(adminsQuery);
+  const { data: hosts, isLoading: hostsLoading } = useCollection<AppUser>(hostsQuery);
+  const { data: drivers, isLoading: driversLoading } = useCollection<AppUser>(driversQuery);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isRoleChanging, setIsRoleChanging] = useState<string | null>(null);
-
   const [roleChangeData, setRoleChangeData] = useState<{ user: AppUser; newRole: Role; } | null>(null);
 
   const handleRoleChangeRequest = (user: AppUser, newRole: Role) => {
@@ -131,29 +135,14 @@ const TeamManagement = () => {
     if (!firestore || !roleChangeData) return;
   
     const { user, newRole } = roleChangeData;
-    const oldRole = user.role;
   
     setIsRoleChanging(user.uid);
     setRoleChangeData(null); // Close dialog
   
-    const batch = writeBatch(firestore);
-  
-    // 1. Update the role in the user's document
     const userRef = doc(firestore, "users", user.uid);
-    batch.update(userRef, { role: newRole });
-  
-    // 2. Manage the roles_admin collection
-    const adminRoleRef = doc(firestore, "roles_admin", user.uid);
-    if (newRole === 'admin') {
-      // Add to admin roles collection
-      batch.set(adminRoleRef, { uid: user.uid, grantedAt: serverTimestamp() });
-    } else if (oldRole === 'admin' && newRole !== 'admin') {
-      // Remove from admin roles collection
-      batch.delete(adminRoleRef);
-    }
   
     try {
-      await batch.commit();
+      await updateDoc(userRef, { role: newRole });
       toast({
         title: "Rol actualizado",
         description: `El rol del usuario ha sido cambiado a ${newRole}.`
@@ -161,9 +150,9 @@ const TeamManagement = () => {
     } catch (error: any) {
       console.error("Error updating role:", error);
       const permissionError = new FirestorePermissionError({
-        path: `/users/${user.uid} and/or /roles_admin/${user.uid}`,
-        operation: 'write',
-        requestResourceData: { newRole: newRole }
+        path: `/users/${user.uid}`,
+        operation: 'update',
+        requestResourceData: { role: newRole }
       });
       errorEmitter.emit('permission-error', permissionError);
       
@@ -177,36 +166,22 @@ const TeamManagement = () => {
     }
   };
   
-  const groupedUsers = useMemo(() => {
-    const groups: { admins: AppUser[], hosts: AppUser[], drivers: AppUser[], customers: AppUser[] } = {
-      admins: [],
-      hosts: [],
-      drivers: [],
-      customers: [],
-    };
+  const filterUsers = (users: AppUser[] | null) => {
+    if (!users) return [];
+    return users.filter(user =>
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        user.displayName?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+  }
 
-    const filtered = users?.filter(user =>
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      user.displayName?.toLowerCase().includes(searchTerm.toLowerCase())
-    ) || [];
-
-    filtered.forEach(user => {
-      if (user.role === 'admin') groups.admins.push(user);
-      else if (user.role === 'host') groups.hosts.push(user);
-      else if (user.role === 'driver') groups.drivers.push(user);
-      else groups.customers.push(user);
-    });
-
-    return groups;
-  }, [users, searchTerm]);
-
-  const UserTable = ({ users, title }: { users: AppUser[], title: string }) => (
+  const UserTable = ({ users, title, isLoading }: { users: AppUser[] | null, title: string, isLoading: boolean }) => (
     <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        {users.length === 0 ? <div className="text-center text-muted-foreground py-4">No hay usuarios en este grupo.</div> :
+        {isLoading ? <div className="flex justify-center p-4"><Loader2 className="animate-spin"/></div> : 
+        !users || users.length === 0 ? <div className="text-center text-muted-foreground py-4">No hay usuarios en este grupo.</div> :
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className='border-b'>
@@ -260,14 +235,11 @@ const TeamManagement = () => {
         </CardHeader>
        </Card>
 
-      {usersLoading || !firestore ? <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin" /></div> :
         <div className="space-y-6">
-          <UserTable users={groupedUsers.admins} title="Administradores" />
-          <UserTable users={groupedUsers.hosts} title="Anfitriones" />
-          <UserTable users={groupedUsers.drivers} title="Repartidores" />
-          <UserTable users={groupedUsers.customers} title="Clientes" />
+          <UserTable users={filterUsers(admins)} title="Administradores" isLoading={adminsLoading} />
+          <UserTable users={filterUsers(hosts)} title="Anfitriones" isLoading={hostsLoading} />
+          <UserTable users={filterUsers(drivers)} title="Repartidores" isLoading={driversLoading}/>
         </div>
-      }
 
       <AlertDialog open={!!roleChangeData} onOpenChange={() => setRoleChangeData(null)}>
         <AlertDialogContent>
@@ -790,7 +762,7 @@ function AdminAccessManager() {
   
   const userRole = userDoc?.role;
   const hasAccess = userRole === 'admin' || userRole === 'host';
-  const isLoading = isUserLoading || (user && isRoleLoading);
+  const isLoading = isUserLoading || isRoleLoading;
   
   useEffect(() => {
     // Only run this check if loading is complete
