@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -350,7 +351,7 @@ const useOrderStats = (filter: TimeFilter) => {
                 productCounts[name].count += item.quantity;
             });
         });
-        const sortedProducts = Object.entries(productCounts).map(([name, data]) => ({ name, data.count, imageUrl: data.imageUrl })).sort((a, b) => b.count - a.count);
+        const sortedProducts = Object.entries(productCounts).map(([name, data]) => ({ name, count: data.count, imageUrl: data.imageUrl })).sort((a, b) => b.count - a.count);
         
         const productStats = { topSeller: sortedProducts.length > 0 ? sortedProducts[0] : null, top5: sortedProducts.slice(0, 5), };
 
@@ -792,13 +793,11 @@ export default function AdminPage() {
   const hasAccess = userRole === 'admin' || userRole === 'host';
   const isLoading = isUserLoading || (user && isRoleLoading);
   
-  // This effect will run ONLY when loading is complete.
   useEffect(() => {
     if (isLoading) {
-      return; // Do nothing while loading.
+      return; 
     }
 
-    // After loading, if there's no user or they don't have access, show toast and redirect.
     if (!user || !hasAccess) {
       toast({
         variant: "destructive",
@@ -824,7 +823,6 @@ export default function AdminPage() {
     );
   }
 
-  // If the user does not have access, we show a redirection message while the useEffect triggers the router.
-  // This prevents rendering the dashboard for a split second before redirection.
-  return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
+  return null;
 }
+
