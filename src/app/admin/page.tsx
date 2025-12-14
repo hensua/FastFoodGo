@@ -139,10 +139,21 @@ const TeamManagement = () => {
     setIsRoleChanging(user.uid);
     setRoleChangeData(null); // Close dialog
   
-    const userRef = doc(firestore, "users", user.uid);
-  
     try {
-      await updateDoc(userRef, { role: newRole });
+      const batch = writeBatch(firestore);
+      const userRef = doc(firestore, 'users', user.uid);
+      batch.update(userRef, { role: newRole });
+
+      // This is the correct pattern for managing roles with security rules
+      const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
+      if (newRole === 'admin') {
+        batch.set(adminRoleRef, { uid: user.uid, grantedAt: serverTimestamp() });
+      } else {
+        batch.delete(adminRoleRef);
+      }
+
+      await batch.commit();
+
       toast({
         title: "Rol actualizado",
         description: `El rol del usuario ha sido cambiado a ${newRole}.`
@@ -591,7 +602,7 @@ const StatsDashboard = () => {
 
 
 // Main Admin Dashboard Component
-const AdminDashboard = ({ userRole }: { userRole: Role }) => {
+const AdminDashboard = ({ userRole, userDoc }: { userRole: Role, userDoc: AppUser }) => {
   const [activeTab, setActiveTab] = useState('kitchen');
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -690,7 +701,7 @@ const AdminDashboard = ({ userRole }: { userRole: Role }) => {
         </div>
       </div>
 
-      {activeTab === 'kitchen' && <OrderList />}
+      {activeTab === 'kitchen' && <OrderList userDoc={userDoc} />}
       
       {isFullAdmin && activeTab === 'inventory' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -783,8 +794,8 @@ function AdminAccessManager() {
   }
   
   // Render the dashboard only if loading is complete and access is granted
-  if (user && hasAccess && userRole) {
-    return <AdminDashboard userRole={userRole} />;
+  if (user && hasAccess && userDoc && userRole) {
+    return <AdminDashboard userRole={userRole} userDoc={userDoc} />;
   }
 
   // If loading is complete but access is denied, this will be null, and the useEffect will handle the redirect.

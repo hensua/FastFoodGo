@@ -4,8 +4,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
 import { collectionGroup, query, where, doc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
-import type { Order, OrderStatus, AppUser, ChatMessage, Role } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import type { Order, OrderStatus, AppUser, ChatMessage } from '@/lib/types';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
@@ -191,21 +191,18 @@ const CancelOrderDialog = ({
     )
 }
 
-export function OrderList() {
+function KitchenView({ userDoc }: { userDoc: AppUser }) {
   const firestore = useFirestore();
-  const { user } = useUser();
   const { toast } = useToast();
   
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
   const [chatOrder, setChatOrder] = useState<Order | null>(null);
 
-  const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-  const { data: userDoc } = useDoc<AppUser>(userDocRef);
-  const hasStoreAccess = userDoc?.role === 'admin' || userDoc?.role === 'host';
+  const hasStoreAccess = userDoc.role === 'admin' || userDoc.role === 'host';
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || !hasStoreAccess) return null; // Only run query if user has access
+    if (!firestore || !hasStoreAccess) return null;
     return query(collectionGroup(firestore, 'orders'), where('status', 'in', ['pending', 'cooking', 'ready', 'delivering', 'cancelled']));
   }, [firestore, hasStoreAccess]);
 
@@ -222,7 +219,7 @@ export function OrderList() {
 
     const messageData: Omit<ChatMessage, 'timestamp'> = {
       text: `Hola ${order.customerName}, ¿deseas agregar una nota general de tu pedido?`,
-      senderId: userDoc.uid, // Use admin's/host's UID
+      senderId: userDoc.uid,
       senderName: 'FastFoodGo',
       senderRole: 'admin',
     };
@@ -315,10 +312,6 @@ export function OrderList() {
     delivering: orders?.filter(o => o.status === 'delivering') || [],
     cancelled: orders?.filter(o => o.status === 'cancelled') || [],
   }), [orders]);
-  
-  if (!hasStoreAccess) {
-    return null; // Don't render if not admin or host
-  }
 
   return (
     <>
@@ -369,4 +362,18 @@ export function OrderList() {
       )}
     </>
   );
+}
+
+export function OrderList({ userDoc }: { userDoc: AppUser | null | undefined }) {
+  if (!userDoc) {
+    return <div className="flex justify-center items-center py-10"><Loader2 className="animate-spin" /></div>;
+  }
+  
+  const hasStoreAccess = userDoc.role === 'admin' || userDoc.role === 'host';
+
+  if (!hasStoreAccess) {
+    return null; // Don't render if not admin or host
+  }
+  
+  return <KitchenView userDoc={userDoc} />;
 }
