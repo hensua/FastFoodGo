@@ -32,7 +32,7 @@ const OrderCard = ({ order, onAccept, isUpdating }: { order: Order; onAccept: (o
             <span className="font-bold text-lg">#{order.id.slice(-6).toUpperCase()}</span>
             <p className="text-xs text-muted-foreground font-normal">{order.customerName}</p>
           </div>
-          <Badge variant="secondary">Listo para Retirar</Badge>
+          <Badge variant="secondary">Asignado a ti</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -61,7 +61,7 @@ const OrderCard = ({ order, onAccept, isUpdating }: { order: Order; onAccept: (o
       <CardFooter>
         <Button onClick={() => onAccept(order)} className="w-full" disabled={isUpdating}>
           {isUpdating ? <Loader2 className="mr-2 animate-spin" /> : <Truck className="mr-2" />}
-           Aceptar Pedido
+           Iniciar Entrega
         </Button>
       </CardFooter>
     </Card>
@@ -169,9 +169,9 @@ const StatsPanel = ({ deliveries }: { deliveries: Order[] }) => {
         const thisMonth = { start: startOfMonth(now), end: endOfMonth(now) };
         const thisYear = { start: startOfYear(now), end: endOfYear(now) };
 
-        const deliveriesInLast7Days = deliveries.filter(d => isWithinInterval(d.orderDate.toDate(), last7Days));
-        const deliveriesThisMonth = deliveries.filter(d => isWithinInterval(d.orderDate.toDate(), thisMonth));
-        const deliveriesThisYear = deliveries.filter(d => isWithinInterval(d.orderDate.toDate(), thisYear));
+        const deliveriesInLast7Days = deliveries.filter(d => d.orderDate.toDate() && isWithinInterval(d.orderDate.toDate(), last7Days));
+        const deliveriesThisMonth = deliveries.filter(d => d.orderDate.toDate() && isWithinInterval(d.orderDate.toDate(), thisMonth));
+        const deliveriesThisYear = deliveries.filter(d => d.orderDate.toDate() && isWithinInterval(d.orderDate.toDate(), thisYear));
 
         const totalEarnings = deliveries.reduce((acc, d) => acc + (d.deliveryFee || 0) + (d.tip || 0), 0);
         const totalTips = deliveries.reduce((acc, d) => acc + (d.tip || 0), 0);
@@ -318,9 +318,9 @@ export default function DeliveryPage() {
     }
   }, [user, userDoc, isUserLoading, isRoleLoading, router, toast, isDriver]);
 
-  const readyOrdersQuery = useMemoFirebase(() => {
+  const assignedOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !user || !isDriver) return null;
-    return query(collectionGroup(firestore, 'orders'), where('status', '==', 'ready'));
+    return query(collectionGroup(firestore, 'orders'), where('status', '==', 'ready'), where('driverId', '==', user.uid));
   }, [firestore, user, isDriver]);
 
   const myDeliveriesQuery = useMemoFirebase(() => {
@@ -333,24 +333,22 @@ export default function DeliveryPage() {
     return query(collectionGroup(firestore, 'orders'), where('driverId', '==', user.uid), where('status', '==', 'delivered'), orderBy('orderDate', 'desc'));
   }, [firestore, user, isDriver]);
 
-  const { data: readyOrders, isLoading: readyOrdersLoading } = useCollection<Order>(readyOrdersQuery);
+  const { data: assignedOrders, isLoading: assignedOrdersLoading } = useCollection<Order>(assignedOrdersQuery);
   const { data: myDeliveries, isLoading: myDeliveriesLoading } = useCollection<Order>(myDeliveriesQuery);
   const { data: pastDeliveries, isLoading: pastDeliveriesLoading } = useCollection<Order>(myPastDeliveriesQuery);
 
-  const handleAcceptOrder = async (order: Order) => {
+  const handleStartDelivery = async (order: Order) => {
     if (!firestore || !user || !userDoc) return;
     setIsUpdatingOrder(order.id);
     const orderRef = doc(firestore, 'users', order.customerId, 'orders', order.id);
     try {
       await updateDoc(orderRef, {
-        status: 'delivering',
-        driverId: user.uid,
-        driverName: userDoc.displayName || 'Repartidor Anónimo'
+        status: 'delivering'
       });
-      toast({ title: '¡Pedido aceptado!', description: 'El cliente será notificado.' });
+      toast({ title: '¡Entrega iniciada!', description: 'El cliente será notificado que estás en camino.' });
     } catch (error) {
-      console.error("Error accepting order:", error);
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo aceptar el pedido.' });
+      console.error("Error starting delivery:", error);
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo iniciar la entrega.' });
     } finally {
       setIsUpdatingOrder(null);
     }
@@ -421,15 +419,15 @@ export default function DeliveryPage() {
               </div>
             </div>
 
-            {/* Pedidos Disponibles */}
+            {/* Pedidos Asignados */}
             <div className="bg-muted/50 rounded-xl p-4">
-              <h2 className="font-bold text-muted-foreground uppercase tracking-wider mb-4">Pedidos para Retirar ({readyOrders?.length || 0})</h2>
+              <h2 className="font-bold text-muted-foreground uppercase tracking-wider mb-4">Pedidos Asignados ({assignedOrders?.length || 0})</h2>
               <div className="space-y-4">
-                {readyOrdersLoading ? <Loader2 className="animate-spin mx-auto mt-10" /> :
-                  readyOrders && readyOrders.length > 0 ? (
-                    readyOrders.map(order => <OrderCard key={order.id} order={order} onAccept={handleAcceptOrder} isUpdating={isUpdatingOrder === order.id} />)
+                {assignedOrdersLoading ? <Loader2 className="animate-spin mx-auto mt-10" /> :
+                  assignedOrders && assignedOrders.length > 0 ? (
+                    assignedOrders.map(order => <OrderCard key={order.id} order={order} onAccept={handleStartDelivery} isUpdating={isUpdatingOrder === order.id} />)
                   ) : (
-                    <p className="text-center text-muted-foreground py-10">No hay pedidos listos por ahora.</p>
+                    <p className="text-center text-muted-foreground py-10">No tienes pedidos asignados por ahora.</p>
                   )}
               </div>
             </div>

@@ -26,7 +26,6 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // Check the user's own role from their user document
       return isSignedIn() && getRole(request.auth.uid) == 'admin';
     }
 
@@ -64,50 +63,40 @@ service cloud.firestore {
     }
     
     match /users/{userId} {
-      // Any signed-in user can read a user profile (for names, etc.)
       allow get: if isSignedIn();
-      // Only admins can list all users for the management panel
       allow list: if isAdmin();
-      // A user can create their own user document upon sign-up
       allow create: if isOwner(userId);
-      // A user can update their own profile, but cannot change their role.
-      // Admins can update any field, including the role.
       allow update: if (isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin();
       allow delete: if isAdmin();
     }
     
     match /users/{userId}/orders/{orderId} {
-        // Customer can manage their own order.
-        // Admin or Host can manage any order.
-        // Driver can get the order if they are assigned.
         allow get: if isOwner(userId) || isAdmin() || isHost() || (isDriver() && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid);
         allow list, create: if isOwner(userId) || isAdmin() || isHost();
         
-        // A customer can only cancel their order if it is 'pending'.
-        // An admin or host can update any order (e.g., from pending to cooking, or cancel).
-        // A driver can update an order to 'delivering' or 'delivered'.
-        allow update: if (isOwner(userId) && request.resource.data.status == 'cancelled' && resource.data.status == 'pending')
-                      || isAdmin() || isHost()
-                      || (isDriver() && (
-                            // Driver can mark as 'delivering' if it's 'ready' and they are assigned.
-                            (resource.data.status == 'ready' && request.resource.data.status == 'delivering' && request.resource.data.driverId == request.auth.uid) ||
-                            // Driver can mark as 'delivered' if they are assigned and the correct PIN is provided.
-                            (resource.data.driverId == request.auth.uid && request.resource.data.status == 'delivered' && resource.data.pin == request.resource.data.pin)
-                          ));
+        allow update: if 
+            // The customer can only cancel their own order if it's 'pending'.
+            (isOwner(userId) && request.resource.data.status == 'cancelled' && resource.data.status == 'pending') ||
+            // Admin or Host can manage most order state transitions.
+            isAdmin() || isHost() ||
+            // A driver can update an order they are assigned to.
+            (isDriver() && resource.data.driverId == request.auth.uid && (
+                  // Driver can mark as 'delivering' if it's 'ready'.
+                  (resource.data.status == 'ready' && request.resource.data.status == 'delivering') ||
+                  // Driver can mark as 'delivered' if they provide the correct PIN.
+                  (request.resource.data.status == 'delivered' && resource.data.pin == request.resource.data.pin)
+                )
+            );
+
         allow delete: if isOwner(userId) || isAdmin();
         
-        // Rules for the nested 'messages' subcollection
         match /messages/{messageId} {
-            // A participant (customer, assigned driver, or admin/host) can read messages.
             allow get, list: if isParticipant(userId, orderId);
-            // A participant can create messages. Admins can create messages on behalf of the system.
             allow create: if (isParticipant(userId, orderId) && request.resource.data.senderId == request.auth.uid) || isAdmin();
-            // Messages are immutable.
             allow update, delete: if false;
         }
     }
     
-    // This allows an admin OR a driver to query the 'orders' collection group for specific statuses.
     match /{path=**}/orders/{orderId} {
         allow list: if isAdmin() || isHost() || isDriver();
     }
