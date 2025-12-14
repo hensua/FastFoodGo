@@ -115,7 +115,7 @@ const TeamManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isRoleChanging, setIsRoleChanging] = useState<string | null>(null);
   const [roleChangeData, setRoleChangeData] = useState<{ user: AppUser; newRole: Role; } | null>(null);
-
+  
   const staffQuery = useMemoFirebase(() => 
       firestore 
           ? query(collection(firestore, 'users'), where('role', 'in', ['admin', 'host', 'driver'])) 
@@ -125,17 +125,17 @@ const TeamManagement = () => {
   const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(staffQuery);
 
   const { admins, hosts, drivers } = useMemo(() => {
-      const admins: AppUser[] = [];
-      const hosts: AppUser[] = [];
-      const drivers: AppUser[] = [];
-      
-      staff?.forEach(user => {
-          if (user.role === 'admin') admins.push(user);
-          else if (user.role === 'host') hosts.push(user);
-          else if (user.role === 'driver') drivers.push(user);
-      });
+    const admins: AppUser[] = [];
+    const hosts: AppUser[] = [];
+    const drivers: AppUser[] = [];
+    
+    staff?.forEach(user => {
+        if (user.role === 'admin') admins.push(user);
+        else if (user.role === 'host') hosts.push(user);
+        else if (user.role === 'driver') drivers.push(user);
+    });
 
-      return { admins, hosts, drivers };
+    return { admins, hosts, drivers };
   }, [staff]);
 
   const handleRoleChangeRequest = (user: AppUser, newRole: Role) => {
@@ -152,19 +152,8 @@ const TeamManagement = () => {
     setRoleChangeData(null);
   
     try {
-      const batch = writeBatch(firestore);
       const userRef = doc(firestore, 'users', user.uid);
-      batch.update(userRef, { role: newRole });
-
-      const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
-
-      if (newRole === 'admin') {
-        batch.set(adminRoleRef, { uid: user.uid, grantedAt: serverTimestamp() });
-      } else if (user.role === 'admin' && newRole !== 'admin') {
-        batch.delete(adminRoleRef);
-      }
-      
-      await batch.commit();
+      await updateDoc(userRef, { role: newRole });
 
       toast({
         title: "Rol actualizado",
@@ -172,13 +161,6 @@ const TeamManagement = () => {
       });
     } catch (error: any) {
       console.error("Error updating role:", error);
-      const permissionError = new FirestorePermissionError({
-        path: `/users/${user.uid}`,
-        operation: 'update',
-        requestResourceData: { role: newRole }
-      });
-      errorEmitter.emit('permission-error', permissionError);
-      
       toast({
         variant: "destructive",
         title: "Error al cambiar rol",
@@ -716,7 +698,7 @@ const AdminDashboard = ({ userDoc }: { userDoc: AppUser }) => {
 
   return (
     <div>
-       <audio ref={audioRef} src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUReb19vAgAAAAAAP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/P/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D//hP/un+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+npBQ==" className='hidden' />
+       <audio ref={audioRef} src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUReb19vAgAAAAAAP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/P/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D//hP/un+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+npBQ==" className='hidden' />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
         <h2 className="text-2xl font-bold flex items-center gap-2">
             <UtensilsCrossed className="text-primary" /> Panel de Control
@@ -829,13 +811,8 @@ export default function AdminPage() {
     }
   }, [isLoading, user, hasAccess, router, toast]);
 
-  if (isLoading || !userDoc) {
+  if (isLoading || !userDoc || !hasAccess) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
-  }
-  
-  if (!hasAccess) {
-    // This part will likely not be reached due to the redirect in useEffect, but it's a good failsafe.
-    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
   }
   
   return (
@@ -847,3 +824,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    
