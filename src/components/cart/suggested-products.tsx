@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { PlusCircle, Sparkles } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
-import { getSuggestedItems } from "@/app/actions/order-actions";
+import { getSimilarItems } from "@/app/actions/product-actions";
 import type { Product } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,9 +14,10 @@ import { formatCurrency } from "@/lib/utils";
 
 interface SuggestedProductsProps {
   currentProduct?: Product;
+  allProducts?: Product[];
 }
 
-export default function SuggestedProducts({ currentProduct }: SuggestedProductsProps) {
+export default function SuggestedProducts({ currentProduct, allProducts = [] }: SuggestedProductsProps) {
   const { cartItems, addToCart } = useCart();
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,40 +25,30 @@ export default function SuggestedProducts({ currentProduct }: SuggestedProductsP
   useEffect(() => {
     const fetchSuggestions = async () => {
       let contextItems: string[] = [];
+      let currentId: string | undefined;
+
       if (currentProduct) {
         contextItems.push(currentProduct.name);
+        currentId = currentProduct.id;
       } else {
         contextItems = cartItems.map((item) => item.product.name);
       }
       
       if (contextItems.length > 0) {
-        setIsLoading(true);
-        const mockOrderHistory: string[] = [];
-        
-        try {
-          // Pass context items (either current product or cart) to get suggestions
-          const suggestedProducts = await getSuggestedItems(contextItems, mockOrderHistory);
-          // Filter out the current product from suggestions if it exists
-          const filteredSuggestions = currentProduct
+        const suggestedProducts = getSimilarItems(currentProduct, allProducts);
+        const filteredSuggestions = currentProduct
             ? suggestedProducts.filter(p => p.id !== currentProduct.id)
             : suggestedProducts;
 
-          setSuggestions(filteredSuggestions);
-        } catch (error) {
-          console.error("Failed to fetch suggestions", error);
-          setSuggestions([]);
-        } finally {
-          setIsLoading(false);
-        }
+          setSuggestions(filteredSuggestions.slice(0, 3));
       } else {
         setSuggestions([]);
       }
     };
 
-    const timer = setTimeout(fetchSuggestions, 300); // Debounce
-    return () => clearTimeout(timer);
+    fetchSuggestions();
 
-  }, [cartItems, currentProduct]);
+  }, [cartItems, currentProduct, allProducts]);
 
   if (isLoading) {
     return (

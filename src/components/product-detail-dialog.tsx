@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import {
   Dialog,
@@ -17,6 +17,7 @@ import { formatCurrency } from '@/lib/utils';
 import { Plus, Minus, Sparkles } from 'lucide-react';
 import SuggestedProducts from './cart/suggested-products';
 import { ScrollArea } from './ui/scroll-area';
+import { products as allProducts } from '@/lib/data';
 
 
 interface ProductDetailDialogProps {
@@ -49,14 +50,14 @@ export default function ProductDetailDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md grid-rows-[auto_1fr_auto] p-0 max-h-[90svh] flex flex-col">
-        <div className="relative aspect-square w-full overflow-hidden">
+      <DialogContent className="sm:max-w-md grid-rows-[auto_1fr_auto] p-0 max-h-[90vh] flex flex-col rounded-lg">
+        <div className="relative aspect-square w-full overflow-hidden -m-px">
           <Image
             src={product.imageUrl}
             alt={product.name}
             data-ai-hint={product.imageHint}
             fill
-            className="object-cover"
+            className="object-cover rounded-t-lg"
           />
         </div>
 
@@ -72,20 +73,20 @@ export default function ProductDetailDialog({
                   {formatCurrency(product.price)}
                 </p>
               </div>
-
+              
               <div className="mt-2">
                 <h4 className="flex items-center gap-2 text-lg font-semibold">
                   <Sparkles className="h-5 w-5 text-accent" />
                   <span>También te podría gustar...</span>
                 </h4>
                 <div className="pr-2">
-                  <SuggestedProducts currentProduct={product}/>
+                  <SuggestedProducts currentProduct={product} allProducts={allProducts} />
                 </div>
               </div>
           </div>
         </ScrollArea>
 
-        <DialogFooter className="p-4 pt-0 border-t sticky bottom-0 bg-background z-10 flex-row items-center gap-2">
+        <DialogFooter className="p-4 pt-0 border-t sticky bottom-0 bg-background z-10 flex-row items-center justify-center gap-2">
            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
