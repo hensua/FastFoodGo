@@ -131,10 +131,10 @@ service cloud.firestore {
      * Users can only edit their own information.
      */
      match /users/{userId} {
-        allow read: if isSignedIn();
+        allow read: if isOwner(userId) || isAdmin();
         allow list: if isAdmin(); // Admins can list all users for the "Team" tab
         allow create: if isOwner(userId); // A user can create their own user document
-        allow update: if isOwner(userId); // A user can update their own profile
+        allow update: if isOwner(userId) || isAdmin(); // A user can update their own profile, admin can too
         allow delete: if isAdmin(); // Only admins can delete users
      }
 
