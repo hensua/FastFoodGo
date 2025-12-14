@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -114,17 +115,33 @@ const TeamManagement = () => {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const adminsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'users'), where('role', '==', 'admin')) : null, [firestore]);
-  const hostsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'users'), where('role', '==', 'host')) : null, [firestore]);
-  const driversQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'users'), where('role', '==', 'driver')) : null, [firestore]);
-  
-  const { data: admins, isLoading: adminsLoading } = useCollection<AppUser>(adminsQuery);
-  const { data: hosts, isLoading: hostsLoading } = useCollection<AppUser>(hostsQuery);
-  const { data: drivers, isLoading: driversLoading } = useCollection<AppUser>(driversQuery);
-
   const [searchTerm, setSearchTerm] = useState('');
   const [isRoleChanging, setIsRoleChanging] = useState<string | null>(null);
   const [roleChangeData, setRoleChangeData] = useState<{ user: AppUser; newRole: Role; } | null>(null);
+
+  // Perform a single query for all staff members
+  const staffQuery = useMemoFirebase(() => 
+      firestore 
+          ? query(collection(firestore, 'users'), where('role', 'in', ['admin', 'host', 'driver'])) 
+          : null,
+      [firestore]
+  );
+  const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(staffQuery);
+
+  // Use useMemo to derive role groups from the single staff list
+  const { admins, hosts, drivers } = useMemo(() => {
+      const admins: AppUser[] = [];
+      const hosts: AppUser[] = [];
+      const drivers: AppUser[] = [];
+      
+      staff?.forEach(user => {
+          if (user.role === 'admin') admins.push(user);
+          else if (user.role === 'host') hosts.push(user);
+          else if (user.role === 'driver') drivers.push(user);
+      });
+
+      return { admins, hosts, drivers };
+  }, [staff]);
 
   const handleRoleChangeRequest = (user: AppUser, newRole: Role) => {
     if (user.role === newRole) return;
@@ -148,7 +165,7 @@ const TeamManagement = () => {
       const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
       if (newRole === 'admin') {
         batch.set(adminRoleRef, { uid: user.uid, grantedAt: serverTimestamp() });
-      } else {
+      } else if (user.role === 'admin') { // If they *were* an admin
         batch.delete(adminRoleRef);
       }
 
@@ -247,9 +264,9 @@ const TeamManagement = () => {
        </Card>
 
         <div className="space-y-6">
-          <UserTable users={filterUsers(admins)} title="Administradores" isLoading={adminsLoading} />
-          <UserTable users={filterUsers(hosts)} title="Anfitriones" isLoading={hostsLoading} />
-          <UserTable users={filterUsers(drivers)} title="Repartidores" isLoading={driversLoading}/>
+          <UserTable users={filterUsers(admins)} title="Administradores" isLoading={staffLoading} />
+          <UserTable users={filterUsers(hosts)} title="Anfitriones" isLoading={staffLoading} />
+          <UserTable users={filterUsers(drivers)} title="Repartidores" isLoading={staffLoading}/>
         </div>
 
       <AlertDialog open={!!roleChangeData} onOpenChange={() => setRoleChangeData(null)}>
@@ -269,6 +286,7 @@ const TeamManagement = () => {
     </div>
   );
 };
+
 
 type TimeFilter = 'day' | 'week' | 'month' | 'year' | 'all';
 
@@ -701,7 +719,7 @@ const AdminDashboard = ({ userRole, userDoc }: { userRole: Role, userDoc: AppUse
         </div>
       </div>
 
-      {activeTab === 'kitchen' && <OrderList userDoc={userDoc} />}
+      {activeTab === 'kitchen' && userDoc && <OrderList userDoc={userDoc} />}
       
       {isFullAdmin && activeTab === 'inventory' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -819,3 +837,4 @@ export default function AdminPage() {
     
 
     
+
