@@ -17,23 +17,17 @@ rules_version = '2';
  *
  * Data Structure:
  * - /users/{userId}: Stores basic info for all users. Key for role management.
- * - /customers/{userId}/...: A user-specific data tree containing a customer's
- *   profile, orders, and order-specific data. This structure ensures that a
- *   user's private information is securely isolated by path.
  * - /products/{productId}: A top-level collection for the public menu.
- * - /drivers/{driverId}: A top-level collection for driver profiles.
  * - /roles_admin/{userId}: A restricted collection where the existence of a
  *   document grants a user administrative privileges.
- * - /roles_driver/{userId}: A restricted collection where the existence of a
- *   document grants a user driver privileges.
  *
  * Key Security Decisions:
- * - User Data Isolation: All customer-related data is nested under `/customers/{userId}`,
+ * - User Data Isolation: All customer-related data is nested under `/users/{userId}`,
  *   allowing for simple and highly secure path-based ownership rules. Listing
- *   other users' data is impossible for non-admins.
+ *   other users' data is impossible for non-admins, except for other admins.
  * - Admin Privileges: Admin access is granted via Document-Based Access Control
  *   (DBAC) in the `/roles_admin` collection. This collection can be modified only by other admins.
- * - Driver Privileges: Driver access is granted via DBAC in the `/roles_driver` collection.
+ * - Driver Privileges: Driver access is granted via a `role` field in the user's document.
  * - Public Data: The `/products` collection is publicly readable by anyone but
  *   can only be modified by admins.
  *
@@ -46,9 +40,8 @@ rules_version = '2';
  *   or impossible cross-collection queries.
  *
  * Structural Segregation:
- * - Private user data (`/customers`) is structurally separated from public data
- *   (`/products`) and role-specific data (`/drivers`, `/users`). This segregation simplifies
- *   rules for list operations, making queries safer and more performant.
+ * - Private user data is stored within the /users collection and its subcollections.
+ *   This segregation simplifies rules for list operations, making queries safer and more performant.
  */
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -71,16 +64,12 @@ service cloud.firestore {
       return resource != null;
     }
 
-    function isExistingOwner(userId) {
-      return isOwner(userId) && isExistingDoc();
-    }
-
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     function isDriver() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_driver/$(request.auth.uid));
+       return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver';
     }
 
 
@@ -89,28 +78,7 @@ service cloud.firestore {
      *                        TOP-LEVEL COLLECTIONS                      *
      *                                                                   *
      *********************************************************************/
-
-    /**
-     * @description
-     *   Manages admin roles. Document existence grants privileges.
-     *   This collection can only be modified by an admin, allowing admins
-     *   to grant or revoke privileges to other users.
-     */
-    match /roles_admin/{userId} {
-      allow get, list: if isAdmin();
-      allow write: if isAdmin(); // Admins can create/delete roles
-    }
-
-    /**
-     * @description
-     *   Manages driver roles. Document existence grants privileges.
-     *   This collection can only be modified by an admin.
-     */
-    match /roles_driver/{userId} {
-      allow get, list: if isAdmin();
-      allow write: if isAdmin(); // Admins can create/delete roles
-    }
-
+    
     /**
      * @description
      *   Stores the restaurant's product catalog.
@@ -119,9 +87,7 @@ service cloud.firestore {
      */
     match /products/{productId} {
       allow read: if true;
-      // Allow create if user is signed in and the document doesn't exist (for seeding) OR if user is admin
-      allow create: (isSignedIn() && !exists(/databases/$(database)/documents/products/$(productId))) || isAdmin();
-      allow update, delete: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
     
     /**
@@ -131,44 +97,41 @@ service cloud.firestore {
      * Users can only edit their own information.
      */
      match /users/{userId} {
-        allow read: if isOwner(userId) || isAdmin();
+        allow get, update: if isOwner(userId) || isAdmin();
         allow list: if isAdmin(); // Admins can list all users for the "Team" tab
         allow create: if isOwner(userId); // A user can create their own user document
-        allow update: if isOwner(userId) || isAdmin(); // A user can update their own profile, admin can too
         allow delete: if isAdmin(); // Only admins can delete users
      }
 
-
     /**
      * @description
-     *   Stores profiles for delivery drivers.
-     *   A driver can create and manage their own profile, but cannot see or
-     *   edit the profiles of other drivers.
+     *   A user's order history, stored in a private subcollection.
+     *   - Customers can manage their own orders.
+     *   - Admins have full access.
+     *   - Assigned drivers can read the order they are delivering.
      */
-    match /drivers/{driverId} {
-      allow get: if isOwner(driverId) || isAdmin();
-      allow list: if isAdmin();
-      allow create: if isOwner(driverId) && request.resource.data.id == driverId;
-      allow update: if isExistingOwner(driverId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(driverId);
+    match /users/{userId}/orders/{orderId} {
+      allow get: if isOwner(userId) || isAdmin() || (isDriver() && resource.data.driverId == request.auth.uid);
+      allow list, create: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId) || isAdmin(); // Allows customer to cancel, admin to manage
+      allow delete: if isAdmin();
     }
     
-    // Customer-specific data is nested and owned by the user.
-    match /customers/{userId}/{document=**} {
-      allow read, write: if isOwner(userId) || isAdmin();
+    /**
+     * @description
+     *   Chat messages for a specific order.
+     *   - The customer who owns the order can read/write.
+     *   - The assigned driver can read/write.
+     *   - Admins can read/write for support.
+     */
+    match /users/{userId}/orders/{orderId}/messages/{messageId} {
+       allow read, write: if isOwner(userId) || isAdmin() || (isDriver() && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid);
     }
     
-    match /customers/{userId}/orders/{orderId} {
-        allow get: if isOwner(userId) || isAdmin() || (isDriver() && isExistingDoc() && resource.data.driverId == request.auth.uid);
-        allow list: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId) && request.resource.data.customerId == userId;
-        allow update: if (isOwner(userId) || isAdmin()) && request.resource.data.customerId == resource.data.customerId;
-        allow delete: if isOwner(userId) || isAdmin();
-    }
-    
-    // This allows an admin to query the 'orders' collection group
+    // This allows an admin/host to query the 'orders' collection group for the dashboard.
+    // A Firestore index is required for this to work.
     match /{path=**}/orders/{orderId} {
-        allow get, list: if isAdmin();
+      allow get, list: if isAdmin() || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'host';
     }
   }
 }
