@@ -51,7 +51,7 @@ export default function ProductDetailDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md grid-rows-[auto_1fr_auto] p-0 max-h-[90vh] flex flex-col rounded-lg">
-        <div className="relative aspect-square w-full overflow-hidden -m-px">
+        <div className="relative aspect-square w-full overflow-hidden">
           <Image
             src={product.imageUrl}
             alt={product.name}
