@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -28,7 +26,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { format, subMonths, isToday, isThisWeek, isThisMonth, isThisYear } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -119,7 +116,6 @@ const TeamManagement = () => {
   const [isRoleChanging, setIsRoleChanging] = useState<string | null>(null);
   const [roleChangeData, setRoleChangeData] = useState<{ user: AppUser; newRole: Role; } | null>(null);
 
-  // Perform a single query for all staff members
   const staffQuery = useMemoFirebase(() => 
       firestore 
           ? query(collection(firestore, 'users'), where('role', 'in', ['admin', 'host', 'driver'])) 
@@ -128,7 +124,6 @@ const TeamManagement = () => {
   );
   const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(staffQuery);
 
-  // Use useMemo to derive role groups from the single staff list
   const { admins, hosts, drivers } = useMemo(() => {
       const admins: AppUser[] = [];
       const hosts: AppUser[] = [];
@@ -154,22 +149,11 @@ const TeamManagement = () => {
     const { user, newRole } = roleChangeData;
   
     setIsRoleChanging(user.uid);
-    setRoleChangeData(null); // Close dialog
+    setRoleChangeData(null);
   
     try {
-      const batch = writeBatch(firestore);
       const userRef = doc(firestore, 'users', user.uid);
-      batch.update(userRef, { role: newRole });
-
-      // This is the correct pattern for managing roles with security rules
-      const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
-      if (newRole === 'admin') {
-        batch.set(adminRoleRef, { uid: user.uid, grantedAt: serverTimestamp() });
-      } else if (user.role === 'admin') { // If they *were* an admin
-        batch.delete(adminRoleRef);
-      }
-
-      await batch.commit();
+      await updateDoc(userRef, { role: newRole });
 
       toast({
         title: "Rol actualizado",
@@ -626,7 +610,7 @@ const StatsDashboard = () => {
 
 
 // Main Admin Dashboard Component
-const AdminDashboard = ({ userRole, userDoc }: { userRole: Role, userDoc: AppUser }) => {
+const AdminDashboard = ({ userDoc }: { userDoc: AppUser }) => {
   const [activeTab, setActiveTab] = useState('kitchen');
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -636,8 +620,8 @@ const AdminDashboard = ({ userRole, userDoc }: { userRole: Role, userDoc: AppUse
   const productsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'products') : null, [firestore]);
   const { data: products, isLoading: productsLoading } = useCollection<Product>(productsCollection);
 
-  const isFullAdmin = userRole === 'admin';
-  const hasStoreAccess = userRole === 'admin' || userRole === 'host';
+  const isFullAdmin = userDoc.role === 'admin';
+  const hasStoreAccess = userDoc.role === 'admin' || userDoc.role === 'host';
 
   const pendingOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !hasStoreAccess) return null;
@@ -679,8 +663,14 @@ const AdminDashboard = ({ userRole, userDoc }: { userRole: Role, userDoc: AppUse
         toast({ title: "Producto creado", description: `Se ha añadido un nuevo producto al catálogo.`});
       }
       setEditingProduct(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving product:", error);
+      const permissionError = new FirestorePermissionError({
+        path: 'id' in productData ? `/products/${productData.id}`: '/products',
+        operation: 'write',
+        requestResourceData: productData
+      });
+      errorEmitter.emit('permission-error', permissionError);
       toast({ variant: "destructive", title: "Error al guardar", description: "No se pudo guardar el producto."});
     } finally {
       setIsSavingProduct(false);
@@ -693,20 +683,29 @@ const AdminDashboard = ({ userRole, userDoc }: { userRole: Role, userDoc: AppUse
     setDeleteDialogOpen(true);
   };
 
-  const confirmDeleteProduct = () => {
+  const confirmDeleteProduct = async () => {
     if (!firestore || !productToDelete || !isFullAdmin) return;
     
-    const productRef = doc(firestore, 'products', productToDelete);
-    deleteDocumentNonBlocking(productRef);
-    
-    toast({ title: "Producto eliminado", description: "El producto se ha eliminado con éxito." });
-    setDeleteDialogOpen(false);
-    setProductToDelete(null);
+    try {
+      const productRef = doc(firestore, 'products', productToDelete);
+      await deleteDoc(productRef);
+      toast({ title: "Producto eliminado", description: "El producto se ha eliminado con éxito." });
+    } catch(e: any) {
+       const permissionError = new FirestorePermissionError({
+        path: `/products/${productToDelete}`,
+        operation: 'delete',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+      toast({ variant: "destructive", title: "Error al eliminar", description: "No se pudo eliminar el producto."});
+    } finally {
+      setDeleteDialogOpen(false);
+      setProductToDelete(null);
+    }
   };
 
   return (
     <div>
-       <audio ref={audioRef} src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUReb19vAgAAAAAAP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D//hP/un+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+npBQ==" className='hidden' />
+       <audio ref={audioRef} src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUReb19vAgAAAAAAP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/P/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D/wP/A/8D//hP/un+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+npBQ==" className='hidden' />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
         <h2 className="text-2xl font-bold flex items-center gap-2">
             <UtensilsCrossed className="text-primary" /> Panel de Control
@@ -778,7 +777,7 @@ const AdminDashboard = ({ userRole, userDoc }: { userRole: Role, userDoc: AppUse
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteProduct}>Confirmar</AlertDialogAction>
+            <AlertDialogAction onClick={confirmDeleteProduct} className='bg-destructive hover:bg-destructive/80'>Confirmar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -786,60 +785,55 @@ const AdminDashboard = ({ userRole, userDoc }: { userRole: Role, userDoc: AppUse
   );
 };
 
-function AdminAccessManager() {
+
+export default function AdminPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
 
   const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-  const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
+  const { data: userDoc, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
   
-  const userRole = userDoc?.role;
-  const hasAccess = userRole === 'admin' || userRole === 'host';
-  const isLoading = isUserLoading || isRoleLoading;
-  
+  const isLoading = isUserLoading || isUserDocLoading;
+
   useEffect(() => {
-    // Only run this check if loading is complete
-    if (!isLoading) {
-      if (!user || !hasAccess) {
-        toast({
-          variant: "destructive",
-          title: "Acceso denegado",
-          description: "Debes ser un administrador o anfitrión para ver esta página.",
-        });
-        router.push('/login?redirect=/admin');
-      }
+    if (!isLoading && !user) {
+      toast({
+        variant: "destructive",
+        title: "Acceso denegado",
+        description: "Debes iniciar sesión para ver esta página.",
+      });
+      router.push('/login?redirect=/admin');
     }
-  }, [user, hasAccess, isLoading, router, toast]);
+  }, [isLoading, user, router, toast]);
 
   if (isLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
   
-  // Render the dashboard only if loading is complete and access is granted
-  if (user && hasAccess && userDoc && userRole) {
-    return <AdminDashboard userRole={userRole} userDoc={userDoc} />;
+  const hasAccess = userDoc?.role === 'admin' || userDoc?.role === 'host';
+
+  if (!hasAccess) {
+     toast({
+        variant: "destructive",
+        title: "Acceso denegado",
+        description: "Debes ser un administrador o anfitrión para ver esta página.",
+      });
+      router.push('/');
+      return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
+  }
+  
+  if (userDoc) {
+     return (
+        <div className="min-h-screen bg-background">
+          <Header onCartClick={() => {}} showCart={false} />
+          <main className="container mx-auto px-4 py-8">
+            <AdminDashboard userDoc={userDoc} />
+          </main>
+        </div>
+      );
   }
 
-  // If loading is complete but access is denied, this will be null, and the useEffect will handle the redirect.
-  return null;
+  return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Cargando panel...</div>;
 }
-
-
-export default function AdminPage() {
-  return (
-    <div className="min-h-screen bg-background">
-      <Header onCartClick={() => {}} showCart={false} />
-      <main className="container mx-auto px-4 py-8">
-        <AdminAccessManager />
-      </main>
-    </div>
-  );
-}
-
-    
-
-    
-
-    
