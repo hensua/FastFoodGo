@@ -52,13 +52,13 @@ export default function ProductDetailDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md p-0 max-h-[90vh] flex flex-col rounded-lg">
         <ScrollArea className="overflow-y-auto">
-            <div className="relative aspect-video w-full overflow-hidden bg-muted p-6">
+            <div className="relative aspect-video w-full overflow-hidden bg-muted">
               <Image
                 src={product.imageUrl}
                 alt={product.name}
                 data-ai-hint={product.imageHint}
                 fill
-                className="object-contain rounded-lg"
+                className="object-contain p-6"
               />
             </div>
             <div className="p-6 space-y-4">

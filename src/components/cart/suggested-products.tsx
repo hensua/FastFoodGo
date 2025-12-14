@@ -18,37 +18,31 @@ interface SuggestedProductsProps {
 }
 
 export default function SuggestedProducts({ currentProduct, allProducts = [] }: SuggestedProductsProps) {
-  const { cartItems, addToCart } = useCart();
+  const { addToCart } = useCart();
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const fetchSuggestions = async () => {
-      let contextItems: string[] = [];
-      let currentId: string | undefined;
-
-      if (currentProduct) {
-        contextItems.push(currentProduct.name);
-        currentId = currentProduct.id;
-      } else {
-        contextItems = cartItems.map((item) => item.product.name);
-      }
+    const fetchSuggestions = () => {
+      setIsLoading(true);
+      let contextProduct: Product | undefined = currentProduct;
       
-      if (contextItems.length > 0) {
-        const suggestedProducts = getSimilarItems(currentProduct, allProducts);
-        const filteredSuggestions = currentProduct
-            ? suggestedProducts.filter(p => p.id !== currentProduct.id)
-            : suggestedProducts;
+      if (!contextProduct && allProducts.length > 0) {
+        contextProduct = allProducts[0];
+      }
 
-          setSuggestions(filteredSuggestions.slice(0, 3));
+      if (contextProduct) {
+        const suggestedProducts = getSimilarItems(contextProduct, allProducts);
+        const filteredSuggestions = suggestedProducts.filter(p => p.id !== contextProduct!.id);
+        setSuggestions(filteredSuggestions.slice(0, 3));
       } else {
         setSuggestions([]);
       }
+      setIsLoading(false);
     };
 
     fetchSuggestions();
-
-  }, [cartItems, currentProduct, allProducts]);
+  }, [currentProduct, allProducts]);
 
   if (isLoading) {
     return (
