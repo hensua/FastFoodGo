@@ -335,7 +335,7 @@ export default function DeliveryPage() {
 
   const { data: assignedOrders, isLoading: assignedOrdersLoading } = useCollection<Order>(assignedOrdersQuery);
   const { data: myDeliveries, isLoading: myDeliveriesLoading } = useCollection<Order>(myDeliveriesQuery);
-  const { data: pastDeliveries, isLoading: pastDeliveriesLoading } = useCollection<Order>(pastDeliveriesQuery);
+  const { data: pastDeliveries, isLoading: pastDeliveriesLoading } = useCollection<Order>(myPastDeliveriesQuery);
 
   const handleStartDelivery = async (order: Order) => {
     if (!firestore || !user || !userDoc) return;
@@ -477,3 +477,5 @@ export default function DeliveryPage() {
     </div>
   );
 }
+
+    
