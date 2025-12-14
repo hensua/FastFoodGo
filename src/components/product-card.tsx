@@ -114,7 +114,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
                 <Button 
                     onClick={handleAddToCart} 
                     size="icon"
-                    className="h-[22.94px] w-[20.8px] bg-yellow-400 text-gray-900 hover:bg-yellow-500 rounded-md p-1"
+                    className="h-7 w-6 bg-yellow-400 text-gray-900 hover:bg-yellow-500 rounded-md p-1"
                 >
                     <Plus className="h-4 w-4"/>
                 </Button>
