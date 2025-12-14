@@ -52,7 +52,7 @@ export default function ProductDetailDialog({
       <DialogContent className="sm:max-w-md p-0 max-h-[90vh] flex flex-col rounded-lg overflow-hidden">
         <ScrollArea className="flex-grow">
           <div className="relative bg-muted">
-            <div className="relative aspect-square w-full overflow-hidden p-6">
+            <div className="relative aspect-square w-full overflow-hidden p-4 h-72">
               <Image
                 src={product.imageUrl}
                 alt={product.name}
