@@ -4,44 +4,32 @@ rules_version = '2';
  * @fileoverview Firestore Security Rules for the FastFoodGo application.
  *
  * @description
- * This ruleset enforces a multi-role security model for a food delivery app,
- * catering to Customers, Drivers, and Admins. The rules are designed for
- * rapid prototyping, focusing on strict authorization while maintaining
- * flexibility in data schemas.
+ * This ruleset implements a multi-role security model for a food delivery app,
+ * catering to Customers, Drivers, Hosts, and Admins. It prioritizes strict
+ * authorization through path-based ownership and role-checking.
  *
  * Core Philosophy:
- * The security model is built on strict data ownership and role-based access.
- * Customers have complete control over their personal data tree, drivers manage
- * their own profiles, and admins have global oversight. Publicly accessible
- * data, like the product catalog, is read-only for regular users.
- *
- * Data Structure:
- * - /users/{userId}: Stores basic info for all users. Key for role management.
- * - /products/{productId}: A top-level collection for the public menu.
- * - /roles_admin/{userId}: A restricted collection where the existence of a
- *   document grants a user administrative privileges.
+ * - Customer Data Privacy: A user's personal data (profile, orders) is stored
+ *   in a private subcollection under `/users/{userId}`, accessible only by them
+ *   or an admin.
+ * - Role-Based Access: Admin, Host, and Driver roles grant specific permissions.
+ *   - Admins have god-mode access, managed via a separate `/roles_admin` collection
+ *     for security and performance.
+ *   - Hosts can view all orders to manage the kitchen but have limited write access.
+ *   - Drivers can only read orders specifically assigned to them.
+ * - Public Data: The product catalog (`/products`) is world-readable but
+ *   writable only by admins.
  *
  * Key Security Decisions:
- * - User Data Isolation: All customer-related data is nested under `/users/{userId}`,
- *   allowing for simple and highly secure path-based ownership rules. Listing
- *   other users' data is impossible for non-admins, except for other admins.
- * - Admin Privileges: Admin access is granted via Document-Based Access Control
- *   (DBAC) in the `/roles_admin` collection. This collection can be modified only by other admins.
- * - Driver Privileges: Driver access is granted via a `role` field in the user's document.
- * - Public Data: The `/products` collection is publicly readable by anyone but
- *   can only be modified by admins.
- *
- * Denormalization for Authorization:
- * - The `Order` document contains a `customerId` field. On creation, this field
- *   is validated against the user's authenticated UID to securely establish
- *   ownership.
- * - The `Order` document also contains a `driverId` field. This allows a simple
- *   rule to grant a specific driver read access to that order without needing slow
- *   or impossible cross-collection queries.
- *
- * Structural Segregation:
- * - Private user data is stored within the /users collection and its subcollections.
- *   This segregation simplifies rules for list operations, making queries safer and more performant.
+ * - Admin Role Segregation: Admin status is granted by a document's existence in
+ *   `/roles_admin/{userId}`. This is a robust pattern that avoids complex `get()`
+ *   calls in other rules, preventing recursive permission issues.
+ * - Explicit List Operations: Listing documents (e.g., all users or all orders
+ *   from a specific user) is explicitly granted only to appropriate roles (admin, host).
+ *   Unrestricted `collectionGroup` queries are implicitly denied.
+ * - Denormalization for Authorization: Order documents contain `customerId` and
+ *   `driverId`. This denormalization allows security rules to grant access without
+ *   needing slow or insecure cross-collection `get()` calls.
  */
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -59,15 +47,17 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-    
-    function isExistingDoc() {
-      return resource != null;
-    }
 
     function isAdmin() {
+      // Best practice: Check for existence in a separate admin role collection.
+      // This is more performant and secure than checking a role field.
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
     
+    function isHost() {
+        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'host';
+    }
+
     function isDriver() {
        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'driver';
     }
@@ -81,9 +71,8 @@ service cloud.firestore {
     
     /**
      * @description
-     *   Stores the restaurant's product catalog.
-     *   Publicly readable, but only administrators can manage products.
-     *   Seeding is allowed by any signed-in user if the collection is empty.
+     *   Stores the restaurant's product catalog. Publicly readable, but only
+     *   administrators can manage products.
      */
     match /products/{productId} {
       allow read: if true;
@@ -92,15 +81,17 @@ service cloud.firestore {
     
     /**
      * @description
-     * Stores public user information. Any authenticated user can create their own profile.
-     * Admins can read the full list of users for management purposes.
-     * Users can only edit their own information.
+     * Stores public user information.
+     * - Users can create and manage their own profile.
+     * - Admins can list and manage all user profiles.
      */
      match /users/{userId} {
         allow get, update: if isOwner(userId) || isAdmin();
-        allow list: if isAdmin(); // Admins can list all users for the "Team" tab
-        allow create: if isOwner(userId); // A user can create their own user document
-        allow delete: if isAdmin(); // Only admins can delete users
+        // Admins need to list users for the "Team" tab.
+        allow list: if isAdmin();
+        // A user can create their own document.
+        allow create: if isOwner(userId);
+        allow delete: if isAdmin();
      }
 
     /**
@@ -108,13 +99,16 @@ service cloud.firestore {
      *   A user's order history, stored in a private subcollection.
      *   - Customers can manage their own orders.
      *   - Admins have full access.
+     *   - Hosts can view orders for kitchen management.
      *   - Assigned drivers can read the order they are delivering.
      */
     match /users/{userId}/orders/{orderId} {
       allow get: if isOwner(userId) || isAdmin() || (isDriver() && resource.data.driverId == request.auth.uid);
-      allow list: if isOwner(userId) || isAdmin() || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'host';
+      // list is needed for collectionGroup queries by admins/hosts
+      allow list: if isAdmin() || isHost();
       allow create: if isOwner(userId) || isAdmin();
-      allow update: if isOwner(userId) || isAdmin(); // Allows customer to cancel, admin to manage
+      // Allow customer to cancel, admin/host to manage status
+      allow update: if isOwner(userId) || isAdmin() || isHost();
       allow delete: if isAdmin();
     }
     
@@ -123,23 +117,20 @@ service cloud.firestore {
      *   Chat messages for a specific order.
      *   - The customer who owns the order can read/write.
      *   - The assigned driver can read/write.
-     *   - Admins can read/write for support.
+     *   - Admins and hosts can read/write for support.
      */
     match /users/{userId}/orders/{orderId}/messages/{messageId} {
-       allow read, write: if isOwner(userId) || isAdmin() || (isDriver() && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid);
+       allow read, write: if isOwner(userId) || isAdmin() || isHost() || (isDriver() && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid);
     }
     
     /**
      * @description Manages global admin roles. Existence of a doc grants admin rights.
      * @path        /roles_admin/{userId}
-     * @allow       (get, list) only for other admins to see the admin list.
-     * @allow       (create, delete) only for other admins to grant/revoke privileges.
-     * @deny        (get, list, create, update, delete) for all non-admin users.
-     * @principle   Secures administrative role management to prevent privilege escalation.
+     * @allow       (get, list, create, delete) only for other admins to grant/revoke privileges.
+     * @deny        all other access to prevent privilege escalation.
      */
     match /roles_admin/{userId} {
-      allow get, list, create, delete: if isAdmin();
-      allow update: if false; // Role documents should be created/deleted, not updated.
+      allow read, write: if isAdmin();
     }
   }
 }
