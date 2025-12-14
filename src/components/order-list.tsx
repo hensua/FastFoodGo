@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
 import { collectionGroup, query, where, doc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import type { Order, OrderStatus, AppUser, ChatMessage } from '@/lib/types';
