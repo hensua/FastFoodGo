@@ -109,20 +109,20 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
         <div className="flex justify-between items-center mt-1">
           <span className="font-bold text-sm text-orange-600 flex-grow">{formatCurrency(product.price)}</span>
           
-          <div className="relative h-7 flex items-center justify-end" onClick={handleCompactClick}>
+          <div className="relative h-6 flex items-center justify-end" onClick={handleCompactClick}>
             {quantityInCart === 0 ? (
                 <Button 
                     onClick={handleAddToCart} 
                     size="icon"
-                    className="h-7 w-6 bg-yellow-400 text-gray-900 hover:bg-yellow-500 rounded-md p-1"
+                    className="h-6 w-6 bg-yellow-400 text-gray-900 hover:bg-yellow-500 rounded-md p-1"
                 >
                     <Plus className="h-4 w-4"/>
                 </Button>
             ) : (
               <div 
                 className={cn(
-                  "flex items-center justify-center bg-primary text-primary-foreground rounded-md transition-all duration-300 h-7 text-sm",
-                   isExpanded ? 'w-[70px] px-1' : 'w-7'
+                  "flex items-center justify-center bg-primary text-primary-foreground rounded-md transition-all duration-300 h-6 text-sm",
+                   isExpanded ? 'w-[60px] px-1' : 'w-6'
                 )}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -131,7 +131,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-5 w-5 rounded-full text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground"
+                        className="h-4 w-4 rounded-full text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground"
                         onClick={handleDecreaseQuantity}
                     >
                         <Minus className="h-3 w-3" />
@@ -140,14 +140,14 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-5 w-5 rounded-full text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground"
+                        className="h-4 w-4 rounded-full text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground"
                         onClick={handleIncreaseQuantity}
                     >
                         <Plus className="h-3 w-3" />
                     </Button>
                     </>
                  ) : (
-                    <span className="font-bold cursor-pointer select-none">{quantityInCart}</span>
+                    <span className="font-bold cursor-pointer select-none text-xs">{quantityInCart}</span>
                  )}
               </div>
             )}
