@@ -1,8 +1,6 @@
+
 rules_version = '2';
 
-/**
- * @fileoverview Firestore Security Rules for the FastFoodGo application.
- */
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -20,16 +18,16 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // Best practice: Check for existence in a separate admin role collection.
+    // This is more performant and secure than checking a role field in the user's doc.
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+    
     function getUserRole(userId) {
-      // Use a direct get() call to check the role from the user's document.
-      // This is used for individual document access checks.
       return get(/databases/$(database)/documents/users/$(userId)).data.role;
     }
 
-    function isAdmin() {
-      return isSignedIn() && getUserRole(request.auth.uid) == 'admin';
-    }
-    
     function isHost() {
         return isSignedIn() && getUserRole(request.auth.uid) == 'host';
     }
@@ -59,18 +57,14 @@ service cloud.firestore {
      * @description
      * Stores public user information.
      * - Users can create and manage their own profile.
-     * - Admins can manage all user profiles.
-     * - Listing all users is disallowed due to security rule limitations
-     *   (a 'list' cannot depend on a 'get' from the same collection).
-     *   The app will query users by specific roles instead.
+     * - Admins can list and manage all user profiles.
      */
      match /users/{userId} {
         allow get: if isSignedIn();
+        allow list: if isAdmin();
         allow create: if isOwner(userId);
-        // A user can update their own doc, but admins have full update power.
         allow update: if isOwner(userId) || isAdmin();
         allow delete: if isAdmin();
-        // NOTE: `allow list` is intentionally omitted to prevent recursive rule errors.
      }
 
     /**
@@ -114,6 +108,13 @@ service cloud.firestore {
      */
     match /{path=**}/orders/{orderId} {
        allow list: if isAdmin() || isHost() || isDriver();
+    }
+    
+    /**
+     * @description Manages global admin roles. Existence of a doc grants admin rights.
+     */
+    match /roles_admin/{userId} {
+      allow read, write: if isAdmin();
     }
   }
 }

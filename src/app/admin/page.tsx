@@ -293,11 +293,17 @@ type TimeFilter = 'day' | 'week' | 'month' | 'year' | 'all';
 const useOrderStats = (filter: TimeFilter) => {
     const firestore = useFirestore();
     
-    const allOrdersQuery = useMemoFirebase(() => firestore ? collectionGroup(firestore, 'orders') : null, [firestore]);
-    const { data: orders, isLoading } = useCollection<Order>(allOrdersQuery);
+    const allOrdersQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return collectionGroup(firestore, 'orders');
+    }, [firestore]);
+
+    const { data: orders, isLoading: isOrdersLoading } = useCollection<Order>(allOrdersQuery);
+    
+    const isLoading = !firestore || isOrdersLoading;
 
     const stats = useMemo(() => {
-        if (!orders) {
+        if (isLoading || !orders) {
             const zeroStats = { totalSales: 0, totalOrders: 0, deliveredOrders: 0, cancelledOrders: 0, avgTicket: 0, };
             const zeroMonthly = Array.from({ length: 12 }, (_, i) => ({ name: format(subMonths(new Date(), i), 'MMM yyyy', { locale: es }), Ventas: 0 })).reverse();
             return { generalStats: zeroStats, monthlySales: zeroMonthly, paymentStats: { cashOrdersCount: 0, transferOrdersCount: 0, cashTotalAmount: 0, transferTotalAmount: 0, mostUsedPaymentMethod: '-' }, productStats: { topSeller: null, top5: [] }, customerStats: { top5: [] }, };
@@ -366,7 +372,7 @@ const useOrderStats = (filter: TimeFilter) => {
         const customerStats = { top5: topCustomers };
 
         return { generalStats, monthlySales, paymentStats, productStats, customerStats };
-    }, [orders, filter]);
+    }, [orders, filter, isLoading]);
 
     return { stats, isLoading };
 };
@@ -837,4 +843,3 @@ export default function AdminPage() {
     
 
     
-
