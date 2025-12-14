@@ -80,9 +80,17 @@ export default function Home() {
     }
   }, [isCheckingAuth, user, userRole, router]);
 
+  // If we are checking auth and we know who the user is, show a loading screen
+  // instead of the customer page to prevent flicker.
   if (isCheckingAuth && user) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo a tu panel...</div>;
   }
 
-  return <HomePageContent />;
+  // Only render the main content if we're done checking and the user is a customer or not logged in.
+  if (!isCheckingAuth && (userRole === 'customer' || !user)) {
+    return <HomePageContent />;
+  }
+
+  // Fallback, should ideally not be reached if logic is sound. Render loading.
+  return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
 }
