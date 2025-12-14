@@ -1,10 +1,9 @@
 
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useFirestore, useMemoFirebase, useCollection, useDoc } from '@/firebase';
-import { collection, doc, updateDoc, deleteDoc, setDoc, collectionGroup, query, getDocs, where, writeBatch, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, deleteDoc, setDoc, collectionGroup, query, writeBatch, serverTimestamp, getDocs, where } from 'firebase/firestore';
 import type { Order, Product, AppUser, Role } from '@/lib/types';
 import Header from '@/components/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -115,7 +114,7 @@ const TeamManagement = () => {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const usersCollection = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+  const usersCollection = useMemoFirebase(() => firestore ? query(collection(firestore, 'users'), where('role', '!=', 'customer')) : null, [firestore]);
   const { data: users, isLoading: usersLoading } = useCollection<AppUser>(usersCollection);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -266,7 +265,7 @@ const TeamManagement = () => {
           <UserTable users={groupedUsers.admins} title="Administradores" />
           <UserTable users={groupedUsers.hosts} title="Anfitriones" />
           <UserTable users={groupedUsers.drivers} title="Repartidores" />
-          <UserTable users={groupedUsers.customers} title="Clientes" />
+          {/* We filter out customers from the query, so this will be empty */}
         </div>
       }
 
@@ -764,7 +763,7 @@ const AdminDashboard = ({ userRole }: { userRole: Role }) => {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás absolutely seguro?</AlertDialogTitle>
+            <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. Esto eliminará permanentemente el producto
               de tu base de datos.
@@ -812,8 +811,8 @@ function AdminAccessManager() {
   }
   
   // Render the dashboard only if loading is complete and access is granted
-  if (user && hasAccess) {
-    return <AdminDashboard userRole={userRole!} />;
+  if (user && hasAccess && userRole) {
+    return <AdminDashboard userRole={userRole} />;
   }
 
   // If loading is complete but access is denied, this will be null, and the useEffect will handle the redirect.

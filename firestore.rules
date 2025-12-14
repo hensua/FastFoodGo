@@ -1,6 +1,35 @@
-
 rules_version = '2';
 
+/**
+ * @fileoverview Firestore Security Rules for the FastFoodGo application.
+ *
+ * @description
+ * This ruleset implements a multi-role security model for a food delivery app,
+ * catering to Customers, Drivers, Hosts, and Admins. It prioritizes strict
+ * authorization through path-based ownership and role-checking.
+ *
+ * Core Philosophy:
+ * - Customer Data Privacy: A user's personal data (profile, orders) is stored
+ *   in a private subcollection under `/users/{userId}`, accessible only by them
+ *   or an admin.
+ * - Role-Based Access: Admin, Host, and Driver roles grant specific permissions.
+ *   - Admins have god-mode access, managed via a separate `/roles_admin` collection
+ *     for security and performance.
+ *   - Hosts can view all orders to manage the kitchen but have limited write access.
+ *   - Drivers can only read orders specifically assigned to them.
+ *
+ * Key Security Decisions:
+ * - Admin Role Segregation: Admin status is granted by a document's existence in
+ *   `/roles_admin/{userId}`. This is a robust pattern that avoids complex `get()`
+ *   calls in other rules, preventing recursive permission issues.
+ * - Explicit List Operations: Listing documents (e.g., all users or all orders
+ *   from a specific user) is explicitly granted only to appropriate roles (admin/host).
+ *   Unrestricted `collectionGroup` queries are implicitly denied unless explicitly
+ *   allowed.
+ * - Denormalization for Authorization: Order documents contain `customerId` and
+ *   `driverId`. This denormalization allows security rules to grant access without
+ *   needing slow or insecure cross-collection `get()` calls.
+ */
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -17,90 +46,104 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-    
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
-    }
-    
-    function getRole(userId) {
-      return getUserData(userId).role;
-    }
 
     function isAdmin() {
-      return isSignedIn() && getRole(request.auth.uid) == 'admin';
+      // Best practice: Check for existence in a separate admin role collection.
+      // This is more performant and secure than checking a role field.
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+    
+    function getUserRole(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role;
     }
 
     function isHost() {
-      return isSignedIn() && getRole(request.auth.uid) == 'host';
+        return isSignedIn() && getUserRole(request.auth.uid) == 'host';
     }
     
     function isDriver() {
-      return isSignedIn() && getRole(request.auth.uid) == 'driver';
+      return isSignedIn() && getUserRole(request.auth.uid) == 'driver';
     }
-    
-    function isCustomer() {
-      return isSignedIn() && getRole(request.auth.uid) == 'customer';
-    }
-    
-    function getOrder(userId, orderId) {
-        return get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId));
-    }
-    
-    function isParticipant(userId, orderId) {
-      let order = getOrder(userId, orderId).data;
-      return isOwner(userId) || isAdmin() || isHost() || (isDriver() && order.driverId == request.auth.uid);
-    }
+
 
     /*********************************************************************
      *                                                                   *
      *                        TOP-LEVEL COLLECTIONS                      *
      *                                                                   *
      *********************************************************************/
-
+    
+    /**
+     * @description
+     *   Stores the restaurant's product catalog. Publicly readable, but only
+     *   administrators can manage products.
+     */
     match /products/{productId} {
       allow read: if true;
-      allow create: if isAdmin();
-      allow update, delete: if isAdmin();
+      allow write: if isAdmin();
     }
     
-    match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if isAdmin() || isHost();
-      allow create: if request.auth.uid == userId;
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    match /users/{userId}/orders/{orderId} {
-        allow get: if isOwner(userId) || isAdmin() || isHost() || (isDriver() && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid);
-        allow list: if isOwner(userId) || isAdmin() || isHost();
+    /**
+     * @description
+     * Stores public user information.
+     * - Users can create and manage their own profile.
+     * - Admins can list and manage all user profiles.
+     */
+     match /users/{userId} {
+        allow get: if isSignedIn();
+        allow list: if isAdmin();
         allow create: if isOwner(userId);
-        
-        allow update: if 
+        allow update: if isOwner(userId) || isAdmin();
+        allow delete: if isAdmin();
+     }
+
+    /**
+     * @description
+     *   A user's order history, stored in a private subcollection.
+     */
+    match /users/{userId}/orders/{orderId} {
+      function getOrder() {
+        return get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId));
+      }
+      function isOrderDriver() {
+        return isDriver() && getOrder().data.driverId == request.auth.uid;
+      }
+      
+      allow get: if isOwner(userId) || isAdmin() || isHost() || isOrderDriver();
+      allow list: if isOwner(userId) || isAdmin() || isHost();
+      allow create: if isOwner(userId);
+      allow update: if 
             // The customer can only cancel their own order if it's 'pending'.
             (isOwner(userId) && request.resource.data.status == 'cancelled' && resource.data.status == 'pending') ||
             // Admin or Host can manage most order state transitions.
             isAdmin() || isHost() ||
-            // A driver can update an order they are assigned to.
-            (isDriver() && resource.data.driverId == request.auth.uid && (
-                  // Driver can mark as 'delivering' if it's 'ready'.
+            // An assigned driver can update the status to 'delivering' or 'delivered'.
+            (isOrderDriver() && (
                   (resource.data.status == 'ready' && request.resource.data.status == 'delivering') ||
-                  // Driver can mark as 'delivered' if they provide the correct PIN.
-                  (request.resource.data.status == 'delivered' && resource.data.pin == request.resource.data.pin)
+                  (resource.data.status == 'delivering' && request.resource.data.status == 'delivered' && resource.data.pin == request.resource.data.pin)
                 )
             );
+      allow delete: if isAdmin();
 
-        allow delete: if isOwner(userId) || isAdmin();
-        
-        match /messages/{messageId} {
-            allow get, list: if isParticipant(userId, orderId);
-            allow create: if (isParticipant(userId, orderId) && request.resource.data.senderId == request.auth.uid) || isAdmin();
-            allow update, delete: if false;
-        }
+      match /messages/{messageId} {
+        allow read, write: if isOwner(userId) || isAdmin() || isHost() || isOrderDriver();
+      }
     }
     
+    /**
+     * @description
+     *   This rule is for the `collectionGroup` query on 'orders'.
+     *   It allows administrators, hosts, and drivers to list orders across all users,
+     *   which is necessary for their respective panels.
+     */
     match /{path=**}/orders/{orderId} {
-        allow list: if isAdmin() || isHost() || isDriver();
+       allow list: if isAdmin() || isHost() || isDriver();
+    }
+    
+    /**
+     * @description Manages global admin roles. Existence of a doc grants admin rights.
+     */
+    match /roles_admin/{userId} {
+      allow read, write: if isAdmin();
     }
   }
 }

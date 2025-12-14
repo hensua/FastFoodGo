@@ -40,8 +40,7 @@ function HomePageContent() {
   }, [products, isProductsLoading, firestore]);
 
   const productList = useMemo(() => {
-      // Ensure stockQuantity is correctly mapped to stock if needed by components, or just use stockQuantity directly
-      return (products || []).map(p => ({ ...p, stock: p.stockQuantity }));
+    return products || [];
   }, [products]);
 
   const isLoading = isProductsLoading || products === null;
@@ -83,8 +82,8 @@ export default function Home() {
 
   // While we are checking for auth/role, show a full-screen loader.
   // This prevents the customer view from flashing before a redirect.
-  if (isCheckingAuth) {
-    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
+  if (isCheckingAuth && user) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo a tu panel...</div>;
   }
 
   // If loading is finished and the user is NOT a special role (or not logged in), show the customer page.

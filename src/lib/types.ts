@@ -8,7 +8,7 @@ export type Product = {
   imageUrl: string;
   imageHint: string;
   category: string;
-  stock?: number;
+  stockQuantity?: number; // Make stock optional
   tag?: string;
 };
 

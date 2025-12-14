@@ -1,220 +1,79 @@
 {
   "entities": {
     "Product": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Product",
       "type": "object",
       "description": "Represents a food item available in the restaurant's menu.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the product."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the product."
-        },
-        "description": {
-          "type": "string",
-          "description": "Detailed description of the product."
-        },
-        "imageUrl": {
-          "type": "string",
-          "description": "URL of the product image.",
-          "format": "uri"
-        },
-        "price": {
-          "type": "number",
-          "description": "Price of the product.",
-          "format": "float"
-        },
-        "stockQuantity": {
-          "type": "number",
-          "description": "The remaining quantity of the product."
-        },
-        "category": {
-          "type": "string",
-          "description": "Category of the product (e.g., burger, pizza, drink)."
-        }
+        "id": { "type": "string", "description": "Unique identifier for the product." },
+        "name": { "type": "string", "description": "Name of the product." },
+        "description": { "type": "string", "description": "Detailed description of the product." },
+        "imageUrl": { "type": "string", "description": "URL of the product image.", "format": "uri" },
+        "price": { "type": "number", "description": "Price of the product." },
+        "stockQuantity": { "type": "number", "description": "The remaining quantity of the product." },
+        "category": { "type": "string", "description": "Category of the product (e.g., burger, pizza, drink)." }
       },
-      "required": [
-        "id",
-        "name",
-        "description",
-        "imageUrl",
-        "price",
-        "stockQuantity",
-        "category"
-      ]
+      "required": ["id", "name", "description", "imageUrl", "price", "stockQuantity", "category"]
     },
     "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
       "description": "Represents a user of the application.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user."
-        },
-        "firstName": {
-          "type": "string",
-          "description": "First name of the user."
-        },
-        "lastName": {
-          "type": "string",
-          "description": "Last name of the user."
-        },
-        "email": {
-          "type": "string",
-          "description": "Email address of the user.",
-          "format": "email"
-        },
-        "address": {
-          "type": "string",
-          "description": "Delivery address of the user."
-        },
-        "phoneNumber": {
-          "type": "string",
-          "description": "Phone number of the user."
-        },
-        "role": {
-          "type": "string",
-          "description": "Role of the user (e.g., customer, admin, delivery)."
-        }
+        "uid": { "type": "string", "description": "Unique identifier for the user, from Firebase Auth." },
+        "displayName": { "type": "string", "description": "Display name of the user." },
+        "email": { "type": "string", "description": "Email address of the user.", "format": "email" },
+        "photoURL": { "type": "string", "description": "URL of the user's profile picture.", "format": "uri" },
+        "role": { "type": "string", "description": "Role of the user (e.g., customer, admin, host, driver).", "enum": ["customer", "admin", "host", "driver"]},
+        "phoneNumber": { "type": "string", "description": "Phone number of the user." },
+        "deliveryAddress": { "type": "string", "description": "Primary delivery address of the user." },
+        "createdAt": { "type": "string", "description": "Timestamp of user creation.", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "firstName",
-        "lastName",
-        "email",
-        "address",
-        "phoneNumber",
-        "role"
-      ]
+      "required": ["uid", "role"]
     },
     "Order": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Order",
       "type": "object",
       "description": "Represents a customer order.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the order."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Order)"
-        },
-        "orderDate": {
-          "type": "string",
-          "description": "Date and time the order was placed.",
-          "format": "date-time"
-        },
-        "totalAmount": {
-          "type": "number",
-          "description": "Total amount of the order.",
-          "format": "float"
-        },
-        "paymentMethod": {
-          "type": "string",
-          "description": "Payment method used for the order (e.g., credit card, cash)."
-        },
-        "deliveryAddress": {
-          "type": "string",
-          "description": "Delivery address for the order."
-        },
-        "status": {
-          "type": "string",
-          "description": "Status of the order (e.g., pending, preparing, delivering, delivered)."
-        },
-        "deliveryDriverId": {
-          "type": "string",
-          "description": "Reference to User, representing the delivery driver. (Relationship: User 1:N Order)"
+        "id": { "type": "string", "description": "Unique identifier for the order." },
+        "customerId": { "type": "string", "description": "The UID of the user who placed the order." },
+        "orderDate": { "type": "string", "description": "Date and time the order was placed.", "format": "date-time" },
+        "totalAmount": { "type": "number", "description": "Total amount of the order." },
+        "deliveryFee": { "type": "number", "description": "Fee for the delivery service." },
+        "tip": { "type": "number", "description": "Tip for the delivery driver." },
+        "paymentMethod": { "type": "string", "description": "Payment method (e.g., cash, transfer)." },
+        "deliveryAddress": { "type": "string", "description": "Delivery address for the order." },
+        "status": { "type": "string", "description": "Status of the order (e.g., pending, cooking, ready, delivering, delivered, cancelled)." },
+        "driverId": { "type": "string", "description": "The UID of the assigned delivery driver." },
+        "driverName": { "type": "string", "description": "The name of the assigned delivery driver." },
+        "pin": { "type": "string", "description": "A 4-digit PIN for delivery confirmation." },
+        "items": { 
+            "type": "array", 
+            "items": { 
+                "type": "object",
+                "properties": {
+                    "productId": {"type": "string"},
+                    "product": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "price": {"type": "number"},
+                            "imageUrl": {"type": "string"}
+                        }
+                    },
+                    "quantity": {"type": "number"}
+                }
+            } 
         }
       },
-      "required": [
-        "id",
-        "userId",
-        "orderDate",
-        "totalAmount",
-        "paymentMethod",
-        "deliveryAddress",
-        "status"
-      ]
-    },
-    "OrderItem": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "OrderItem",
-      "type": "object",
-      "description": "Represents a single item within an order.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the order item."
-        },
-        "orderId": {
-          "type": "string",
-          "description": "Reference to Order. (Relationship: Order 1:N OrderItem)"
-        },
-        "productId": {
-          "type": "string",
-          "description": "Reference to Product. (Relationship: Product 1:N OrderItem)"
-        },
-        "quantity": {
-          "type": "number",
-          "description": "Quantity of the product in the order item."
-        },
-        "itemPrice": {
-          "type": "number",
-          "description": "Price of one product item."
-        }
-      },
-      "required": [
-        "id",
-        "orderId",
-        "productId",
-        "quantity",
-        "itemPrice"
-      ]
-    },
-    "FavoriteProduct": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "FavoriteProduct",
-      "type": "object",
-      "description": "Represents a product that a user has marked as a favorite.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the favorite product entry."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N FavoriteProduct)"
-        },
-        "productId": {
-          "type": "string",
-          "description": "Reference to Product. (Relationship: Product 1:N FavoriteProduct)"
-        },
-        "addedDate": {
-          "type": "string",
-          "description": "Date and time the product was added to favorites.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "userId",
-        "productId",
-        "addedDate"
-      ]
+      "required": ["id", "customerId", "orderDate", "totalAmount", "deliveryAddress", "status", "pin", "items"]
     }
   },
   "auth": {
     "providers": [
       "password",
-      "anonymous"
+      "google.com"
     ]
   },
   "firestore": {
@@ -223,115 +82,33 @@
         "path": "/products/{productId}",
         "definition": {
           "entityName": "Product",
-          "schema": {
-            "$ref": "#/backend/entities/Product"
-          },
-          "description": "Stores product information.",
-          "params": [
-            {
-              "name": "productId",
-              "description": "Unique identifier for the product."
-            }
-          ]
+          "schema": { "$ref": "#/entities/Product" },
+          "description": "Stores all product information for the menu."
         }
       },
       {
         "path": "/users/{userId}",
         "definition": {
           "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user-specific data. Uses path-based ownership for security.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the user."
-            }
-          ]
+          "schema": { "$ref": "#/entities/User" },
+          "description": "Stores public and private user data."
         }
       },
       {
         "path": "/users/{userId}/orders/{orderId}",
         "definition": {
           "entityName": "Order",
-          "schema": {
-            "$ref": "#/backend/entities/Order"
-          },
-          "description": "Stores order data as a subcollection of the user. Uses path-based ownership.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the user."
-            },
-            {
-              "name": "orderId",
-              "description": "Unique identifier for the order."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/orders/{orderId}/orderItems/{orderItemId}",
-        "definition": {
-          "entityName": "OrderItem",
-          "schema": {
-            "$ref": "#/backend/entities/OrderItem"
-          },
-          "description": "Stores individual order items, nested under the orders collection.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the user."
-            },
-            {
-              "name": "orderId",
-              "description": "Unique identifier for the order."
-            },
-            {
-              "name": "orderItemId",
-              "description": "Unique identifier for the order item."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/favoriteProducts/{favoriteProductId}",
-        "definition": {
-          "entityName": "FavoriteProduct",
-          "schema": {
-            "$ref": "#/backend/entities/FavoriteProduct"
-          },
-          "description": "Stores the user's favorite products. Uses direct ownership.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the user."
-            },
-            {
-              "name": "favoriteProductId",
-              "description": "Unique identifier for the favorite product entry."
-            }
-          ]
+          "schema": { "$ref": "#/entities/Order" },
+          "description": "Stores order data as a subcollection of the user who owns it."
         }
       },
       {
         "path": "/roles_admin/{userId}",
         "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores admin roles. Existence of a document grants admin privileges.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the user."
-            }
-          ]
+          "schema": { "type": "object", "properties": {"uid": {"type": "string"}, "grantedAt": {"type": "string", "format": "date-time"}} },
+          "description": "Manages admin roles. The existence of a document grants admin privileges to the user with the corresponding UID."
         }
       }
-    ],
-    "reasoning": "The Firestore data structure is designed to support the FastFoodGo application, prioritizing security, scalability, and debuggability, especially concerning authorization. It leverages denormalization to ensure Authorization Independence and supports the required QAPs. The structure incorporates explicit state modeling, predictable schemas, and radical consistency in naming conventions.\n\n1.  **Products Collection:** `/products` stores product information. Since all products are generally available for viewing, no complex security rules are needed at the collection level. Admin-level security is enforced via a separate role check.\n2.  **Users Collection:** `/users/{userId}` stores user-specific data. This path-based ownership model simplifies security rules. Orders and favorite products are stored as subcollections under the user document to maintain clear ownership and simplify data retrieval for a specific user.\n3.  **Orders Collection:** `/users/{userId}/orders/{orderId}` stores order data as a subcollection of the user.  This establishes a clear user-order relationship and allows for easy retrieval of a user's order history. Includes `deliveryDriverId` to track deliveries.\n4.  **Order Items Collection:** `/users/{userId}/orders/{orderId}/orderItems/{orderItemId}` stores individual order items, nested under the orders collection. This maintains the relational structure and facilitates querying items within a specific order.  This is an example of continued hierarchy for nested data (see strategy C).\n5.  **Favorite Products Collection:** `/users/{userId}/favoriteProducts/{favoriteProductId}` stores the user's favorite products. This direct ownership model simplifies the security rules needed to protect user-specific data.\n6.  **Admin Roles Collection:** `/roles_admin/{userId}` uses existence-based global roles. If a document exists for a user ID in this collection, the user is considered an admin. This simplifies admin role management and checking. No data needs to be stored in the document; its mere existence grants admin privileges.\n\n**Authorization Independence and QAPs:**\n\n*   **Authorization Independence:** Achieved through path-based ownership for user-specific data and existence checks for admin roles. No `get()` calls are needed in the security rules to validate parent document attributes.\n*   **QAPs Support:**\n    *   Secure `list` operations are ensured by segregating data based on ownership (e.g., orders are listed under `/users/{userId}/orders`). Only the user with the matching `userId` can list their orders.\n    *   Admin privileges are verified through the existence of documents in `/roles_admin/{userId}`, avoiding content-based rule filtering."
+    ]
   }
 }
