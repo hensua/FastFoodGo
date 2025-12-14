@@ -38,18 +38,15 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
   };
 
   useEffect(() => {
-    // Si la cantidad es 0, no debería estar expandido
     if (quantityInCart === 0) {
       setIsExpanded(false);
       if (timerRef.current) clearTimeout(timerRef.current);
     } else {
-      // Si está expandido, inicia el temporizador para colapsar
       if(isExpanded) {
         resetTimer();
       }
     }
 
-    // Limpieza al desmontar el componente
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
@@ -78,8 +75,10 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
 
   const handleCompactClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsExpanded(true);
-    resetTimer();
+    if (!isExpanded) {
+        setIsExpanded(true);
+        resetTimer();
+    }
   }
 
   return (
@@ -108,48 +107,46 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
         <div className="flex justify-between items-center mt-1">
           <span className="font-bold text-sm text-orange-600">{formatCurrency(product.price)}</span>
           
-          <div className="relative h-8 flex items-center justify-end">
+          <div className="relative h-8 flex items-center justify-end" onClick={handleCompactClick}>
             {quantityInCart === 0 ? (
                 <Button 
                     onClick={handleAddToCart} 
                     size="icon"
-                    className="h-7 w-7 bg-yellow-400 text-gray-900 hover:bg-yellow-500 rounded-full"
+                    className="h-7 w-7 bg-yellow-400 text-gray-900 hover:bg-yellow-500 rounded-md"
                 >
                     <Plus className="h-4 w-4"/>
-                </Button>
-            ) : !isExpanded ? (
-                <Button
-                    onClick={handleCompactClick}
-                    size="icon"
-                    className="h-7 w-7 bg-primary text-primary-foreground rounded-full font-bold text-xs"
-                >
-                    {quantityInCart}
                 </Button>
             ) : (
               <div 
                 className={cn(
-                  "flex items-center justify-center gap-1 bg-white border border-gray-200 rounded-lg transition-all duration-300 h-7",
+                  "flex items-center justify-center bg-primary text-primary-foreground rounded-md transition-all duration-300 h-7 text-sm",
                    isExpanded ? 'w-[70px] px-1' : 'w-7'
                 )}
                 onClick={(e) => e.stopPropagation()}
               >
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5 rounded-full"
-                    onClick={handleDecreaseQuantity}
-                  >
-                    <Minus className="h-3 w-3" />
-                  </Button>
-                  <span className="font-bold text-sm w-4 text-center">{quantityInCart}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5 rounded-full"
-                    onClick={handleIncreaseQuantity}
-                  >
-                    <Plus className="h-3 w-3" />
-                  </Button>
+                 {isExpanded ? (
+                    <>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 rounded-full text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground"
+                        onClick={handleDecreaseQuantity}
+                    >
+                        <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className="font-bold text-sm w-4 text-center select-none">{quantityInCart}</span>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 rounded-full text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground"
+                        onClick={handleIncreaseQuantity}
+                    >
+                        <Plus className="h-3 w-3" />
+                    </Button>
+                    </>
+                 ) : (
+                    <span className="font-bold cursor-pointer select-none">{quantityInCart}</span>
+                 )}
               </div>
             )}
           </div>
