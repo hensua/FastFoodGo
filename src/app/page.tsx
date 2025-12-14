@@ -64,7 +64,7 @@ export default function Home() {
     
     // Only redirect if a user is logged in and has a specific role.
     if (user && userRole) {
-        if (userRole === 'admin') {
+        if (userRole === 'admin' || userRole === 'host') {
             router.push('/admin');
         } else if (userRole === 'driver') {
             router.push('/delivery');

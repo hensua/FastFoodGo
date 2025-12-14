@@ -81,7 +81,7 @@
         "email": { "type": "string", "description": "The user's email address." },
         "photoURL": { "type": "string", "description": "URL for the user's profile picture." },
         "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of when the user profile was created." },
-        "role": { "type": "string", "description": "The user's role in the application (customer, driver, admin).", "enum": ["customer", "driver", "admin"] },
+        "role": { "type": "string", "description": "The user's role in the application (customer, driver, admin).", "enum": ["customer", "driver", "admin", "host"] },
         "phoneNumber": { "type": "string", "description": "The user's phone number." },
         "deliveryAddress": { "type": "string", "description": "The user's primary delivery address." }
       },

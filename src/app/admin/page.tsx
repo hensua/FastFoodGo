@@ -153,8 +153,9 @@ const TeamManagement = () => {
   };
   
   const groupedUsers = useMemo(() => {
-    const groups: { admins: AppUser[], drivers: AppUser[], customers: AppUser[] } = {
+    const groups: { admins: AppUser[], hosts: AppUser[], drivers: AppUser[], customers: AppUser[] } = {
       admins: [],
+      hosts: [],
       drivers: [],
       customers: [],
     };
@@ -166,6 +167,7 @@ const TeamManagement = () => {
 
     filtered.forEach(user => {
       if (user.role === 'admin') groups.admins.push(user);
+      else if (user.role === 'host') groups.hosts.push(user);
       else if (user.role === 'driver') groups.drivers.push(user);
       else groups.customers.push(user);
     });
@@ -202,6 +204,7 @@ const TeamManagement = () => {
                         <SelectTrigger className="w-40 ml-auto h-9"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="host">Anfitrión</SelectItem>
                           <SelectItem value="driver">Repartidor</SelectItem>
                           <SelectItem value="customer">Cliente</SelectItem>
                         </SelectContent>
@@ -235,6 +238,7 @@ const TeamManagement = () => {
       {usersLoading || !firestore ? <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin" /></div> :
         <div className="space-y-6">
           <UserTable users={groupedUsers.admins} title="Administradores" />
+          <UserTable users={groupedUsers.hosts} title="Anfitriones" />
           <UserTable users={groupedUsers.drivers} title="Repartidores" />
           <UserTable users={groupedUsers.customers} title="Clientes" />
         </div>
@@ -519,7 +523,7 @@ const StatsDashboard = () => {
 
 
 // Main Admin Dashboard Component
-const AdminDashboard = () => {
+const AdminDashboard = ({ userRole }: { userRole: Role }) => {
   const [activeTab, setActiveTab] = useState('kitchen');
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -534,9 +538,14 @@ const AdminDashboard = () => {
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
 
+  const isFullAdmin = userRole === 'admin';
+
 
   const handleSaveProduct = async (productData: Omit<Product, 'id'> | Product) => {
-    if (!firestore) return;
+    if (!firestore || !isFullAdmin) {
+      toast({ variant: "destructive", title: "Acción no permitida", description: "No tienes permisos para guardar productos."});
+      return;
+    };
     setIsSavingProduct(true);
     try {
       if ('id' in productData && productData.id) {
@@ -559,12 +568,13 @@ const AdminDashboard = () => {
   };
 
   const openDeleteDialog = (productId: string) => {
+    if (!isFullAdmin) return;
     setProductToDelete(productId);
     setDeleteDialogOpen(true);
   };
 
   const confirmDeleteProduct = () => {
-    if (!firestore || !productToDelete) return;
+    if (!firestore || !productToDelete || !isFullAdmin) return;
     
     const productRef = doc(firestore, 'products', productToDelete);
     deleteDocumentNonBlocking(productRef);
@@ -582,14 +592,19 @@ const AdminDashboard = () => {
         </h2>
         <div className="flex gap-1 p-1 bg-muted rounded-lg flex-wrap">
             <button onClick={() => setActiveTab('kitchen')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'kitchen' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><ChefHat size={16} /> Comandas</button>
-            <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'inventory' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Package size={16} /> Inventario</button>
-            <button onClick={() => setActiveTab('team')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'team' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Users size={16} /> Equipo</button>
-            <button onClick={() => setActiveTab('stats')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'stats' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><TrendingUp size={16} /> Reportes</button>
+            {isFullAdmin && (
+              <>
+                <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'inventory' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Package size={16} /> Inventario</button>
+                <button onClick={() => setActiveTab('team')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'team' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Users size={16} /> Equipo</button>
+                <button onClick={() => setActiveTab('stats')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'stats' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><TrendingUp size={16} /> Reportes</button>
+              </>
+            )}
         </div>
       </div>
 
       {activeTab === 'kitchen' && <OrderList />}
-      {activeTab === 'inventory' && (
+      
+      {isFullAdmin && activeTab === 'inventory' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <Card>
@@ -622,8 +637,9 @@ const AdminDashboard = () => {
           <div><ProductForm product={editingProduct} onSave={handleSaveProduct} onCancel={() => setEditingProduct(null)} isSaving={isSavingProduct} /></div>
         </div>
       )}
-      {activeTab === 'team' && <TeamManagement />}
-      {activeTab === 'stats' && <StatsDashboard />}
+      
+      {isFullAdmin && activeTab === 'team' && <TeamManagement />}
+      {isFullAdmin && activeTab === 'stats' && <StatsDashboard />}
       
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -653,7 +669,8 @@ export default function AdminPage() {
   const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
   
-  const isAdmin = useMemo(() => userDoc?.role === 'admin', [userDoc]);
+  const userRole = useMemo(() => userDoc?.role, [userDoc]);
+  const hasAccess = userRole === 'admin' || userRole === 'host';
 
   // This is the loading state for the initial check.
   const isLoading = isUserLoading || isRoleLoading;
@@ -663,29 +680,29 @@ export default function AdminPage() {
     if (isLoading || !firestore) return;
 
     // Once loading is done, check for access.
-    if (!user || !isAdmin) {
+    if (!user || !hasAccess) {
       toast({
         variant: "destructive",
         title: "Acceso denegado",
-        description: "Debes ser un administrador para ver esta página.",
+        description: "Debes ser un administrador o anfitrión para ver esta página.",
       });
       router.push('/login?redirect=/admin');
     }
-  }, [user, isAdmin, isLoading, router, toast, firestore]);
+  }, [user, hasAccess, isLoading, router, toast, firestore]);
 
   if (isLoading || !firestore) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
 
-  // If we are not loading and the user is an admin, render the dashboard.
+  // If we are not loading and the user has access, render the dashboard.
   // The useEffect above handles the redirection for non-admins.
-  // We add an explicit check here to prevent flashing the content for non-admins before redirection.
-  if (isAdmin) {
+  // We add an explicit check here to prevent flashing the content before redirection.
+  if (hasAccess) {
     return (
       <div className="min-h-screen bg-background">
         <Header onCartClick={() => {}} />
         <main className="container mx-auto px-4 py-8">
-          <AdminDashboard />
+          <AdminDashboard userRole={userRole!} />
         </main>
       </div>
     );

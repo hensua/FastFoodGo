@@ -78,7 +78,7 @@ export default function AuthButton() {
             <span>Mi Perfil</span>
           </Link>
         </DropdownMenuItem>
-        {userRole === 'admin' && (
+        {(userRole === 'admin' || userRole === 'host') && (
           <DropdownMenuItem asChild>
             <Link href="/admin">
               <Shield className="mr-2 h-4 w-4" />

@@ -44,7 +44,7 @@ export type Order = {
   driverName?: string;
 };
 
-export type Role = 'admin' | 'driver' | 'customer';
+export type Role = 'admin' | 'host' | 'driver' | 'customer';
 
 export type AppUser = {
   uid: string;

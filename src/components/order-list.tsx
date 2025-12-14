@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
 import { collectionGroup, query, where, doc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import type { Order, OrderStatus, AppUser, ChatMessage } from '@/lib/types';
@@ -175,12 +175,12 @@ export function OrderList() {
 
   const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userDoc } = useDoc<AppUser>(userDocRef);
-  const isAdmin = userDoc?.role === 'admin';
+  const hasStoreAccess = userDoc?.role === 'admin' || userDoc?.role === 'host';
 
   const ordersQuery = useMemo(() => {
-    if (!firestore || !isAdmin) return null; // Only run query if user is admin
+    if (!firestore || !hasStoreAccess) return null; // Only run query if user has access
     return query(collectionGroup(firestore, 'orders'), where('status', 'in', ['pending', 'cooking', 'ready', 'delivering', 'cancelled']));
-  }, [firestore, isAdmin]);
+  }, [firestore, hasStoreAccess]);
 
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
 
@@ -259,8 +259,8 @@ export function OrderList() {
     cancelled: orders?.filter(o => o.status === 'cancelled') || [],
   }), [orders]);
   
-  if (!isAdmin) {
-    return null; // Don't render if not admin
+  if (!hasStoreAccess) {
+    return null; // Don't render if not admin or host
   }
 
   return (

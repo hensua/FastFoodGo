@@ -29,6 +29,10 @@ service cloud.firestore {
       // Check the user's own role from their user document
       return isSignedIn() && getRole(request.auth.uid) == 'admin';
     }
+
+    function isHost() {
+      return isSignedIn() && getRole(request.auth.uid) == 'host';
+    }
     
     function isDriver() {
       return isSignedIn() && getRole(request.auth.uid) == 'driver';
@@ -44,7 +48,7 @@ service cloud.firestore {
     
     function isParticipant(userId, orderId) {
       let order = getOrder(userId, orderId).data;
-      return isOwner(userId) || isAdmin() || (isDriver() && order.driverId == request.auth.uid);
+      return isOwner(userId) || isAdmin() || isHost() || (isDriver() && order.driverId == request.auth.uid);
     }
 
     /*********************************************************************
@@ -74,16 +78,16 @@ service cloud.firestore {
     
     match /users/{userId}/orders/{orderId} {
         // Customer can manage their own order.
-        // Admin can manage any order.
+        // Admin or Host can manage any order.
         // Driver can get the order if they are assigned.
-        allow get: if isOwner(userId) || isAdmin() || (isDriver() && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid);
-        allow list, create: if isOwner(userId) || isAdmin();
+        allow get: if isOwner(userId) || isAdmin() || isHost() || (isDriver() && get(/databases/$(database)/documents/users/$(userId)/orders/$(orderId)).data.driverId == request.auth.uid);
+        allow list, create: if isOwner(userId) || isAdmin() || isHost();
         
         // A customer can only cancel their order if it is 'pending'.
-        // An admin can update any order (e.g., from pending to cooking, or cancel).
+        // An admin or host can update any order (e.g., from pending to cooking, or cancel).
         // A driver can update an order to 'delivering' or 'delivered'.
         allow update: if (isOwner(userId) && request.resource.data.status == 'cancelled' && resource.data.status == 'pending')
-                      || isAdmin()
+                      || isAdmin() || isHost()
                       || (isDriver() && (
                             // Driver can mark as 'delivering' if it's 'ready' and they are assigned.
                             (resource.data.status == 'ready' && request.resource.data.status == 'delivering' && request.resource.data.driverId == request.auth.uid) ||
@@ -94,7 +98,7 @@ service cloud.firestore {
         
         // Rules for the nested 'messages' subcollection
         match /messages/{messageId} {
-            // A participant (customer, assigned driver, or admin) can read messages.
+            // A participant (customer, assigned driver, or admin/host) can read messages.
             allow get, list: if isParticipant(userId, orderId);
             // A participant can create messages. Admins can create messages on behalf of the system.
             allow create: if (isParticipant(userId, orderId) && request.resource.data.senderId == request.auth.uid) || isAdmin();
@@ -105,7 +109,7 @@ service cloud.firestore {
     
     // This allows an admin OR a driver to query the 'orders' collection group for specific statuses.
     match /{path=**}/orders/{orderId} {
-        allow list: if isAdmin() || isDriver();
+        allow list: if isAdmin() || isHost() || isDriver();
     }
   }
 }
