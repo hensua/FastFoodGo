@@ -23,7 +23,6 @@ function HomePageContent() {
   useEffect(() => {
     const seedDatabase = async () => {
       if (firestore && products?.length === 0 && !isProductsLoading) {
-        console.log('No products found, seeding database...');
         const batch = writeBatch(firestore);
         initialProducts.forEach((productData) => {
           const newDocRef = doc(collection(firestore, 'products'));
@@ -32,7 +31,6 @@ function HomePageContent() {
         });
         try {
           await batch.commit();
-          console.log('Database seeded successfully!');
         } catch (error) {
           console.error('Error seeding database:', error);
         }

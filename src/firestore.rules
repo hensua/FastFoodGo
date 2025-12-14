@@ -18,16 +18,16 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Function to get a user's role from their document.
-    // It's safe to use in rules that don't list the /users collection.
+    // Best practice: Check for existence in a separate admin role collection.
+    // This is more performant and secure than checking a role field in the user's doc.
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+    
     function getUserRole(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data.role;
     }
 
-    function isAdmin() {
-        return isSignedIn() && getUserRole(request.auth.uid) == 'admin';
-    }
-    
     function isHost() {
         return isSignedIn() && getUserRole(request.auth.uid) == 'host';
     }
@@ -57,14 +57,13 @@ service cloud.firestore {
      * @description
      * Stores public user information.
      * - Users can create and manage their own profile.
-     * - Admins, Hosts, and Drivers can read any user profile (for names, etc.).
-     * - Critically, LIST is not allowed for non-admins to prevent the "get after list" security rule conflict.
+     * - Admins can list and manage all user profiles.
      */
      match /users/{userId} {
         allow get: if isSignedIn();
         allow list: if isAdmin();
         allow create: if isOwner(userId);
-        allow update: if (isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin();
+        allow update: if isOwner(userId) || isAdmin();
         allow delete: if isAdmin();
      }
 
@@ -88,7 +87,7 @@ service cloud.firestore {
             (isOwner(userId) && request.resource.data.status == 'cancelled' && resource.data.status == 'pending') ||
             // Admin or Host can manage most order state transitions.
             isAdmin() || isHost() ||
-            // An assigned driver can update the status.
+            // An assigned driver can update the status to 'delivering' or 'delivered'.
             (isOrderDriver() && (
                   (resource.data.status == 'ready' && request.resource.data.status == 'delivering') ||
                   (resource.data.status == 'delivering' && request.resource.data.status == 'delivered' && resource.data.pin == request.resource.data.pin)
@@ -96,7 +95,6 @@ service cloud.firestore {
             );
       allow delete: if isAdmin();
 
-      // Chat subcollection within an order
       match /messages/{messageId} {
         allow read, write: if isOwner(userId) || isAdmin() || isHost() || isOrderDriver();
       }
@@ -110,6 +108,14 @@ service cloud.firestore {
      */
     match /{path=**}/orders/{orderId} {
        allow list: if isAdmin() || isHost() || isDriver();
+    }
+    
+    /**
+     * @description Manages global admin roles. Existence of a doc grants admin rights.
+     *              Only an existing admin can grant/revoke admin rights to others.
+     */
+    match /roles_admin/{userId} {
+      allow read, write: if isAdmin();
     }
   }
 }
