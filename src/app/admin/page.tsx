@@ -117,13 +117,13 @@ const TeamManagement = () => {
   const [isRoleChanging, setIsRoleChanging] = useState<string | null>(null);
   const [roleChangeData, setRoleChangeData] = useState<{ user: AppUser; newRole: Role; } | null>(null);
   
-  const usersCollection = useMemoFirebase(() => 
+  const staffCollection = useMemoFirebase(() => 
       firestore 
           ? query(collection(firestore, 'users'), where('role', 'in', ['admin', 'host', 'driver'])) 
           : null,
       [firestore]
   );
-  const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(usersCollection);
+  const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(staffCollection);
 
   const { admins, hosts, drivers } = useMemo(() => {
     const admins: AppUser[] = [];
