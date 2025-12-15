@@ -152,8 +152,10 @@ const TeamManagement = () => {
     setRoleChangeData(null);
   
     try {
+      const batch = writeBatch(firestore);
       const userRef = doc(firestore, 'users', user.uid);
-      await updateDoc(userRef, { role: newRole });
+      batch.update(userRef, { role: newRole });
+      await batch.commit();
       
       toast({
         title: "Rol actualizado",
@@ -772,21 +774,31 @@ export default function AdminPage() {
   const isLoading = isUserLoading || isUserDocLoading;
   
   useEffect(() => {
-    // No tomar ninguna decisión si los datos aún se están cargando
-    if (isLoading) {
-      return; 
+    if (isLoading) return;
+
+    // Si la carga ha terminado y aún no tenemos el documento del usuario,
+    // significa que el usuario no existe en la colección 'users' o hay un problema.
+    // Esto es especialmente relevante para el primer inicio de sesión.
+    if (!userDoc) {
+      if (user) {
+        // El usuario está autenticado pero no tiene documento, lo redirigimos a la página principal
+        // que debería gestionar la creación del documento del usuario.
+        router.push('/');
+      } else {
+        // No hay usuario, redirigir al login
+        toast({
+          variant: "destructive",
+          title: "Acceso denegado",
+          description: "Debes iniciar sesión para ver esta página.",
+        });
+        router.push('/login?redirect=/admin');
+      }
+      return;
     }
 
-    const hasAccess = userDoc?.role === 'admin' || userDoc?.role === 'host';
-
-    if (!user) {
-      toast({
-        variant: "destructive",
-        title: "Acceso denegado",
-        description: "Debes iniciar sesión para ver esta página.",
-      });
-      router.push('/login?redirect=/admin');
-    } else if (!hasAccess) {
+    // Si tenemos todos los datos, procedemos con la lógica de permisos
+    const hasAccess = userDoc.role === 'admin' || userDoc.role === 'host';
+    if (!hasAccess) {
       toast({
         variant: "destructive",
         title: "Acceso denegado",
@@ -801,10 +813,8 @@ export default function AdminPage() {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
   
-  const hasAccess = userDoc?.role === 'admin' || userDoc?.role === 'host';
-
-  // Si después de cargar, el usuario tiene acceso, renderizar el dashboard
-  if (user && userDoc && hasAccess) {
+  // Si después de cargar, el usuario tiene un documento y acceso, renderizar el dashboard
+  if (user && userDoc && (userDoc.role === 'admin' || userDoc.role === 'host')) {
     return (
       <div className="min-h-screen bg-background">
         <Header onCartClick={() => {}} showCart={false} />
@@ -815,7 +825,7 @@ export default function AdminPage() {
     );
   }
 
-  // Si no tiene acceso (o no hay usuario), se muestra la pantalla de carga
-  // mientras el useEffect hace la redirección. Esto evita el parpadeo.
+  // Si no tiene acceso (o no hay usuario), se muestra una pantalla de carga
+  // mientras el useEffect hace la redirección. Esto evita parpadeos.
   return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
 }
