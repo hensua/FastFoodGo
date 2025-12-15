@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -97,9 +98,9 @@ export default function LoginPage() {
           description: "No se pudo iniciar sesión con Google. Por favor, inténtalo de nuevo.",
         });
       }
+    } finally {
       setIsGoogleLoading(false);
     }
-    // No finally block for setIsGoogleLoading(false) because redirection happens on success
   };
 
   const handleEmailSignIn = async (values: z.infer<typeof loginSchema>) => {
