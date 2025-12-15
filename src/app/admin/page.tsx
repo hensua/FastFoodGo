@@ -770,39 +770,52 @@ export default function AdminPage() {
   const { data: userDoc, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
   
   const isLoading = isUserLoading || isUserDocLoading;
-  const hasAccess = userDoc?.role === 'admin' || userDoc?.role === 'host';
   
   useEffect(() => {
-    // Solo actuar cuando la carga haya terminado.
-    if (!isLoading) {
-      if (!user) {
-        toast({
-          variant: "destructive",
-          title: "Acceso denegado",
-          description: "Debes iniciar sesión para ver esta página.",
-        });
-        router.push('/login?redirect=/admin');
-      } else if (!hasAccess) {
-        toast({
-          variant: "destructive",
-          title: "Acceso denegado",
-          description: "Debes ser un administrador o anfitrión para ver esta página.",
-        });
-        router.push('/');
-      }
+    // No tomar ninguna decisión si los datos aún se están cargando
+    if (isLoading) {
+      return; 
     }
-  }, [isLoading, user, hasAccess, router, toast]);
 
-  if (isLoading || !userDoc || !hasAccess) {
+    const hasAccess = userDoc?.role === 'admin' || userDoc?.role === 'host';
+
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Acceso denegado",
+        description: "Debes iniciar sesión para ver esta página.",
+      });
+      router.push('/login?redirect=/admin');
+    } else if (!hasAccess) {
+      toast({
+        variant: "destructive",
+        title: "Acceso denegado",
+        description: "Debes ser un administrador o anfitrión para ver esta página.",
+      });
+      router.push('/');
+    }
+  }, [isLoading, user, userDoc, router, toast]);
+
+  // Mostrar un estado de carga general mientras se verifican los datos
+  if (isLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
   
-  return (
-    <div className="min-h-screen bg-background">
-      <Header onCartClick={() => {}} showCart={false} />
-      <main className="container mx-auto px-4 py-8">
-        <AdminDashboard userDoc={userDoc} />
-      </main>
-    </div>
-  );
+  const hasAccess = userDoc?.role === 'admin' || userDoc?.role === 'host';
+
+  // Si después de cargar, el usuario tiene acceso, renderizar el dashboard
+  if (user && userDoc && hasAccess) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header onCartClick={() => {}} showCart={false} />
+        <main className="container mx-auto px-4 py-8">
+          <AdminDashboard userDoc={userDoc} />
+        </main>
+      </div>
+    );
+  }
+
+  // Si no tiene acceso (o no hay usuario), se muestra la pantalla de carga
+  // mientras el useEffect hace la redirección. Esto evita el parpadeo.
+  return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
 }
