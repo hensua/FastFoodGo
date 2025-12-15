@@ -13,7 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { signInWithEmailAndPassword, GoogleAuthProvider, User, createUserWithEmailAndPassword, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, User, createUserWithEmailAndPassword, signInWithPopup, getRedirectResult } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
 
@@ -76,38 +76,7 @@ export default function LoginPage() {
     }
   };
   
-  // Effect to handle redirect result from Google sign-in
-  useEffect(() => {
-    if (!auth) return;
-
-    const checkRedirect = async () => {
-      try {
-        setIsGoogleLoading(true);
-        const result = await getRedirectResult(auth);
-        if (result) {
-          // User successfully signed in.
-          await handleUserSetup(result.user);
-        } else {
-          // No redirect result, probably a regular page load.
-          setIsGoogleLoading(false);
-        }
-      } catch (error: any) {
-        console.error("Google sign-in redirect error:", error);
-        if (error.code !== 'auth/cancelled-popup-request' && error.code !== 'auth/popup-closed-by-user') {
-            toast({
-              variant: "destructive",
-              title: "Error de inicio de sesión",
-              description: "No se pudo iniciar sesión con Google. Por favor, inténtalo de nuevo.",
-            });
-        }
-        setIsGoogleLoading(false);
-      }
-    };
-    
-    checkRedirect();
-  }, [auth]);
-
-  // Effect to redirect if the user is already logged in
+  // Effect to handle redirect if user is already logged in
   useEffect(() => {
     if (!isUserLoading && user) {
        handleRedirect();
@@ -118,8 +87,23 @@ export default function LoginPage() {
     if (!auth) return;
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
-    // We use signInWithRedirect instead of signInWithPopup to avoid domain authorization issues.
-    await signInWithRedirect(auth, provider);
+    try {
+        const result = await signInWithPopup(auth, provider);
+        await handleUserSetup(result.user);
+    } catch (error: any) {
+        // Handle specific errors, like user closing the popup, gracefully.
+        if (error.code !== 'auth/popup-closed-by-user') {
+            console.error("Google sign-in error:", error);
+            toast({
+                variant: "destructive",
+                title: "Error de inicio de sesión",
+                description: "No se pudo iniciar sesión con Google. Por favor, inténtalo de nuevo.",
+            });
+        }
+    } finally {
+        // Ensure loading state is always turned off
+        setIsGoogleLoading(false);
+    }
   };
 
   const handleEmailSignIn = async (values: z.infer<typeof loginSchema>) => {
@@ -167,7 +151,7 @@ export default function LoginPage() {
 
   // If user is already logged in, show loading spinner while redirecting.
   // Or if Google sign-in is in progress.
-  if (isUserLoading || user || isGoogleLoading) {
+  if (isUserLoading || user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
