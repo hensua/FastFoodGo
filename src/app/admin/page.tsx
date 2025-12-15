@@ -152,10 +152,8 @@ const TeamManagement = () => {
     setRoleChangeData(null);
   
     try {
-      const batch = writeBatch(firestore);
       const userRef = doc(firestore, 'users', user.uid);
-      batch.update(userRef, { role: newRole });
-      await batch.commit();
+      await updateDoc(userRef, { role: newRole });
       
       toast({
         title: "Rol actualizado",
@@ -774,29 +772,28 @@ export default function AdminPage() {
   const isLoading = isUserLoading || isUserDocLoading;
   
   useEffect(() => {
+    // No tomar decisiones hasta que todo esté cargado
     if (isLoading) return;
 
-    // Si la carga ha terminado y aún no tenemos el documento del usuario,
-    // significa que el usuario no existe en la colección 'users' o hay un problema.
-    // Esto es especialmente relevante para el primer inicio de sesión.
-    if (!userDoc) {
-      if (user) {
-        // El usuario está autenticado pero no tiene documento, lo redirigimos a la página principal
-        // que debería gestionar la creación del documento del usuario.
-        router.push('/');
-      } else {
-        // No hay usuario, redirigir al login
-        toast({
-          variant: "destructive",
-          title: "Acceso denegado",
-          description: "Debes iniciar sesión para ver esta página.",
-        });
-        router.push('/login?redirect=/admin');
-      }
+    // Si, después de cargar, no hay usuario autenticado, redirigir al login
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Acceso denegado",
+        description: "Debes iniciar sesión para ver esta página.",
+      });
+      router.push('/login?redirect=/admin');
       return;
     }
 
-    // Si tenemos todos los datos, procedemos con la lógica de permisos
+    // Si, después de cargar, hay usuario pero no hay documento, redirigir a la página principal
+    // (que se encargará de la creación del perfil si es necesario)
+    if (!userDoc) {
+      router.push('/');
+      return;
+    }
+
+    // Si, después de cargar, tenemos todos los datos, verificar el rol
     const hasAccess = userDoc.role === 'admin' || userDoc.role === 'host';
     if (!hasAccess) {
       toast({
@@ -814,7 +811,7 @@ export default function AdminPage() {
   }
   
   // Si después de cargar, el usuario tiene un documento y acceso, renderizar el dashboard
-  if (user && userDoc && (userDoc.role === 'admin' || userDoc.role === 'host')) {
+  if (userDoc && (userDoc.role === 'admin' || userDoc.role === 'host')) {
     return (
       <div className="min-h-screen bg-background">
         <Header onCartClick={() => {}} showCart={false} />

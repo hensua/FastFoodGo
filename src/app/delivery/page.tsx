@@ -310,35 +310,47 @@ export default function DeliveryPage() {
   const [pinOrder, setPinOrder] = useState<Order | null>(null);
 
   const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-  const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
-  const userRole = useMemo(() => userDoc?.role, [userDoc]);
-  const isDriver = userRole === 'driver';
+  const { data: userDoc, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
+  
+  const isLoading = isUserLoading || isUserDocLoading;
 
   useEffect(() => {
-    if (isUserLoading || isRoleLoading) return;
+    // No tomar decisiones hasta que todo esté cargado
+    if (isLoading) return;
 
+    // Si después de cargar, no hay usuario, redirigir al login
     if (!user) {
       router.push('/login?redirect=/delivery');
-    } else if (user && !isDriver) {
+      return;
+    }
+    
+    // Si después de cargar, el usuario no tiene documento, redirigir a la página principal
+    if (!userDoc) {
+      router.push('/');
+      return;
+    }
+    
+    // Si después de cargar, el rol no es 'driver', denegar acceso
+    if (userDoc.role !== 'driver') {
       toast({ variant: 'destructive', title: 'Acceso Denegado', description: 'No tienes permisos de repartidor.' });
       router.push('/');
     }
-  }, [user, isDriver, isUserLoading, isRoleLoading, router, toast]);
+  }, [isLoading, user, userDoc, router, toast]);
 
   const assignedOrdersQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !isDriver) return null;
+    if (!firestore || !user || userDoc?.role !== 'driver') return null;
     return query(collectionGroup(firestore, 'orders'), where('status', '==', 'ready'), where('driverId', '==', user.uid));
-  }, [firestore, user, isDriver]);
+  }, [firestore, user, userDoc]);
 
   const myDeliveriesQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !isDriver) return null;
+    if (!firestore || !user || userDoc?.role !== 'driver') return null;
     return query(collectionGroup(firestore, 'orders'), where('driverId', '==', user.uid), where('status', '==', 'delivering'));
-  }, [firestore, user, isDriver]);
+  }, [firestore, user, userDoc]);
   
   const myPastDeliveriesQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !isDriver) return null;
+    if (!firestore || !user || userDoc?.role !== 'driver') return null;
     return query(collectionGroup(firestore, 'orders'), where('driverId', '==', user.uid), where('status', '==', 'delivered'), orderBy('orderDate', 'desc'));
-  }, [firestore, user, isDriver]);
+  }, [firestore, user, userDoc]);
 
   const { data: assignedOrders, isLoading: assignedOrdersLoading } = useCollection<Order>(assignedOrdersQuery);
   const { data: myDeliveries, isLoading: myDeliveriesLoading } = useCollection<Order>(myDeliveriesQuery);
@@ -386,97 +398,100 @@ export default function DeliveryPage() {
     }
   };
 
-  const isLoading = isUserLoading || isRoleLoading;
-
-  if (isLoading || !user || !isDriver) {
+  if (isLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando...</div>;
   }
-
-  return (
-    <div className="min-h-screen bg-background">
-      <Header onCartClick={() => {}} showCart={false} />
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Truck className="text-primary" /> Panel de Repartidor
-          </h1>
-          <div className="flex gap-1 p-1 bg-muted rounded-lg flex-wrap">
-              <button onClick={() => setActiveTab('deliveries')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'deliveries' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Truck size={16} /> Entregas</button>
-              <button onClick={() => setActiveTab('history')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'history' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><History size={16} /> Historial</button>
-              <button onClick={() => setActiveTab('stats')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'stats' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><BarChart2 size={16} /> Estadísticas</button>
-          </div>
-        </div>
-
-        {activeTab === 'deliveries' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Mis Entregas */}
-            <div className="bg-muted/50 rounded-xl p-4">
-              <h2 className="font-bold text-muted-foreground uppercase tracking-wider mb-4">Mis Entregas ({myDeliveries?.length || 0})</h2>
-              <div className="space-y-4">
-                {myDeliveriesLoading ? <Loader2 className="animate-spin mx-auto mt-10" /> :
-                  myDeliveries && myDeliveries.length > 0 ? (
-                    myDeliveries.map(order => <DeliveringCard key={order.id} order={order} onDeliver={handleOpenPinDialog} isUpdating={isUpdatingOrder === order.id} />)
-                  ) : (
-                    <p className="text-center text-muted-foreground py-10">No tienes entregas activas.</p>
-                  )}
-              </div>
-            </div>
-
-            {/* Pedidos Asignados */}
-            <div className="bg-muted/50 rounded-xl p-4">
-              <h2 className="font-bold text-muted-foreground uppercase tracking-wider mb-4">Pedidos Asignados ({assignedOrders?.length || 0})</h2>
-              <div className="space-y-4">
-                {assignedOrdersLoading ? <Loader2 className="animate-spin mx-auto mt-10" /> :
-                  assignedOrders && assignedOrders.length > 0 ? (
-                    assignedOrders.map(order => <OrderCard key={order.id} order={order} onAccept={handleStartDelivery} isUpdating={isUpdatingOrder === order.id} />)
-                  ) : (
-                    <p className="text-center text-muted-foreground py-10">No tienes pedidos asignados por ahora.</p>
-                  )}
-              </div>
+  
+  if (userDoc && userDoc.role === 'driver') {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header onCartClick={() => {}} showCart={false} />
+        <main className="container mx-auto px-4 py-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+                <Truck className="text-primary" /> Panel de Repartidor
+            </h1>
+            <div className="flex gap-1 p-1 bg-muted rounded-lg flex-wrap">
+                <button onClick={() => setActiveTab('deliveries')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'deliveries' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Truck size={16} /> Entregas</button>
+                <button onClick={() => setActiveTab('history')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'history' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><History size={16} /> Historial</button>
+                <button onClick={() => setActiveTab('stats')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'stats' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><BarChart2 size={16} /> Estadísticas</button>
             </div>
           </div>
-        )}
-        
-        {activeTab === 'history' && (
-          <Card>
-            <CardHeader><CardTitle>Historial de Entregas</CardTitle></CardHeader>
-            <CardContent>
-              {pastDeliveriesLoading ? <div className="flex justify-center"><Loader2 className="animate-spin"/></div> : 
-               pastDeliveries && pastDeliveries.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className='border-b'><tr className='text-left text-sm text-muted-foreground'><th className='p-2'>Pedido</th><th className='p-2'>Fecha</th><th className='p-2'>Cliente</th><th className='p-2'>Propina</th><th className='p-2 text-right'>Ganancia Total</th></tr></thead>
-                    <tbody>
-                      {pastDeliveries.map(order => (
-                        <tr key={order.id} className='border-b'>
-                          <td className='p-2 font-mono text-primary'>#{order.id.slice(-6).toUpperCase()}</td>
-                          <td className='p-2 text-muted-foreground'>{order.orderDate?.toDate ? new Date(order.orderDate.toDate()).toLocaleDateString() : 'N/A'}</td>
-                          <td className='p-2'>{order.customerName}</td>
-                          <td className='p-2 text-green-600 font-medium'>{formatCurrency(order.tip || 0)}</td>
-                          <td className='p-2 text-right font-semibold'>{formatCurrency((order.deliveryFee || 0) + (order.tip || 0))}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+
+          {activeTab === 'deliveries' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Mis Entregas */}
+              <div className="bg-muted/50 rounded-xl p-4">
+                <h2 className="font-bold text-muted-foreground uppercase tracking-wider mb-4">Mis Entregas ({myDeliveries?.length || 0})</h2>
+                <div className="space-y-4">
+                  {myDeliveriesLoading ? <Loader2 className="animate-spin mx-auto mt-10" /> :
+                    myDeliveries && myDeliveries.length > 0 ? (
+                      myDeliveries.map(order => <DeliveringCard key={order.id} order={order} onDeliver={handleOpenPinDialog} isUpdating={isUpdatingOrder === order.id} />)
+                    ) : (
+                      <p className="text-center text-muted-foreground py-10">No tienes entregas activas.</p>
+                    )}
                 </div>
-               ) : <p className="text-center text-muted-foreground py-10">No has completado ninguna entrega.</p>
-              }
-            </CardContent>
-          </Card>
-        )}
-        
-        {activeTab === 'stats' && (
-            <StatsPanel deliveries={pastDeliveries || []} />
-        )}
-      </main>
+              </div>
 
-       <PinDialog 
-          open={!!pinOrder} 
-          onOpenChange={() => setPinOrder(null)} 
-          onSubmit={handleMarkAsDelivered}
-          isSubmitting={!!isUpdatingOrder && isUpdatingOrder === pinOrder?.id}
-          orderId={pinOrder?.id || null}
-        />
-    </div>
-  );
+              {/* Pedidos Asignados */}
+              <div className="bg-muted/50 rounded-xl p-4">
+                <h2 className="font-bold text-muted-foreground uppercase tracking-wider mb-4">Pedidos Asignados ({assignedOrders?.length || 0})</h2>
+                <div className="space-y-4">
+                  {assignedOrdersLoading ? <Loader2 className="animate-spin mx-auto mt-10" /> :
+                    assignedOrders && assignedOrders.length > 0 ? (
+                      assignedOrders.map(order => <OrderCard key={order.id} order={order} onAccept={handleStartDelivery} isUpdating={isUpdatingOrder === order.id} />)
+                    ) : (
+                      <p className="text-center text-muted-foreground py-10">No tienes pedidos asignados por ahora.</p>
+                    )}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {activeTab === 'history' && (
+            <Card>
+              <CardHeader><CardTitle>Historial de Entregas</CardTitle></CardHeader>
+              <CardContent>
+                {pastDeliveriesLoading ? <div className="flex justify-center"><Loader2 className="animate-spin"/></div> : 
+                 pastDeliveries && pastDeliveries.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className='border-b'><tr className='text-left text-sm text-muted-foreground'><th className='p-2'>Pedido</th><th className='p-2'>Fecha</th><th className='p-2'>Cliente</th><th className='p-2'>Propina</th><th className='p-2 text-right'>Ganancia Total</th></tr></thead>
+                      <tbody>
+                        {pastDeliveries.map(order => (
+                          <tr key={order.id} className='border-b'>
+                            <td className='p-2 font-mono text-primary'>#{order.id.slice(-6).toUpperCase()}</td>
+                            <td className='p-2 text-muted-foreground'>{order.orderDate?.toDate ? new Date(order.orderDate.toDate()).toLocaleDateString() : 'N/A'}</td>
+                            <td className='p-2'>{order.customerName}</td>
+                            <td className='p-2 text-green-600 font-medium'>{formatCurrency(order.tip || 0)}</td>
+                            <td className='p-2 text-right font-semibold'>{formatCurrency((order.deliveryFee || 0) + (order.tip || 0))}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                 ) : <p className="text-center text-muted-foreground py-10">No has completado ninguna entrega.</p>
+                }
+              </CardContent>
+            </Card>
+          )}
+          
+          {activeTab === 'stats' && (
+              <StatsPanel deliveries={pastDeliveries || []} />
+          )}
+        </main>
+
+         <PinDialog 
+            open={!!pinOrder} 
+            onOpenChange={() => setPinOrder(null)} 
+            onSubmit={handleMarkAsDelivered}
+            isSubmitting={!!isUpdatingOrder && isUpdatingOrder === pinOrder?.id}
+            orderId={pinOrder?.id || null}
+          />
+      </div>
+    );
+  }
+
+  // Fallback para mostrar mientras se ejecuta la redirección
+  return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
 }

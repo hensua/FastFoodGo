@@ -60,35 +60,31 @@ export default function Home() {
     (firestore && user) ? doc(firestore, 'users', user.uid) : null,
     [firestore, user]
   );
-  const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
+  const { data: userDoc, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
   
-  const userRole = useMemo(() => userDoc?.role, [userDoc]);
-  
-  const isCheckingAuth = isUserLoading || (user && isRoleLoading);
+  const isCheckingAuth = isUserLoading || (user && isUserDocLoading);
 
   useEffect(() => {
+    // No tomar decisiones hasta que la carga haya terminado
     if (isCheckingAuth) return;
     
-    if (user && userRole) {
-        if (userRole === 'admin' || userRole === 'host') {
+    // Si hay un usuario y un documento de usuario, podemos redirigir
+    if (user && userDoc) {
+        if (userDoc.role === 'admin' || userDoc.role === 'host') {
             router.push('/admin');
-        } else if (userRole === 'driver') {
+        } else if (userDoc.role === 'driver') {
             router.push('/delivery');
         }
     }
-  }, [isCheckingAuth, user, userRole, router]);
+  }, [isCheckingAuth, user, userDoc, router]);
 
-  // If we are checking auth and we know who the user is, show a loading screen
-  // instead of the customer page to prevent flicker.
+  // Si estamos autenticando y sabemos quién es el usuario, mostramos una pantalla de carga
+  // para evitar el parpadeo de la página del cliente.
   if (isCheckingAuth && user) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo a tu panel...</div>;
   }
 
-  // Only render the main content if we're done checking and the user is a customer or not logged in.
-  if (!isCheckingAuth && (userRole === 'customer' || !user)) {
-    return <HomePageContent />;
-  }
-
-  // Fallback, should ideally not be reached if logic is sound. Render loading.
-  return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
+  // Renderizar la página principal solo si no se está autenticando o si el usuario
+  // es un cliente (o no está logueado).
+  return <HomePageContent />;
 }
