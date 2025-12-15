@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -155,19 +153,8 @@ const TeamManagement = () => {
   
     try {
       const userRef = doc(firestore, 'users', user.uid);
-      const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
-      const batch = writeBatch(firestore);
-
-      batch.update(userRef, { role: newRole });
-
-      if (newRole === 'admin') {
-        batch.set(adminRoleRef, { uid: user.uid, grantedAt: serverTimestamp() });
-      } else if (user.role === 'admin' && newRole !== 'admin') {
-        batch.delete(adminRoleRef);
-      }
+      await updateDoc(userRef, { role: newRole });
       
-      await batch.commit();
-
       toast({
         title: "Rol actualizado",
         description: `El rol del usuario ha sido cambiado a ${newRole}.`
@@ -756,7 +743,7 @@ const AdminDashboard = ({ userDoc }: { userDoc: AppUser }) => {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+            <AlertDialogTitle>¿Estás absolutely seguro?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. Esto eliminará permanentemente el producto
               de tu base de datos.
@@ -786,22 +773,23 @@ export default function AdminPage() {
   const hasAccess = userDoc?.role === 'admin' || userDoc?.role === 'host';
   
   useEffect(() => {
-    if (isLoading) return; // Wait until all data is loaded
-
-    if (!user) {
-      toast({
-        variant: "destructive",
-        title: "Acceso denegado",
-        description: "Debes iniciar sesión para ver esta página.",
-      });
-      router.push('/login?redirect=/admin');
-    } else if (!hasAccess) {
-      toast({
-        variant: "destructive",
-        title: "Acceso denegado",
-        description: "Debes ser un administrador o anfitrión para ver esta página.",
-      });
-      router.push('/');
+    // Solo actuar cuando la carga haya terminado.
+    if (!isLoading) {
+      if (!user) {
+        toast({
+          variant: "destructive",
+          title: "Acceso denegado",
+          description: "Debes iniciar sesión para ver esta página.",
+        });
+        router.push('/login?redirect=/admin');
+      } else if (!hasAccess) {
+        toast({
+          variant: "destructive",
+          title: "Acceso denegado",
+          description: "Debes ser un administrador o anfitrión para ver esta página.",
+        });
+        router.push('/');
+      }
     }
   }, [isLoading, user, hasAccess, router, toast]);
 
