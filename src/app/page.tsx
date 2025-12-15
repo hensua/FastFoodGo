@@ -83,7 +83,7 @@ export default function Home() {
 
   // While we're checking the role of a logged-in user, show a full-page loader.
   // This prevents the customer view from flickering before redirection.
-  if (isCheckingAuth && user) {
+  if (isCheckingAuth) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo a tu panel...</div>;
   }
 
