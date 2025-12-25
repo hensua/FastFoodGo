@@ -199,20 +199,32 @@ function KitchenView({ userDoc }: { userDoc: AppUser }) {
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
   const [chatOrder, setChatOrder] = useState<Order | null>(null);
 
+  const isFullAdmin = userDoc.role === 'admin';
   const hasStoreAccess = userDoc.role === 'admin' || userDoc.role === 'host';
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore || !hasStoreAccess) return null;
     return query(collectionGroup(firestore, 'orders'), where('status', 'in', ['pending', 'cooking', 'ready', 'delivering', 'cancelled']));
   }, [firestore, hasStoreAccess]);
-
+  
+  // This query is specific for hosts, to only fetch drivers, which is allowed by security rules
   const driversQuery = useMemoFirebase(() => {
-    if(!firestore || !hasStoreAccess) return null;
+    if (!firestore || !hasStoreAccess) return null;
+    if (isFullAdmin) {
+      // Admins can get all staff
+      return query(collection(firestore, 'users'), where('role', 'in', ['admin', 'host', 'driver']));
+    }
+    // Hosts can only get drivers
     return query(collection(firestore, 'users'), where('role', '==', 'driver'));
-  }, [firestore, hasStoreAccess]);
+  }, [firestore, hasStoreAccess, isFullAdmin]);
+
 
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
-  const { data: drivers, isLoading: driversLoading } = useCollection<AppUser>(driversQuery);
+  const { data: staff, isLoading: driversLoading } = useCollection<AppUser>(driversQuery);
+  
+  const drivers = useMemo(() => {
+    return staff?.filter(s => s.role === 'driver') || [];
+  }, [staff]);
 
   const sendAutoChatMessage = async (order: Order) => {
     if (!firestore || !userDoc || !order.customerName) return;
