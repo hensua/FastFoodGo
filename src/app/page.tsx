@@ -4,7 +4,7 @@
 import { useEffect, useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, writeBatch, doc } from 'firebase/firestore';
-import type { Product, AppUser } from '@/lib/types';
+import type { Product } from '@/lib/types';
 import OrderPage from './order-page';
 import { products as initialProducts } from '@/lib/data';
 import { useRouter } from 'next/navigation';
@@ -63,8 +63,10 @@ export default function Home() {
     
     // If we have a user and their role document, decide where to redirect.
     if (user && userDoc) {
-      if (userDoc.role === 'admin' || userDoc.role === 'host') {
+      if (userDoc.role === 'admin') {
         router.push('/admin');
+      } else if (userDoc.role === 'host') {
+        router.push('/host');
       } else if (userDoc.role === 'driver') {
         router.push('/delivery');
       }
@@ -74,7 +76,7 @@ export default function Home() {
   }, [isLoading, user, userDoc, router]);
 
   // While we are checking auth and roles, show a loading screen.
-  // This is crucial to prevent showing the customer UI to an admin/driver before redirecting.
+  // This is crucial to prevent showing the customer UI to a privileged user before redirecting.
   if (isLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
   }

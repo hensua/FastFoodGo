@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import { LogOut, Shield, User as UserIcon, Truck } from 'lucide-react';
+import { LogOut, Shield, User as UserIcon, Truck, UtensilsCrossed } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo } from 'react';
 
@@ -67,11 +67,19 @@ export default function AuthButton() {
             <span>Mi Perfil</span>
           </Link>
         </DropdownMenuItem>
-        {(userRole === 'admin' || userRole === 'host') && (
+        {userRole === 'admin' && (
           <DropdownMenuItem asChild>
             <Link href="/admin">
               <Shield className="mr-2 h-4 w-4" />
-              <span>Panel de Control</span>
+              <span>Panel de Admin</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
+        {userRole === 'host' && (
+          <DropdownMenuItem asChild>
+            <Link href="/host">
+              <UtensilsCrossed className="mr-2 h-4 w-4" />
+              <span>Panel de Anfitrión</span>
             </Link>
           </DropdownMenuItem>
         )}

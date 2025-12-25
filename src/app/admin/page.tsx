@@ -270,7 +270,7 @@ const TeamManagement = ({ userDoc }: { userDoc: AppUser }) => {
 
 type TimeFilter = 'day' | 'week' | 'month' | 'year' | 'all';
 
-const useOrderStats = (filter: TimeFilter) => {
+export const useOrderStats = (filter: TimeFilter) => {
     const firestore = useFirestore();
     
     const allOrdersQuery = useMemoFirebase(() => {
@@ -379,64 +379,6 @@ const TimeFilterControls = ({ filter, setFilter }: { filter: TimeFilter; setFilt
         </div>
     );
 }
-
-// Simplified dashboard for hosts
-const HostStatsDashboard = () => {
-    const [filter, setFilter] = useState<TimeFilter>('day');
-    const { stats, isLoading } = useOrderStats(filter);
-
-    if (isLoading) {
-        return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8" /> Cargando reportes...</div>;
-    }
-    
-    const { generalStats } = stats;
-
-    return (
-        <div className="space-y-6">
-            <TimeFilterControls filter={filter} setFilter={setFilter} />
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Pedidos Totales</CardTitle>
-                        <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent><div className="text-2xl font-bold">{generalStats.totalOrders}</div></CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Pedidos por Domicilio</CardTitle>
-                        <PackageCheck className="h-4 w-4 text-green-500" />
-                    </CardHeader>
-                    <CardContent><div className="text-2xl font-bold">{generalStats.deliveredOrders}</div></CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Pedidos en Tienda</CardTitle>
-                        <Store className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">0</div>
-                        <p className="text-xs text-muted-foreground">Próximamente</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Pedidos Cancelados</CardTitle>
-                        <Ban className="h-4 w-4 text-destructive" />
-                    </CardHeader>
-                    <CardContent><div className="text-2xl font-bold">{generalStats.cancelledOrders}</div></CardContent>
-                </Card>
-            </div>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Acceso Limitado a Reportes</CardTitle>
-                    <CardDescription>Contacta a un administrador para ver el desglose completo de ventas, productos y clientes.</CardDescription>
-                </CardHeader>
-            </Card>
-        </div>
-    );
-};
-
 
 // Full dashboard for admins
 const StatsDashboard = () => {
@@ -613,9 +555,6 @@ const AdminDashboard = ({ userDoc }: { userDoc: AppUser }) => {
   
   const productsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'products') : null, [firestore]);
   const { data: products, isLoading: productsLoading } = useCollection<Product>(productsCollection);
-
-  const isFullAdmin = userDoc.role === 'admin';
-  const hasStoreAccess = userDoc.role === 'admin' || userDoc.role === 'host';
   
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
@@ -624,8 +563,8 @@ const AdminDashboard = ({ userDoc }: { userDoc: AppUser }) => {
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
 
   const handleSaveProduct = async (productData: Omit<Product, 'id'> | Product) => {
-    if (!firestore || !isFullAdmin) {
-      toast({ variant: "destructive", title: "Acción no permitida", description: "No tienes permisos para guardar productos."});
+    if (!firestore) {
+      toast({ variant: "destructive", title: "Error", description: "La base de datos no está disponible."});
       return;
     };
     setIsSavingProduct(true);
@@ -656,13 +595,12 @@ const AdminDashboard = ({ userDoc }: { userDoc: AppUser }) => {
   };
 
   const openDeleteDialog = (productId: string) => {
-    if (!isFullAdmin) return;
     setProductToDelete(productId);
     setDeleteDialogOpen(true);
   };
 
   const confirmDeleteProduct = async () => {
-    if (!firestore || !productToDelete || !isFullAdmin) return;
+    if (!firestore || !productToDelete) return;
     
     try {
       const productRef = doc(firestore, 'products', productToDelete);
@@ -689,21 +627,15 @@ const AdminDashboard = ({ userDoc }: { userDoc: AppUser }) => {
         </h2>
         <div className="flex gap-1 p-1 bg-muted rounded-lg flex-wrap">
             <button onClick={() => setActiveTab('kitchen')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'kitchen' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><ChefHat size={16} /> Comandas</button>
-            {isFullAdmin && (
-              <>
-                <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'inventory' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Package size={16} /> Inventario</button>
-                <button onClick={() => setActiveTab('team')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'team' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Users size={16} /> Equipo</button>
-              </>
-            )}
-             {hasStoreAccess && (
-                 <button onClick={() => setActiveTab('stats')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'stats' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><TrendingUp size={16} /> Reportes</button>
-             )}
+            <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'inventory' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Package size={16} /> Inventario</button>
+            <button onClick={() => setActiveTab('team')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'team' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Users size={16} /> Equipo</button>
+            <button onClick={() => setActiveTab('stats')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'stats' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><TrendingUp size={16} /> Reportes</button>
         </div>
       </div>
 
-      {activeTab === 'kitchen' && userDoc && <OrderList userDoc={userDoc} />}
+      {activeTab === 'kitchen' && <OrderList userDoc={userDoc} />}
       
-      {isFullAdmin && activeTab === 'inventory' && (
+      {activeTab === 'inventory' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <Card>
@@ -737,11 +669,9 @@ const AdminDashboard = ({ userDoc }: { userDoc: AppUser }) => {
         </div>
       )}
       
-      {isFullAdmin && activeTab === 'team' && <TeamManagement userDoc={userDoc} />}
+      {activeTab === 'team' && <TeamManagement userDoc={userDoc} />}
       
-      {activeTab === 'stats' && hasStoreAccess && (
-          isFullAdmin ? <StatsDashboard /> : <HostStatsDashboard />
-      )}
+      {activeTab === 'stats' && <StatsDashboard />}
       
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -781,18 +711,15 @@ export default function AdminPage() {
       return;
     }
     
-    // AÑADIDO: Si la carga terminó, pero no hay userDoc, no tomar decisiones.
     if (!userDoc) {
-      // Opcional: mostrar un mensaje de error si esto persiste
       return;
     }
 
-    const hasAccess = userDoc.role === 'admin' || userDoc.role === 'host';
-    if (!hasAccess) {
+    if (userDoc.role !== 'admin') {
       toast({
         variant: "destructive",
         title: "Acceso denegado",
-        description: "Debes ser un administrador o anfitrión para ver esta página.",
+        description: "No tienes permisos de administrador para ver esta página.",
       });
       router.push('/');
     }
@@ -802,8 +729,7 @@ export default function AdminPage() {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
   
-  const hasAccess = userDoc.role === 'admin' || userDoc.role === 'host';
-  if (!hasAccess) {
+  if (userDoc.role !== 'admin') {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
   }
   
