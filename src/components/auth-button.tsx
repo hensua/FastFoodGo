@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { LogOut, Shield, User as UserIcon, Truck, UtensilsCrossed } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo } from 'react';
+import { getAvatarUrl } from '@/lib/utils';
 
 export default function AuthButton() {
   const auth = useAuth();
@@ -42,13 +43,15 @@ export default function AuthButton() {
     }
     return name.substring(0, 2).toUpperCase();
   };
+  
+  const avatarUrl = getAvatarUrl(userDoc);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={user.photoURL ?? ''} alt={user.displayName ?? 'User'} />
+            <AvatarImage src={avatarUrl} alt={user.displayName ?? 'User'} />
             <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
           </Avatar>
         </Button>
