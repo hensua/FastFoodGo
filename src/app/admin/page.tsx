@@ -781,10 +781,16 @@ export default function AdminPage() {
       router.push('/login?redirect=/admin');
       return;
     }
-
-    // If there's a user but their document (with role) hasn't loaded or doesn't exist,
-    // it could be a new user or a data sync issue. Redirecting to home is a safe default.
+    
+    // It's possible the user is authenticated but the userDoc hasn't been created yet.
+    // In this case, userDoc will be null. We should wait or handle this state.
+    // For now, if there's no userDoc, we can't verify roles, so deny access as a safe default.
     if (!userDoc) {
+       toast({
+        variant: "destructive",
+        title: "Acceso denegado",
+        description: "No se pudo verificar tu rol. Intenta de nuevo.",
+      });
       router.push('/');
       return;
     }

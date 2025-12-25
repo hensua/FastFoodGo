@@ -59,7 +59,8 @@ service cloud.firestore {
      */
      match /users/{userId} {
         allow get: if isSignedIn();
-        allow list: if isAdmin(); // Allow admins to list users for the team panel
+        // Only admins can list users for the team panel
+        allow list: if isAdmin(); 
         allow create: if isOwner(userId);
         allow update: if isOwner(userId) || isAdmin();
         allow delete: if isAdmin();
