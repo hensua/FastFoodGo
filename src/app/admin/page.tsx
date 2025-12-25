@@ -108,7 +108,7 @@ const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product
 
 
 // Team Management View
-const TeamManagement = () => {
+const TeamManagement = ({ userDoc }: { userDoc: AppUser }) => {
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -116,13 +116,16 @@ const TeamManagement = () => {
   const [isRoleChanging, setIsRoleChanging] = useState<string | null>(null);
   const [roleChangeData, setRoleChangeData] = useState<{ user: AppUser; newRole: Role; } | null>(null);
   
-  const staffCollection = useMemoFirebase(() => 
-      firestore 
+  const isFullAdmin = userDoc.role === 'admin';
+
+  // Only run the query if the user is an admin.
+  const staffCollectionQuery = useMemoFirebase(() => 
+      (firestore && isFullAdmin)
           ? query(collection(firestore, 'users'), where('role', 'in', ['admin', 'host', 'driver'])) 
           : null,
-      [firestore]
+      [firestore, isFullAdmin]
   );
-  const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(staffCollection);
+  const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(staffCollectionQuery);
 
   const { admins, hosts, drivers } = useMemo(() => {
     const admins: AppUser[] = [];
@@ -177,6 +180,11 @@ const TeamManagement = () => {
         user.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
         user.displayName?.toLowerCase().includes(searchTerm.toLowerCase())
       );
+  }
+  
+  // Do not render if the user is not an admin.
+  if (!isFullAdmin) {
+    return null;
   }
 
   const UserTable = ({ users, title, isLoading }: { users: AppUser[] | null, title: string, isLoading: boolean }) => (
@@ -734,7 +742,7 @@ const AdminDashboard = ({ userDoc }: { userDoc: AppUser }) => {
         </div>
       )}
       
-      {isFullAdmin && activeTab === 'team' && <TeamManagement />}
+      {isFullAdmin && activeTab === 'team' && <TeamManagement userDoc={userDoc} />}
       
       {activeTab === 'stats' && hasStoreAccess && (
           isFullAdmin ? <StatsDashboard /> : <HostStatsDashboard />
@@ -766,12 +774,8 @@ export default function AdminPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Wait until the loading is complete before making any decisions.
-    if (isLoading) {
-      return;
-    }
+    if (isLoading) return;
 
-    // If, after loading, there's no user, redirect to login.
     if (!user) {
       toast({
         variant: "destructive",
@@ -782,9 +786,6 @@ export default function AdminPage() {
       return;
     }
     
-    // It's possible the user is authenticated but the userDoc hasn't been created yet.
-    // In this case, userDoc will be null. We should wait or handle this state.
-    // For now, if there's no userDoc, we can't verify roles, so deny access as a safe default.
     if (!userDoc) {
        toast({
         variant: "destructive",
@@ -795,7 +796,6 @@ export default function AdminPage() {
       return;
     }
 
-    // If we have all the data, check the role.
     const hasAccess = userDoc.role === 'admin' || userDoc.role === 'host';
     if (!hasAccess) {
       toast({
@@ -807,13 +807,11 @@ export default function AdminPage() {
     }
   }, [isLoading, user, userDoc, router, toast]);
 
-  // Show a general loading state while verifying data.
   if (isLoading || !userDoc) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
   
-  // If, after loading, the user has a document and the correct role, render the dashboard.
-  if (userDoc && (userDoc.role === 'admin' || userDoc.role === 'host')) {
+  if (userDoc.role === 'admin' || userDoc.role === 'host') {
     return (
       <div className="min-h-screen bg-background">
         <Header onCartClick={() => {}} showCart={false} />
@@ -824,6 +822,5 @@ export default function AdminPage() {
     );
   }
 
-  // Fallback to show while the useEffect redirection is happening.
   return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
 }
