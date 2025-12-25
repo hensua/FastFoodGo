@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, writeBatch, doc } from 'firebase/firestore';
 import type { Product, AppUser } from '@/lib/types';
 import OrderPage from './order-page';
@@ -52,39 +52,39 @@ function HomePageContent() {
 }
 
 export default function Home() {
-  const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
+  const { user, userDoc, isLoading } = useUser();
   const router = useRouter();
-  
-  const userDocRef = useMemoFirebase(() => 
-    (firestore && user) ? doc(firestore, 'users', user.uid) : null,
-    [firestore, user]
-  );
-  const { data: userDoc, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
-  
-  const isCheckingAuth = isUserLoading || (user && isUserDocLoading);
 
   useEffect(() => {
-    if (isCheckingAuth) {
-      return; 
+    // Wait until the loading is complete before making any decisions.
+    if (isLoading) {
+      return;
     }
     
+    // If we have a user and their role document, decide where to redirect.
     if (user && userDoc) {
-        if (userDoc.role === 'admin' || userDoc.role === 'host') {
-            router.push('/admin');
-        } else if (userDoc.role === 'driver') {
-            router.push('/delivery');
-        }
+      if (userDoc.role === 'admin' || userDoc.role === 'host') {
+        router.push('/admin');
+      } else if (userDoc.role === 'driver') {
+        router.push('/delivery');
+      }
     }
-  }, [isCheckingAuth, user, userDoc, router]);
+    // If none of the above, the user is either not logged in or is a 'customer',
+    // so we'll let the component render the customer view.
+  }, [isLoading, user, userDoc, router]);
 
-  if (isCheckingAuth) {
-    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo a tu panel...</div>;
+  // While we are checking auth and roles, show a loading screen.
+  // This is crucial to prevent showing the customer UI to an admin/driver before redirecting.
+  if (isLoading) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
   }
-
-  if (userDoc && (userDoc.role === 'admin' || userDoc.role === 'host' || userDoc.role === 'driver')) {
+  
+  // If the user is logged in and has a non-customer role, show a loading screen while the
+  // useEffect above triggers the redirect. This avoids the flicker of the customer UI.
+  if (userDoc && userDoc.role && userDoc.role !== 'customer') {
       return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo a tu panel...</div>;
   }
 
+  // If we've finished loading and the user is a customer or not logged in, show the main page.
   return <HomePageContent />;
 }

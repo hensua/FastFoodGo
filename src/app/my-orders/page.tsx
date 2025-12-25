@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
+import { useFirestore, useCollection, useUser, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import type { Order, OrderStatus, AppUser, ChatMessage } from '@/lib/types';
 import Header from '@/components/header';
@@ -206,15 +206,12 @@ const useUnreadMessages = (orders: Order[] | undefined, currentUser: AppUser | n
 
 export default function MyOrdersPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, userDoc, isLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
 
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
   const [chatOrder, setChatOrder] = useState<Order | null>(null);
-
-  const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-  const { data: userDoc, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
 
   const myOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -224,7 +221,7 @@ export default function MyOrdersPage() {
     );
   }, [firestore, user]);
 
-  const { data: orders, isLoading } = useCollection<Order>(myOrdersQuery);
+  const { data: orders, isLoading: isOrdersLoading } = useCollection<Order>(myOrdersQuery);
 
   const { activeOrders, pastOrders } = useMemo(() => {
     const active: Order[] = [];
@@ -268,13 +265,11 @@ export default function MyOrdersPage() {
     }
   };
 
-  const pageLoading = isUserLoading || isUserDocLoading;
-
-  if (pageLoading) {
+  if (isLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>
   }
   
-  if (!isUserLoading && !user) {
+  if (!user) {
     router.push('/login?redirect=/my-orders');
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>
   }
@@ -285,11 +280,11 @@ export default function MyOrdersPage() {
       <main className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">Mis Pedidos</h1>
         
-        {isLoading && !orders && (
+        {isOrdersLoading && !orders && (
             <div className="flex justify-center items-center py-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>
         )}
 
-        {!isLoading && orders && orders.length === 0 && (
+        {!isOrdersLoading && orders && orders.length === 0 && (
           <div className="text-center py-20 border-2 border-dashed rounded-lg">
             <ShoppingBag className="mx-auto h-12 w-12 text-muted-foreground" />
             <h3 className="mt-4 text-xl font-semibold">No has realizado pedidos</h3>

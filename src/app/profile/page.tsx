@@ -5,7 +5,7 @@ import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useFirestore, useUser, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import Header from '@/components/header';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { AppUser } from '@/lib/types';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, { message: 'El nombre debe tener al menos 2 caracteres.' }).max(50),
@@ -26,13 +25,10 @@ const profileSchema = z.object({
 
 export default function ProfilePage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, userDoc, isLoading } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-
-  const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-  const { data: userDoc, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
 
   const form = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
@@ -46,7 +42,8 @@ export default function ProfilePage() {
   const { isSubmitting } = form.formState;
 
   async function onSubmit(values: z.infer<typeof profileSchema>) {
-    if (!userDocRef) return;
+    if (!user) return;
+    const userDocRef = doc(firestore, 'users', user.uid);
     try {
       await updateDoc(userDocRef, values);
       toast({
@@ -67,15 +64,13 @@ export default function ProfilePage() {
     }
   }
 
-  const isLoading = isUserLoading || isUserDocLoading;
-
   if (isLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8"/> Cargando perfil...</div>;
   }
 
   if (!user) {
     router.replace('/login?redirect=/profile');
-    return null;
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8"/> Redirigiendo...</div>;
   }
 
   return (

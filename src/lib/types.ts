@@ -50,13 +50,13 @@ export type Role = 'admin' | 'host' | 'driver' | 'customer';
 
 export type AppUser = {
   uid: string;
-  email?: string | null;
-  displayName?: string | null;
-  photoURL?: string | null;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
   createdAt?: any;
-  role?: Role;
-  phoneNumber?: string;
-  deliveryAddress?: string;
+  role: Role;
+  phoneNumber?: string | null;
+  deliveryAddress?: string | null;
 };
 
 export type ChatMessage = {

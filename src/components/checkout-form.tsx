@@ -11,7 +11,7 @@ import { Loader2, AlertTriangle, Truck, Gift } from 'lucide-react';
 import CartItem from './cart/cart-item';
 import { ScrollArea } from './ui/scroll-area';
 import { formatCurrency, DELIVERY_FEE } from '@/lib/utils';
-import { useFirestore, useUser, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { collection, serverTimestamp, doc, setDoc } from 'firebase/firestore';
 import type { AppUser } from '@/lib/types';
 import Link from 'next/link';
@@ -26,22 +26,19 @@ export default function CheckoutForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const firestore = useFirestore();
-  const { user } = useUser();
+  const { user, userDoc, isLoading: isUserLoading } = useUser();
   const { toast } = useToast();
-
-  const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-  const { data: userData, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
 
   const finalTotal = totalPrice + DELIVERY_FEE + tip;
   const suggestedTips = [2000, 3000, 5000];
 
   const handlePlaceOrder = async () => {
-    if (!user || !firestore || !userData) {
+    if (!user || !firestore || !userDoc) {
       toast({ variant: 'destructive', title: 'Error', description: 'No se pudo verificar el usuario.' });
       return;
     }
     
-    if (!userData.deliveryAddress) {
+    if (!userDoc.deliveryAddress) {
       toast({ variant: 'destructive', title: 'Falta dirección', description: 'Por favor, añade una dirección de entrega en tu perfil antes de continuar.' });
       router.push('/profile?redirect=/checkout');
       return;
@@ -56,9 +53,9 @@ export default function CheckoutForm() {
       const orderData = {
         id: newOrderRef.id,
         customerId: user.uid,
-        customerName: userData.displayName || 'Cliente Anónimo',
-        customerPhoneNumber: userData.phoneNumber || '',
-        deliveryAddress: userData.deliveryAddress,
+        customerName: userDoc.displayName || 'Cliente Anónimo',
+        customerPhoneNumber: userDoc.phoneNumber || '',
+        deliveryAddress: userDoc.deliveryAddress,
         orderDate: serverTimestamp(),
         totalAmount: finalTotal,
         deliveryFee: DELIVERY_FEE,
@@ -91,7 +88,7 @@ export default function CheckoutForm() {
     }
   };
   
-  const isAddressMissing = !isUserDocLoading && userData && !userData.deliveryAddress;
+  const isAddressMissing = !isUserLoading && userDoc && !userDoc.deliveryAddress;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -135,7 +132,7 @@ export default function CheckoutForm() {
           <CardDescription>Confirma tu método de pago y dirección de entrega.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {isUserDocLoading && <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="animate-spin" />Cargando datos de perfil...</div>}
+          {isUserLoading && <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="animate-spin" />Cargando datos de perfil...</div>}
           
           {isAddressMissing && (
              <div className="bg-destructive/10 border-l-4 border-destructive text-destructive p-4 rounded-md flex gap-3">
@@ -147,10 +144,10 @@ export default function CheckoutForm() {
             </div>
           )}
 
-          {userData?.deliveryAddress && (
+          {userDoc?.deliveryAddress && (
              <div className="space-y-2">
                 <Label>Se entregará en:</Label>
-                <p className="text-sm border p-3 rounded-md bg-muted/50">{userData.deliveryAddress}</p>
+                <p className="text-sm border p-3 rounded-md bg-muted/50">{userDoc.deliveryAddress}</p>
                 <Link href="/profile?redirect=/checkout" className="text-sm text-primary hover:underline">Cambiar dirección</Link>
              </div>
           )}
@@ -192,7 +189,7 @@ export default function CheckoutForm() {
             size="lg" 
             className="w-full"
             onClick={handlePlaceOrder}
-            disabled={isSubmitting || isUserDocLoading || isAddressMissing || cartItems.length === 0}
+            disabled={isSubmitting || isUserLoading || isAddressMissing || cartItems.length === 0}
           >
             {isSubmitting ? (
               <>

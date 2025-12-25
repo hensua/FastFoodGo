@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
+import { useFirestore, useCollection, useUser, useMemoFirebase } from '@/firebase';
 import { collectionGroup, query, where, doc, updateDoc, orderBy } from 'firebase/firestore';
 import type { Order, AppUser } from '@/lib/types';
 import Header from '@/components/header';
@@ -300,7 +300,7 @@ const StatsPanel = ({ deliveries }: { deliveries: Order[] }) => {
 
 export default function DeliveryPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, userDoc, isLoading } = useUser();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -309,28 +309,25 @@ export default function DeliveryPage() {
 
   const [pinOrder, setPinOrder] = useState<Order | null>(null);
 
-  const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-  const { data: userDoc, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
-  
-  const isLoading = isUserLoading || isUserDocLoading;
-
   useEffect(() => {
-    // No tomar decisiones hasta que todo esté cargado
-    if (isLoading) return;
+    // Wait until loading is complete before making any decisions
+    if (isLoading) {
+      return;
+    }
 
-    // Si después de cargar, no hay usuario, redirigir al login
+    // If, after loading, there's no user, redirect to login
     if (!user) {
       router.push('/login?redirect=/delivery');
       return;
     }
     
-    // Si después de cargar, el usuario no tiene documento, redirigir a la página principal
+    // If there's a user but their document (with role) hasn't loaded or doesn't exist
     if (!userDoc) {
       router.push('/');
       return;
     }
     
-    // Si después de cargar, el rol no es 'driver', denegar acceso
+    // If we have all the data, check the role
     if (userDoc.role !== 'driver') {
       toast({ variant: 'destructive', title: 'Acceso Denegado', description: 'No tienes permisos de repartidor.' });
       router.push('/');
@@ -398,7 +395,7 @@ export default function DeliveryPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !userDoc) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando...</div>;
   }
   
@@ -492,6 +489,6 @@ export default function DeliveryPage() {
     );
   }
 
-  // Fallback para mostrar mientras se ejecuta la redirección
+  // Fallback to show while the useEffect redirection is happening
   return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
 }

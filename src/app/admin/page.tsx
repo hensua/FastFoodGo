@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useFirestore, useMemoFirebase, useCollection, useDoc } from '@/firebase';
+import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { collection, doc, updateDoc, deleteDoc, setDoc, collectionGroup, query, writeBatch, serverTimestamp, getDocs, where } from 'firebase/firestore';
 import type { Order, Product, AppUser, Role } from '@/lib/types';
 import Header from '@/components/header';
@@ -761,21 +761,17 @@ const AdminDashboard = ({ userDoc }: { userDoc: AppUser }) => {
 
 
 export default function AdminPage() {
-  const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
+  const { user, userDoc, isLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
 
-  const userDocRef = useMemoFirebase(() => (firestore && user) ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-  const { data: userDoc, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
-  
-  const isLoading = isUserLoading || isUserDocLoading;
-  
   useEffect(() => {
-    // No tomar decisiones hasta que todo esté cargado
-    if (isLoading) return;
+    // Wait until the loading is complete before making any decisions.
+    if (isLoading) {
+      return;
+    }
 
-    // Si, después de cargar, no hay usuario autenticado, redirigir al login
+    // If, after loading, there's no user, redirect to login.
     if (!user) {
       toast({
         variant: "destructive",
@@ -786,14 +782,14 @@ export default function AdminPage() {
       return;
     }
 
-    // Si, después de cargar, hay usuario pero no hay documento, redirigir a la página principal
-    // (que se encargará de la creación del perfil si es necesario)
+    // If there's a user but their document (with role) hasn't loaded or doesn't exist,
+    // it could be a new user or a data sync issue. Redirecting to home is a safe default.
     if (!userDoc) {
       router.push('/');
       return;
     }
 
-    // Si, después de cargar, tenemos todos los datos, verificar el rol
+    // If we have all the data, check the role.
     const hasAccess = userDoc.role === 'admin' || userDoc.role === 'host';
     if (!hasAccess) {
       toast({
@@ -805,12 +801,12 @@ export default function AdminPage() {
     }
   }, [isLoading, user, userDoc, router, toast]);
 
-  // Mostrar un estado de carga general mientras se verifican los datos
-  if (isLoading) {
+  // Show a general loading state while verifying data.
+  if (isLoading || !userDoc) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
   
-  // Si después de cargar, el usuario tiene un documento y acceso, renderizar el dashboard
+  // If, after loading, the user has a document and the correct role, render the dashboard.
   if (userDoc && (userDoc.role === 'admin' || userDoc.role === 'host')) {
     return (
       <div className="min-h-screen bg-background">
@@ -822,7 +818,6 @@ export default function AdminPage() {
     );
   }
 
-  // Si no tiene acceso (o no hay usuario), se muestra una pantalla de carga
-  // mientras el useEffect hace la redirección. Esto evita parpadeos.
+  // Fallback to show while the useEffect redirection is happening.
   return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
 }

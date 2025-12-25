@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useAuth, useUser } from '@/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,24 +14,13 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { LogOut, Shield, User as UserIcon, Truck } from 'lucide-react';
 import Link from 'next/link';
-import { doc } from 'firebase/firestore';
 import { useMemo } from 'react';
-import type { AppUser } from '@/lib/types';
 
 export default function AuthButton() {
   const auth = useAuth();
-  const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
-
-  const userDocRef = useMemoFirebase(() => 
-    (firestore && user) ? doc(firestore, 'users', user.uid) : null,
-    [firestore, user]
-  );
-  const { data: userDoc, isLoading: isRoleLoading } = useDoc<AppUser>(userDocRef);
+  const { user, userDoc, isLoading } = useUser();
   
   const userRole = useMemo(() => userDoc?.role, [userDoc]);
-
-  const isLoading = isUserLoading || (user && isRoleLoading);
 
   if (isLoading) {
     return <Skeleton className="h-10 w-10 rounded-full" />;
