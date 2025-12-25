@@ -6,23 +6,28 @@ import Header from '@/components/header';
 import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Loader2, UtensilsCrossed, TrendingUp, ChefHat, Ban } from 'lucide-react';
+import { Loader2, UtensilsCrossed, TrendingUp, ChefHat, Ban, Trophy, Crown, PackageCheck, Store } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { AppUser } from '@/lib/types';
 import { OrderList } from '@/components/order-list';
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useOrderStats } from '@/app/admin/page';
+import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
+import { formatCurrency } from '@/lib/utils';
+import { UserRound } from 'lucide-react';
 
 // Simplified dashboard for hosts
 const HostStatsDashboard = ({userDoc}: {userDoc: AppUser}) => {
     const [filter, setFilter] = useState < 'day' | 'week' | 'month' | 'year' | 'all' > ('day');
+    // The second argument is now `true` for admins, `false` for hosts, allowing the hook to adapt
     const { stats, isLoading } = useOrderStats(filter, userDoc.role === 'admin');
 
     if (isLoading) {
         return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8" /> Cargando reportes...</div>;
     }
 
-    const { generalStats } = stats;
+    const { generalStats, productStats, customerStats } = stats;
 
     return (
         <div className="space-y-6">
@@ -48,14 +53,14 @@ const HostStatsDashboard = ({userDoc}: {userDoc: AppUser}) => {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Pedidos por Domicilio</CardTitle>
-                        <ChefHat className="h-4 w-4 text-green-500" />
+                        <PackageCheck className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent><div className="text-2xl font-bold">{generalStats.deliveredOrders}</div></CardContent>
                 </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Pedidos en Tienda</CardTitle>
-                        <Loader2 className="h-4 w-4 text-muted-foreground" />
+                        <Store className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">0</div>
@@ -70,10 +75,48 @@ const HostStatsDashboard = ({userDoc}: {userDoc: AppUser}) => {
                     <CardContent><div className="text-2xl font-bold">{generalStats.cancelledOrders}</div></CardContent>
                 </Card>
             </div>
+            
+             <div className="grid gap-6 md:grid-cols-2">
+               {productStats?.top5 && (
+                 <Card>
+                    <CardHeader><CardTitle className="flex items-center gap-2"><Trophy className="text-yellow-500"/> Top 5 Productos Más Vendidos</CardTitle></CardHeader>
+                    <CardContent>
+                        <ul className="space-y-4">
+                            {productStats.top5.map((p, index) => (
+                                <li key={p.name} className="flex items-center gap-4">
+                                    <span className="font-bold text-lg text-muted-foreground w-6">#{index+1}</span>
+                                    <Image src={p.imageUrl || '/placeholder.png'} alt={p.name} width={40} height={40} className="rounded-md object-cover w-10 h-10"/>
+                                    <p className="font-semibold flex-grow">{p.name}</p>
+                                    <Badge variant="secondary" className="font-mono">{p.count} und.</Badge>
+                                </li>
+                            ))}
+                        </ul>
+                    </CardContent>
+                </Card>
+               )}
+               {customerStats?.top5 && (
+                 <Card>
+                    <CardHeader><CardTitle className="flex items-center gap-2"><Crown className="text-amber-500"/> Top 5 Clientes</CardTitle></CardHeader>
+                    <CardContent>
+                        <ul className="space-y-4">
+                            {customerStats.top5.map((c, index) => (
+                                <li key={c.name} className="flex items-center gap-4">
+                                    <span className="font-bold text-lg text-muted-foreground w-6">#{index+1}</span>
+                                    <div className='p-2 rounded-full bg-muted'><UserRound className='w-5 h-5 text-muted-foreground'/></div>
+                                    <p className="font-semibold flex-grow">{c.name}</p>
+                                    <Badge variant="secondary" className="font-mono">{formatCurrency(c.total)}</Badge>
+                                </li>
+                            ))}
+                        </ul>
+                    </CardContent>
+                </Card>
+               )}
+            </div>
+
             <Card>
                 <CardHeader>
                     <CardTitle>Acceso Limitado a Reportes</CardTitle>
-                    <CardDescription>Contacta a un administrador para ver el desglose completo de ventas, productos y clientes.</CardDescription>
+                    <CardDescription>Contacta a un administrador para ver el desglose completo de ventas e historial de cambios.</CardDescription>
                 </CardHeader>
             </Card>
         </div>

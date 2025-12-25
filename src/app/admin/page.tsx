@@ -271,7 +271,7 @@ const TeamManagement = ({ userDoc }: { userDoc: AppUser }) => {
 
 type TimeFilter = 'day' | 'week' | 'month' | 'year' | 'all';
 
-export const useOrderStats = (filter: TimeFilter, isAdmin: boolean) => {
+export const useOrderStats = (filter: TimeFilter, hasFullAccess: boolean) => {
     const firestore = useFirestore();
     
     const allOrdersQuery = useMemoFirebase(() => {
@@ -307,9 +307,30 @@ export const useOrderStats = (filter: TimeFilter, isAdmin: boolean) => {
 
         const generalStats = { totalSales, totalOrders: filteredByTime.length, deliveredOrders: deliveredOrders.length, cancelledOrders: filteredByTime.filter(o => o.status === 'cancelled').length, avgTicket, };
 
-        // Only calculate detailed stats if user is admin
-        if (!isAdmin) {
-             return { generalStats, monthlySales: [], paymentStats: null, productStats: null, customerStats: null };
+        // Common stats for both admin and host
+        const productCounts: { [name: string]: { count: number; imageUrl?: string } } = {};
+        deliveredOrders.forEach(order => {
+            order.items.forEach(item => {
+                const name = item.product.name;
+                if (!productCounts[name]) productCounts[name] = { count: 0, imageUrl: item.product.imageUrl };
+                productCounts[name].count += item.quantity;
+            });
+        });
+        const sortedProducts = Object.entries(productCounts).map(([name, data]) => ({ name, count: data.count, imageUrl: data.imageUrl })).sort((a, b) => b.count - a.count);
+        const productStats = { topSeller: sortedProducts.length > 0 ? sortedProducts[0] : null, top5: sortedProducts.slice(0, 5), };
+        
+        const customerSpending: { [name: string]: number } = {};
+        deliveredOrders.forEach(order => {
+            const name = order.customerName || 'Cliente Anónimo';
+            if (!customerSpending[name]) customerSpending[name] = 0;
+            customerSpending[name] += order.totalAmount;
+        });
+        const topCustomers = Object.entries(customerSpending).map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total).slice(0, 5);
+        const customerStats = { top5: topCustomers };
+
+        // Admin-only stats
+        if (!hasFullAccess) {
+             return { generalStats, monthlySales: null, paymentStats: null, productStats, customerStats };
         }
 
         const salesByMonth: { [key: string]: number } = {};
@@ -335,30 +356,8 @@ export const useOrderStats = (filter: TimeFilter, isAdmin: boolean) => {
             mostUsedPaymentMethod: cashOrders.length >= transferOrders.length ? 'Efectivo' : 'Transferencia',
         };
 
-        const productCounts: { [name: string]: { count: number; imageUrl?: string } } = {};
-        deliveredOrders.forEach(order => {
-            order.items.forEach(item => {
-                const name = item.product.name;
-                if (!productCounts[name]) productCounts[name] = { count: 0, imageUrl: item.product.imageUrl };
-                productCounts[name].count += item.quantity;
-            });
-        });
-        const sortedProducts = Object.entries(productCounts).map(([name, data]) => ({ name, count: data.count, imageUrl: data.imageUrl })).sort((a, b) => b.count - a.count);
-        
-        const productStats = { topSeller: sortedProducts.length > 0 ? sortedProducts[0] : null, top5: sortedProducts.slice(0, 5), };
-
-        const customerSpending: { [name: string]: number } = {};
-        deliveredOrders.forEach(order => {
-            const name = order.customerName || 'Cliente Anónimo';
-            if (!customerSpending[name]) customerSpending[name] = 0;
-            customerSpending[name] += order.totalAmount;
-        });
-        const topCustomers = Object.entries(customerSpending).map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total).slice(0, 5);
-
-        const customerStats = { top5: topCustomers };
-
         return { generalStats, monthlySales, paymentStats, productStats, customerStats };
-    }, [orders, filter, isLoading, isAdmin]);
+    }, [orders, filter, isLoading, hasFullAccess]);
 
     return { stats, isLoading };
 };

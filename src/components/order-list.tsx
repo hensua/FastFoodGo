@@ -208,16 +208,17 @@ function KitchenView({ userDoc }: { userDoc: AppUser }) {
   }, [firestore]);
   
   // This query will be used by both admins and hosts.
-  // Admins can see all staff, hosts can only see drivers (as per security rules).
   const staffQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     
+    // Admins get all staff roles for the full team view (handled on admin page) and assignments
     if (isFullAdmin) {
       return query(collection(firestore, 'users'), where('role', 'in', ['admin', 'host', 'driver']));
     }
     
+    // Hosts can ONLY list drivers, this is for assigning them to orders.
+    // The security rule is specifically set up for this query.
     if (isHost) {
-      // This query is specifically allowed for hosts by security rules.
       return query(collection(firestore, 'users'), where('role', '==', 'driver'));
     }
     
@@ -231,8 +232,7 @@ function KitchenView({ userDoc }: { userDoc: AppUser }) {
   
   const drivers = useMemo(() => {
     if (!staff) return [];
-    // If admin, staff contains all roles, so filter for drivers.
-    // If host, staff already only contains drivers due to the specific query.
+    // The query is already filtered for hosts, but this ensures admins also only see drivers in this component.
     return staff.filter(s => s.role === 'driver');
   }, [staff]);
 
