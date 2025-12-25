@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth, useUser } from '@/firebase';
@@ -52,11 +53,9 @@ export default function AuthButton() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <Avatar className="h-10 w-10">
+          <Avatar className="h-10 w-10 flex items-center justify-center bg-muted p-2">
             {isDefaultAvatar ? (
-               <div className="flex h-full w-full items-center justify-center rounded-full bg-muted p-2">
-                 <Image src={avatarUrl} alt={userDoc?.role || 'user icon'} width={24} height={24} className="text-muted-foreground" />
-               </div>
+               <Image src={avatarUrl} alt={userDoc?.role || 'user icon'} width={24} height={24} className="text-muted-foreground" />
             ) : (
               <AvatarImage src={avatarUrl} alt={user.displayName ?? 'User'} />
             )}
