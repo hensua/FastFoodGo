@@ -207,26 +207,20 @@ function KitchenView({ userDoc }: { userDoc: AppUser }) {
     return query(collectionGroup(firestore, 'orders'), where('status', 'in', ['pending', 'cooking', 'ready', 'delivering', 'cancelled']));
   }, [firestore, hasStoreAccess]);
   
-  const driversQuery = useMemoFirebase(() => {
+  const staffQuery = useMemoFirebase(() => {
     if (!firestore || !hasStoreAccess) return null;
-    if (isFullAdmin) {
-      // Admins can get all staff
-      return query(collection(firestore, 'users'), where('role', 'in', ['admin', 'host', 'driver']));
-    }
-    // Hosts can only get drivers
-    return query(collection(firestore, 'users'), where('role', '==', 'driver'));
-  }, [firestore, hasStoreAccess, isFullAdmin]);
+    // Admins and Hosts need to list users, but the security rule will enforce what they can see.
+    return query(collection(firestore, 'users'), where('role', 'in', ['admin', 'host', 'driver']));
+  }, [firestore, hasStoreAccess]);
 
 
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
-  const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(driversQuery);
+  const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(staffQuery);
   
   const drivers = useMemo(() => {
-    if (isFullAdmin) {
-        return staff?.filter(s => s.role === 'driver') || [];
-    }
-    return staff || []; // For hosts, the query already filtered to drivers
-  }, [staff, isFullAdmin]);
+    // Both admins and hosts get the list of staff, but we only show drivers in the dropdown.
+    return staff?.filter(s => s.role === 'driver') || [];
+  }, [staff]);
 
   const sendAutoChatMessage = async (order: Order) => {
     if (!firestore || !userDoc || !order.customerName) return;

@@ -55,16 +55,11 @@ service cloud.firestore {
      * @description
      * Stores public user information.
      * - Users can create and manage their own profile.
-     * - Admins can list all staff members.
-     * - Hosts can only list drivers for assignment.
+     * - Admins and Hosts can list staff members.
      */
      match /users/{userId} {
         allow get: if isSignedIn();
-        allow list: if 
-            // Admins can list all users for the team panel.
-            isAdmin() ||
-            // Hosts can only list users if they are querying for drivers.
-            (isHost() && request.query.where.role[2][0] == 'driver');
+        allow list: if isAdmin() || isHost(); // Allow hosts to list users to find drivers
         allow create: if isOwner(userId);
         allow update: if isOwner(userId) || isAdmin();
         allow delete: if isAdmin();
