@@ -181,11 +181,6 @@ const TeamManagement = ({ userDoc }: { userDoc: AppUser }) => {
         user.displayName?.toLowerCase().includes(searchTerm.toLowerCase())
       );
   }
-  
-  // Do not render if the user is not an admin.
-  if (!isFullAdmin) {
-    return null;
-  }
 
   const UserTable = ({ users, title, isLoading }: { users: AppUser[] | null, title: string, isLoading: boolean }) => (
     <Card>
@@ -787,7 +782,7 @@ export default function AdminPage() {
     }
     
     if (!userDoc) {
-       toast({
+      toast({
         variant: "destructive",
         title: "Acceso denegado",
         description: "No se pudo verificar tu rol. Intenta de nuevo.",
@@ -807,20 +802,16 @@ export default function AdminPage() {
     }
   }, [isLoading, user, userDoc, router, toast]);
 
-  if (isLoading || !userDoc) {
+  if (isLoading || !userDoc || (userDoc.role !== 'admin' && userDoc.role !== 'host')) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
   
-  if (userDoc.role === 'admin' || userDoc.role === 'host') {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header onCartClick={() => {}} showCart={false} />
-        <main className="container mx-auto px-4 py-8">
-          <AdminDashboard userDoc={userDoc} />
-        </main>
-      </div>
-    );
-  }
-
-  return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
+  return (
+    <div className="min-h-screen bg-background">
+      <Header onCartClick={() => {}} showCart={false} />
+      <main className="container mx-auto px-4 py-8">
+        <AdminDashboard userDoc={userDoc} />
+      </main>
+    </div>
+  );
 }
