@@ -781,13 +781,9 @@ export default function AdminPage() {
       return;
     }
     
+    // AÑADIDO: Si la carga terminó, pero no hay userDoc, no tomar decisiones.
     if (!userDoc) {
-      toast({
-        variant: "destructive",
-        title: "Acceso denegado",
-        description: "No se pudo verificar tu rol. Intenta de nuevo.",
-      });
-      router.push('/');
+      // Opcional: mostrar un mensaje de error si esto persiste
       return;
     }
 
@@ -802,8 +798,13 @@ export default function AdminPage() {
     }
   }, [isLoading, user, userDoc, router, toast]);
 
-  if (isLoading || !userDoc || (userDoc.role !== 'admin' && userDoc.role !== 'host')) {
+  if (isLoading || !userDoc) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
+  }
+  
+  const hasAccess = userDoc.role === 'admin' || userDoc.role === 'host';
+  if (!hasAccess) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
   }
   
   return (

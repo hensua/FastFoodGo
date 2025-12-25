@@ -200,38 +200,41 @@ function KitchenView({ userDoc }: { userDoc: AppUser }) {
   const [chatOrder, setChatOrder] = useState<Order | null>(null);
 
   const isFullAdmin = userDoc.role === 'admin';
-  const hasStoreAccess = userDoc.role === 'admin' || userDoc.role === 'host';
+  const isHost = userDoc.role === 'host';
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || !hasStoreAccess) return null;
+    if (!firestore) return null;
     return query(collectionGroup(firestore, 'orders'), where('status', 'in', ['pending', 'cooking', 'ready', 'delivering', 'cancelled']));
-  }, [firestore, hasStoreAccess]);
+  }, [firestore]);
   
+  // This query will be used by both admins and hosts.
+  // Admins can see all staff, hosts can only see drivers (as per security rules).
   const staffQuery = useMemoFirebase(() => {
-    if (!firestore || !hasStoreAccess) return null;
+    if (!firestore) return null;
     
-    // Admins need to list all staff for team management (handled in admin page)
-    // and for assigning drivers.
     if (isFullAdmin) {
       return query(collection(firestore, 'users'), where('role', 'in', ['admin', 'host', 'driver']));
     }
     
-    // Hosts only need to list drivers to assign them. This query is allowed by security rules.
-    return query(collection(firestore, 'users'), where('role', '==', 'driver'));
+    if (isHost) {
+      // This query is specifically allowed for hosts by security rules.
+      return query(collection(firestore, 'users'), where('role', '==', 'driver'));
+    }
     
-  }, [firestore, hasStoreAccess, isFullAdmin]);
+    return null; // Return null if neither admin nor host
+    
+  }, [firestore, isFullAdmin, isHost]);
 
 
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
   const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(staffQuery);
   
   const drivers = useMemo(() => {
-    if (isFullAdmin) {
-        return staff?.filter(s => s.role === 'driver') || [];
-    }
-    // For hosts, the query already filtered to only drivers.
-    return staff || [];
-  }, [staff, isFullAdmin]);
+    if (!staff) return [];
+    // If admin, staff contains all roles, so filter for drivers.
+    // If host, staff already only contains drivers due to the specific query.
+    return staff.filter(s => s.role === 'driver');
+  }, [staff]);
 
   const sendAutoChatMessage = async (order: Order) => {
     if (!firestore || !userDoc || !order.customerName) return;
