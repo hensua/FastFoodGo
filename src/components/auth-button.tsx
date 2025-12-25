@@ -16,6 +16,7 @@ import { LogOut, Shield, User as UserIcon, Truck, UtensilsCrossed } from 'lucide
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { getAvatarUrl } from '@/lib/utils';
+import Image from 'next/image';
 
 export default function AuthButton() {
   const auth = useAuth();
@@ -45,13 +46,20 @@ export default function AuthButton() {
   };
   
   const avatarUrl = getAvatarUrl(userDoc);
+  const isDefaultAvatar = avatarUrl.startsWith('data:image/svg+xml');
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={avatarUrl} alt={user.displayName ?? 'User'} />
+            {isDefaultAvatar ? (
+               <div className="flex h-full w-full items-center justify-center rounded-full bg-muted p-2">
+                 <Image src={avatarUrl} alt={userDoc?.role || 'user icon'} width={24} height={24} className="text-muted-foreground" />
+               </div>
+            ) : (
+              <AvatarImage src={avatarUrl} alt={user.displayName ?? 'User'} />
+            )}
             <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
           </Avatar>
         </Button>
