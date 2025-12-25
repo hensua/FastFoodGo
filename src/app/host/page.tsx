@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -5,7 +6,7 @@ import Header from '@/components/header';
 import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Loader2, UtensilsCrossed, TrendingUp, ChefHat } from 'lucide-react';
+import { Loader2, UtensilsCrossed, TrendingUp, ChefHat, Ban } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { AppUser } from '@/lib/types';
 import { OrderList } from '@/components/order-list';
@@ -13,9 +14,9 @@ import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/com
 import { useOrderStats } from '@/app/admin/page';
 
 // Simplified dashboard for hosts
-const HostStatsDashboard = () => {
+const HostStatsDashboard = ({userDoc}: {userDoc: AppUser}) => {
     const [filter, setFilter] = useState < 'day' | 'week' | 'month' | 'year' | 'all' > ('day');
-    const { stats, isLoading } = useOrderStats(filter);
+    const { stats, isLoading } = useOrderStats(filter, userDoc.role === 'admin');
 
     if (isLoading) {
         return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8" /> Cargando reportes...</div>;
@@ -40,14 +41,14 @@ const HostStatsDashboard = () => {
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Pedidos Totales</CardTitle>
-                        <Loader2 className="h-4 w-4 text-muted-foreground" />
+                        <UtensilsCrossed className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent><div className="text-2xl font-bold">{generalStats.totalOrders}</div></CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Pedidos por Domicilio</CardTitle>
-                        <Loader2 className="h-4 w-4 text-green-500" />
+                        <ChefHat className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent><div className="text-2xl font-bold">{generalStats.deliveredOrders}</div></CardContent>
                 </Card>
@@ -64,7 +65,7 @@ const HostStatsDashboard = () => {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Pedidos Cancelados</CardTitle>
-                        <Loader2 className="h-4 w-4 text-destructive" />
+                        <Ban className="h-4 w-4 text-destructive" />
                     </CardHeader>
                     <CardContent><div className="text-2xl font-bold">{generalStats.cancelledOrders}</div></CardContent>
                 </Card>
@@ -96,7 +97,7 @@ const HostDashboard = ({ userDoc }: { userDoc: AppUser }) => {
             </div>
 
             {activeTab === 'kitchen' && <OrderList userDoc={userDoc} />}
-            {activeTab === 'stats' && <HostStatsDashboard />}
+            {activeTab === 'stats' && <HostStatsDashboard userDoc={userDoc}/>}
         </div>
     );
 }
@@ -111,20 +112,11 @@ export default function HostPage() {
         if (isLoading) return;
 
         if (!user) {
-            toast({
-                variant: "destructive",
-                title: "Acceso denegado",
-                description: "Debes iniciar sesión para ver esta página.",
-            });
             router.push('/login?redirect=/host');
             return;
         }
 
-        if (!userDoc) return;
-
-        // An admin can also access the host page, but a host cannot access the admin page.
-        const hasAccess = userDoc.role === 'admin' || userDoc.role === 'host';
-        if (!hasAccess) {
+        if (userDoc && userDoc.role !== 'admin' && userDoc.role !== 'host') {
             toast({
                 variant: "destructive",
                 title: "Acceso denegado",

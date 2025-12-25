@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -270,7 +271,7 @@ const TeamManagement = ({ userDoc }: { userDoc: AppUser }) => {
 
 type TimeFilter = 'day' | 'week' | 'month' | 'year' | 'all';
 
-export const useOrderStats = (filter: TimeFilter) => {
+export const useOrderStats = (filter: TimeFilter, isAdmin: boolean) => {
     const firestore = useFirestore();
     
     const allOrdersQuery = useMemoFirebase(() => {
@@ -305,6 +306,11 @@ export const useOrderStats = (filter: TimeFilter) => {
         const avgTicket = deliveredOrders.length > 0 ? totalSales / deliveredOrders.length : 0;
 
         const generalStats = { totalSales, totalOrders: filteredByTime.length, deliveredOrders: deliveredOrders.length, cancelledOrders: filteredByTime.filter(o => o.status === 'cancelled').length, avgTicket, };
+
+        // Only calculate detailed stats if user is admin
+        if (!isAdmin) {
+             return { generalStats, monthlySales: [], paymentStats: null, productStats: null, customerStats: null };
+        }
 
         const salesByMonth: { [key: string]: number } = {};
         const last12Months = Array.from({ length: 12 }, (_, i) => subMonths(new Date(), i));
@@ -352,7 +358,7 @@ export const useOrderStats = (filter: TimeFilter) => {
         const customerStats = { top5: topCustomers };
 
         return { generalStats, monthlySales, paymentStats, productStats, customerStats };
-    }, [orders, filter, isLoading]);
+    }, [orders, filter, isLoading, isAdmin]);
 
     return { stats, isLoading };
 };
@@ -381,11 +387,12 @@ const TimeFilterControls = ({ filter, setFilter }: { filter: TimeFilter; setFilt
 }
 
 // Full dashboard for admins
-const StatsDashboard = () => {
+const StatsDashboard = ({userDoc}: {userDoc: AppUser}) => {
     const [filter, setFilter] = useState<TimeFilter>('day');
-    const { stats, isLoading } = useOrderStats(filter);
+    const { stats, isLoading } = useOrderStats(filter, userDoc.role === 'admin');
 
     const downloadCSV = () => {
+        if (!stats.monthlySales) return;
         const { monthlySales } = stats;
         const headers = ["Mes", "Ventas"];
         const rows = monthlySales.map(item => [item.name, item.Ventas]);
@@ -450,49 +457,54 @@ const StatsDashboard = () => {
                 </Card>
             </div>
             
-            <Card>
-                <CardHeader>
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <CardTitle>Ventas en los Últimos 12 Meses</CardTitle>
-                            <CardDescription>Un resumen de los ingresos generados mensualmente (no afectado por el filtro).</CardDescription>
+             { monthlySales && monthlySales.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <CardTitle>Ventas en los Últimos 12 Meses</CardTitle>
+                                <CardDescription>Un resumen de los ingresos generados mensualmente (no afectado por el filtro).</CardDescription>
+                            </div>
+                            <Button onClick={downloadCSV} variant="outline"><Download className="mr-2 h-4 w-4" />Descargar CSV</Button>
                         </div>
-                        <Button onClick={downloadCSV} variant="outline"><Download className="mr-2 h-4 w-4" />Descargar CSV</Button>
-                    </div>
-                </CardHeader>
-                <CardContent className="h-[350px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <RechartsBarChart data={monthlySales}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                            <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${formatCurrency(value as number)}`} />
-                            <Tooltip formatter={(value: number) => [formatCurrency(value), "Ventas"]} cursor={{ fill: 'hsl(var(--muted))' }}/>
-                            <Bar dataKey="Ventas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                        </RechartsBarChart>
-                    </ResponsiveContainer>
-                </CardContent>
-            </Card>
-
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <Card className="lg:col-span-1">
-                    <CardHeader><CardTitle>Estadísticas de Pago</CardTitle><CardDescription>Análisis de los métodos de pago ({filter === 'all' ? 'total' : `último ${filter}`}).</CardDescription></CardHeader>
-                    <CardContent className="grid gap-4">
-                        <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                            <div className='flex items-center gap-2'><Banknote className="h-5 w-5 text-muted-foreground" /><div><p className='font-semibold'>Total en Efectivo</p><p className="text-xs text-muted-foreground">{paymentStats.cashOrdersCount} transacciones</p></div></div>
-                            <div className="font-bold">{formatCurrency(paymentStats.cashTotalAmount)}</div>
-                        </div>
-                        <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                            <div className='flex items-center gap-2'><Landmark className="h-5 w-5 text-muted-foreground" /><div><p className='font-semibold'>Total en Transferencia</p><p className="text-xs text-muted-foreground">{paymentStats.transferOrdersCount} transacciones</p></div></div>
-                            <div className="font-bold">{formatCurrency(paymentStats.transferTotalAmount)}</div>
-                        </div>
-                         <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                            <div className='flex items-center gap-2'><Star className="h-5 w-5 text-muted-foreground" /><div><p className='font-semibold'>Método Preferido</p><p className="text-xs text-muted-foreground">{Math.round(Math.max(paymentStats.cashOrdersCount, paymentStats.transferOrdersCount) / (generalStats.deliveredOrders || 1) * 100)}% de los pedidos</p></div></div>
-                            <div className="font-bold">{paymentStats.mostUsedPaymentMethod}</div>
-                        </div>
+                    </CardHeader>
+                    <CardContent className="h-[350px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <RechartsBarChart data={monthlySales}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${formatCurrency(value as number)}`} />
+                                <Tooltip formatter={(value: number) => [formatCurrency(value), "Ventas"]} cursor={{ fill: 'hsl(var(--muted))' }}/>
+                                <Bar dataKey="Ventas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                            </RechartsBarChart>
+                        </ResponsiveContainer>
                     </CardContent>
                 </Card>
+             )}
 
-                 {productStats.topSeller && (
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {paymentStats && (
+                    <Card className="lg:col-span-1">
+                        <CardHeader><CardTitle>Estadísticas de Pago</CardTitle><CardDescription>Análisis de los métodos de pago ({filter === 'all' ? 'total' : `último ${filter}`}).</CardDescription></CardHeader>
+                        <CardContent className="grid gap-4">
+                            <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                                <div className='flex items-center gap-2'><Banknote className="h-5 w-5 text-muted-foreground" /><div><p className='font-semibold'>Total en Efectivo</p><p className="text-xs text-muted-foreground">{paymentStats.cashOrdersCount} transacciones</p></div></div>
+                                <div className="font-bold">{formatCurrency(paymentStats.cashTotalAmount)}</div>
+                            </div>
+                            <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                                <div className='flex items-center gap-2'><Landmark className="h-5 w-5 text-muted-foreground" /><div><p className='font-semibold'>Total en Transferencia</p><p className="text-xs text-muted-foreground">{paymentStats.transferOrdersCount} transacciones</p></div></div>
+                                <div className="font-bold">{formatCurrency(paymentStats.transferTotalAmount)}</div>
+                            </div>
+                            <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                                <div className='flex items-center gap-2'><Star className="h-5 w-5 text-muted-foreground" /><div><p className='font-semibold'>Método Preferido</p><p className="text-xs text-muted-foreground">{Math.round(Math.max(paymentStats.cashOrdersCount, paymentStats.transferOrdersCount) / (generalStats.deliveredOrders || 1) * 100)}% de los pedidos</p></div></div>
+                                <div className="font-bold">{paymentStats.mostUsedPaymentMethod}</div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                 {productStats?.topSeller && (
                     <Card className="flex flex-col lg:col-span-2">
                         <CardHeader>
                             <CardTitle>Producto Estrella</CardTitle>
@@ -511,7 +523,8 @@ const StatsDashboard = () => {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
-                <Card>
+               {productStats?.top5 && (
+                 <Card>
                     <CardHeader><CardTitle className="flex items-center gap-2"><Trophy className="text-yellow-500"/> Top 5 Productos Más Vendidos</CardTitle></CardHeader>
                     <CardContent>
                         <ul className="space-y-4">
@@ -526,6 +539,8 @@ const StatsDashboard = () => {
                         </ul>
                     </CardContent>
                 </Card>
+               )}
+               {customerStats?.top5 && (
                  <Card>
                     <CardHeader><CardTitle className="flex items-center gap-2"><Crown className="text-amber-500"/> Top 5 Clientes</CardTitle></CardHeader>
                     <CardContent>
@@ -541,6 +556,7 @@ const StatsDashboard = () => {
                         </ul>
                     </CardContent>
                 </Card>
+               )}
             </div>
         </div>
     );
@@ -561,6 +577,8 @@ const AdminDashboard = ({ userDoc }: { userDoc: AppUser }) => {
   
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
+
+  const isFullAdmin = userDoc.role === 'admin';
 
   const handleSaveProduct = async (productData: Omit<Product, 'id'> | Product) => {
     if (!firestore) {
@@ -627,15 +645,15 @@ const AdminDashboard = ({ userDoc }: { userDoc: AppUser }) => {
         </h2>
         <div className="flex gap-1 p-1 bg-muted rounded-lg flex-wrap">
             <button onClick={() => setActiveTab('kitchen')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'kitchen' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><ChefHat size={16} /> Comandas</button>
-            <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'inventory' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Package size={16} /> Inventario</button>
-            <button onClick={() => setActiveTab('team')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'team' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Users size={16} /> Equipo</button>
+            {isFullAdmin && <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'inventory' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Package size={16} /> Inventario</button>}
+            {isFullAdmin && <button onClick={() => setActiveTab('team')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'team' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Users size={16} /> Equipo</button>}
             <button onClick={() => setActiveTab('stats')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'stats' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><TrendingUp size={16} /> Reportes</button>
         </div>
       </div>
 
       {activeTab === 'kitchen' && <OrderList userDoc={userDoc} />}
       
-      {activeTab === 'inventory' && (
+      {activeTab === 'inventory' && isFullAdmin && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <Card>
@@ -669,9 +687,9 @@ const AdminDashboard = ({ userDoc }: { userDoc: AppUser }) => {
         </div>
       )}
       
-      {activeTab === 'team' && <TeamManagement userDoc={userDoc} />}
+      {activeTab === 'team' && isFullAdmin && <TeamManagement userDoc={userDoc} />}
       
-      {activeTab === 'stats' && <StatsDashboard />}
+      {activeTab === 'stats' && <StatsDashboard userDoc={userDoc}/>}
       
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -702,24 +720,15 @@ export default function AdminPage() {
     if (isLoading) return;
 
     if (!user) {
-      toast({
-        variant: "destructive",
-        title: "Acceso denegado",
-        description: "Debes iniciar sesión para ver esta página.",
-      });
       router.push('/login?redirect=/admin');
       return;
     }
     
-    if (!userDoc) {
-      return;
-    }
-
-    if (userDoc.role !== 'admin') {
-      toast({
+    if (userDoc && userDoc.role !== 'admin' && userDoc.role !== 'host') {
+       toast({
         variant: "destructive",
         title: "Acceso denegado",
-        description: "No tienes permisos de administrador para ver esta página.",
+        description: "No tienes permisos para ver esta página.",
       });
       router.push('/');
     }
@@ -729,7 +738,7 @@ export default function AdminPage() {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
   
-  if (userDoc.role !== 'admin') {
+  if (userDoc.role !== 'admin' && userDoc.role !== 'host') {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
   }
   
