@@ -207,7 +207,6 @@ function KitchenView({ userDoc }: { userDoc: AppUser }) {
     return query(collectionGroup(firestore, 'orders'), where('status', 'in', ['pending', 'cooking', 'ready', 'delivering', 'cancelled']));
   }, [firestore, hasStoreAccess]);
   
-  // This query is specific for hosts, to only fetch drivers, which is allowed by security rules
   const driversQuery = useMemoFirebase(() => {
     if (!firestore || !hasStoreAccess) return null;
     if (isFullAdmin) {
@@ -220,11 +219,14 @@ function KitchenView({ userDoc }: { userDoc: AppUser }) {
 
 
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
-  const { data: staff, isLoading: driversLoading } = useCollection<AppUser>(driversQuery);
+  const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(driversQuery);
   
   const drivers = useMemo(() => {
-    return staff?.filter(s => s.role === 'driver') || [];
-  }, [staff]);
+    if (isFullAdmin) {
+        return staff?.filter(s => s.role === 'driver') || [];
+    }
+    return staff || []; // For hosts, the query already filtered to drivers
+  }, [staff, isFullAdmin]);
 
   const sendAutoChatMessage = async (order: Order) => {
     if (!firestore || !userDoc || !order.customerName) return;
@@ -335,7 +337,7 @@ function KitchenView({ userDoc }: { userDoc: AppUser }) {
               <span className="bg-background px-2 py-1 rounded-full text-xs shadow-sm">{ordersByStatus[statusKey as keyof typeof ordersByStatus].length}</span>
             </h3>
             <div className="space-y-4">
-              {ordersLoading || driversLoading ? (
+              {ordersLoading || staffLoading ? (
                 <div className="flex justify-center items-center py-10"><Loader2 className="animate-spin" /></div>
               ) : ordersByStatus[statusKey as keyof typeof ordersByStatus].length > 0 ? (
                 ordersByStatus[statusKey as keyof typeof ordersByStatus].map(order => (

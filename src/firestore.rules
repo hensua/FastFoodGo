@@ -64,7 +64,7 @@ service cloud.firestore {
             // Admins can list all users for the team panel.
             isAdmin() ||
             // Hosts can only list users if they are querying for drivers.
-            (isHost() && request.query.where.role == 'driver');
+            (isHost() && request.query.where.role[2][0] == 'driver');
         allow create: if isOwner(userId);
         allow update: if isOwner(userId) || isAdmin();
         allow delete: if isAdmin();
