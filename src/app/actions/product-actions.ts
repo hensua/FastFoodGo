@@ -25,8 +25,8 @@ export function getSimilarItems(
   
   // Get one product from each suggestion category
   suggestionCategories.forEach(cat => {
-    const productFromCategory = allProducts.find(p => p.category === cat && p.id !== currentProduct.id);
-    if (productFromCategory && !suggestions.some(s => s.id === productFromCategory.id)) {
+    const productFromCategory = allProducts.find(p => p.category === cat && p.id !== currentProduct.id && !suggestions.some(s => s.id === p.id));
+    if (productFromCategory) {
       suggestions.push(productFromCategory);
     }
   });
