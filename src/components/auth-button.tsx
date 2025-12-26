@@ -18,12 +18,21 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 import { getAvatarUrl } from '@/lib/utils';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 export default function AuthButton() {
   const auth = useAuth();
   const { user, userDoc, isLoading } = useUser();
+  const router = useRouter();
   
   const userRole = useMemo(() => userDoc?.role, [userDoc]);
+
+  const handleSignOut = async () => {
+    if (auth) {
+      await auth.signOut();
+      router.push('/');
+    }
+  };
 
   if (isLoading) {
     return <Skeleton className="h-10 w-10 rounded-full" />;
@@ -110,7 +119,7 @@ export default function AuthButton() {
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => auth?.signOut()}>
+        <DropdownMenuItem onClick={handleSignOut}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Cerrar Sesión</span>
         </DropdownMenuItem>
