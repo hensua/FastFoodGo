@@ -57,20 +57,15 @@ export default function AuthButton() {
     return name.substring(0, 2).toUpperCase();
   };
   
-  const avatarUrl = getAvatarUrl(userDoc);
-  const isDefaultAvatar = avatarUrl.startsWith('data:image/svg+xml');
+  const avatarUrl = getAvatarUrl(user, userDoc);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-           <Avatar className="h-10 w-10 flex items-center justify-center bg-muted p-2">
-            {isDefaultAvatar ? (
-               <Image src={avatarUrl} alt={userDoc?.role || 'user icon'} width={24} height={24} className="text-muted-foreground" />
-            ) : (
+           <Avatar className="h-10 w-10">
               <AvatarImage src={avatarUrl} alt={user.displayName ?? 'User'} />
-            )}
-            <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
+              <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
