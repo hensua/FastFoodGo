@@ -3,19 +3,18 @@
 
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
-import { Minus, Plus, PlusCircle, Sparkles } from "lucide-react";
+import { Minus, Plus, PlusCircle } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
 import { getSimilarItems } from "@/app/actions/product-actions";
 import type { Product } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { products } from "@/lib/data";
 
 interface SuggestedProductsProps {
   currentProduct?: Product;
-  allProducts?: Product[];
 }
 
 const SuggestedProductItem = ({ product }: { product: Product }) => {
@@ -97,21 +96,21 @@ const SuggestedProductItem = ({ product }: { product: Product }) => {
             {formatCurrency(product.price)}
           </p>
         </div>
-        <div className="relative h-8 flex items-center justify-end">
+        <div className="relative h-7 flex items-center justify-end">
             {quantityInCart === 0 ? (
                 <Button 
                     onClick={handleAddToCart} 
                     size="sm"
                     variant="outline"
-                    className="h-8 px-2"
+                    className="h-7 px-2 text-xs"
                 >
-                    <PlusCircle className="mr-1 h-4 w-4"/> Añadir
+                    <PlusCircle className="mr-1 h-3 w-3"/> Añadir
                 </Button>
             ) : (
               <div 
                 className={cn(
-                  "flex items-center justify-center bg-primary text-primary-foreground rounded-md transition-all duration-300 h-8 text-sm",
-                   isExpanded ? 'w-[70px] px-1' : 'w-8'
+                  "flex items-center justify-center bg-primary text-primary-foreground rounded-md transition-all duration-300 h-7 text-xs",
+                   isExpanded ? 'w-[65px] px-1' : 'w-7'
                 )}
                 onClick={handleCompactClick}
               >
@@ -120,19 +119,19 @@ const SuggestedProductItem = ({ product }: { product: Product }) => {
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 rounded-full text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground"
+                        className="h-5 w-5 rounded-full text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground"
                         onClick={handleDecreaseQuantity}
                     >
-                        <Minus className="h-4 w-4" />
+                        <Minus className="h-3 w-3" />
                     </Button>
                     <span className="font-bold text-sm w-4 text-center select-none">{quantityInCart}</span>
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 rounded-full text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground"
+                        className="h-5 w-5 rounded-full text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground"
                         onClick={handleIncreaseQuantity}
                     >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-3 w-3" />
                     </Button>
                     </>
                  ) : (
@@ -146,31 +145,23 @@ const SuggestedProductItem = ({ product }: { product: Product }) => {
 };
 
 
-export default function SuggestedProducts({ currentProduct, allProducts = [] }: SuggestedProductsProps) {
+export default function SuggestedProducts({ currentProduct }: SuggestedProductsProps) {
   const [suggestions, setSuggestions] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchSuggestions = () => {
-      setIsLoading(true);
-      let contextProduct: Product | undefined = currentProduct;
-      
-      if (!contextProduct && allProducts.length > 0) {
-        contextProduct = allProducts[0];
-      }
-
-      if (contextProduct) {
-        const suggestedProducts = getSimilarItems(contextProduct, allProducts);
-        const filteredSuggestions = suggestedProducts.filter(p => p.id !== contextProduct!.id);
+      if (currentProduct) {
+        const suggestedProducts = getSimilarItems(currentProduct, products);
+        const filteredSuggestions = suggestedProducts.filter(p => p.id !== currentProduct.id);
         setSuggestions(filteredSuggestions.slice(0, 3));
-      } else {
-        setSuggestions([]);
       }
       setIsLoading(false);
     };
 
     fetchSuggestions();
-  }, [currentProduct, allProducts]);
+  }, [currentProduct]);
+
 
   if (isLoading) {
     return (
@@ -178,12 +169,12 @@ export default function SuggestedProducts({ currentProduct, allProducts = [] }: 
         <div className="space-y-4">
           {[...Array(2)].map((_, i) => (
              <div key={`skeleton-${i}`} className="flex items-center gap-4">
-              <Skeleton className="h-16 w-16 rounded-md" />
+              <Skeleton className="h-12 w-12 rounded-md" />
               <div className="flex-grow space-y-2">
                 <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/4" />
+                <Skeleton className="h-3 w-1/4" />
               </div>
-              <Skeleton className="h-10 w-24 rounded-md" />
+              <Skeleton className="h-7 w-20 rounded-md" />
             </div>
           ))}
         </div>
@@ -196,8 +187,8 @@ export default function SuggestedProducts({ currentProduct, allProducts = [] }: 
   }
 
   return (
-    <div className="mt-4">
-      <h4 className='font-bold mt-4 mb-2'>También te podría gustar</h4>
+    <div className="pt-4">
+      <h4 className='font-bold text-sm mb-2'>También te podría gustar</h4>
       <div className="flex flex-col gap-3">
         {suggestions.map((product) => (
           <SuggestedProductItem key={product.id} product={product} />
