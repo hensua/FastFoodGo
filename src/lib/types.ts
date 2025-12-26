@@ -1,5 +1,6 @@
 
 
+
 export type Product = {
   id: string;
   name: string;
@@ -15,7 +16,6 @@ export type Product = {
 export type CartItem = {
   product: Product;
   quantity: number;
-  note?: string;
 };
 
 export type OrderStatus = 'pending' | 'cooking' | 'ready' | 'delivering' | 'delivered' | 'cancelled';

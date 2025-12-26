@@ -8,9 +8,10 @@ import ProductList from '@/components/product-list';
 import CartSheet from '@/components/cart/cart-sheet';
 import { Button } from '@/components/ui/button';
 import ProductDetailDialog from '@/components/product-detail-dialog';
-import { Sparkles, UtensilsCrossed } from 'lucide-react';
+import { UtensilsCrossed } from 'lucide-react';
 import Footer from '@/components/footer';
 import { cn } from '@/lib/utils';
+import { products as allProductsData } from '@/lib/data';
 
 interface OrderPageProps {
   products: Product[];
@@ -23,14 +24,22 @@ export default function OrderPage({ products, loading }: OrderPageProps) {
   const [isCartOpen, setCartOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isChefOpen, setIsChefOpen] = useState(false); // State for AI Chef
+  
+  const productList = useMemo(() => {
+    // We map the initial static data to ensure it has consistent IDs.
+    // In a real app, this would come directly from the backend/API.
+    return allProductsData.map((p, i) => ({
+      ...p,
+      id: p.id || p.name.toLowerCase().replace(/ /g, '-') + i,
+    }));
+  }, []);
 
   const filteredProducts = useMemo(() => {
     if (selectedCategory === 'Todas') {
-      return products;
+      return productList;
     }
-    return products.filter(product => product.category === selectedCategory);
-  }, [products, selectedCategory]);
+    return productList.filter(product => product.category === selectedCategory);
+  }, [productList, selectedCategory]);
 
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);

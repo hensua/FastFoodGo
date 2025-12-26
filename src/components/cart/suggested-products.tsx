@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import Image from "next/image";
 import { Minus, Plus, PlusCircle } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
@@ -61,7 +61,7 @@ const SuggestedProductItem = ({ product }: { product: Product }) => {
 
   const handleAddToCart = (e: React.MouseEvent) => {
     handleInteraction(e, () => {
-      if (itemInCart) {
+       if (itemInCart) {
         updateQuantity(product.id, quantityInCart + 1);
       } else {
         addToCart(product);
@@ -155,19 +155,27 @@ export default function SuggestedProducts({ currentProduct }: SuggestedProductsP
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // In a real app, products would come from a global state or props
-  const allProducts = allProductsData.map((p, i) => ({ ...p, id: p.name.toLowerCase().replace(/ /g, '-')+i }));
+  // Memoize the product list to ensure IDs are consistent
+  const allProducts = useMemo(() => 
+    allProductsData.map((p, i) => ({
+      ...p,
+      id: p.id || p.name.toLowerCase().replace(/ /g, '-') + i,
+    })), 
+  []);
 
   useEffect(() => {
-    // Only fetch suggestions if there's a product to base them on.
+    // Guard against running without a product
     if (currentProduct) {
       setIsLoading(true);
-      // getSimilarItems is synchronous, so no need for an async function
-      const suggestedProducts = getSimilarItems(currentProduct, allProducts);
-      setSuggestions(suggestedProducts);
+      // Ensure the currentProduct has a consistent ID for comparison
+      const currentProductWithId = allProducts.find(p => p.name === currentProduct.name);
+      if (currentProductWithId) {
+        const suggestedProducts = getSimilarItems(currentProductWithId, allProducts);
+        setSuggestions(suggestedProducts);
+      }
       setIsLoading(false);
     } else {
-      // If there's no current product, there are no suggestions.
+      // If there's no current product, clear suggestions.
       setSuggestions([]);
       setIsLoading(false);
     }
