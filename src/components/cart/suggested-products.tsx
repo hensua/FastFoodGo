@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { products } from "@/lib/data";
+import { products as allProductsData } from "@/lib/data";
 
 interface SuggestedProductsProps {
   currentProduct?: Product;
@@ -155,12 +155,15 @@ export default function SuggestedProducts({ currentProduct }: SuggestedProductsP
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // In a real app, products would come from a global state or props
+  const allProducts = allProductsData.map((p, i) => ({ ...p, id: p.name.toLowerCase().replace(/ /g, '-')+i }));
+
   useEffect(() => {
     // Only fetch suggestions if there's a product to base them on.
     if (currentProduct) {
       setIsLoading(true);
       // getSimilarItems is synchronous, so no need for an async function
-      const suggestedProducts = getSimilarItems(currentProduct, products);
+      const suggestedProducts = getSimilarItems(currentProduct, allProducts);
       setSuggestions(suggestedProducts);
       setIsLoading(false);
     } else {
@@ -168,7 +171,7 @@ export default function SuggestedProducts({ currentProduct }: SuggestedProductsP
       setSuggestions([]);
       setIsLoading(false);
     }
-  }, [currentProduct]);
+  }, [currentProduct, allProducts]);
 
 
   if (isLoading) {
@@ -205,4 +208,3 @@ export default function SuggestedProducts({ currentProduct }: SuggestedProductsP
     </div>
   );
 }
-
