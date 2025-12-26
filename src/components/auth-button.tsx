@@ -30,7 +30,9 @@ export default function AuthButton() {
   const handleSignOut = async () => {
     if (auth) {
       await auth.signOut();
-      router.push('/');
+      // Use window.location.href to force a full redirect to the homepage,
+      // preventing redirection conflicts on protected routes.
+      window.location.href = '/';
     }
   };
 
@@ -62,7 +64,7 @@ export default function AuthButton() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <Avatar className="h-10 w-10 flex items-center justify-center bg-muted p-2">
+           <Avatar className="h-10 w-10 flex items-center justify-center bg-muted p-2">
             {isDefaultAvatar ? (
                <Image src={avatarUrl} alt={userDoc?.role || 'user icon'} width={24} height={24} className="text-muted-foreground" />
             ) : (
