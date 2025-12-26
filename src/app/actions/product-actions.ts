@@ -9,11 +9,36 @@ export function getSimilarItems(
     return [];
   }
 
-  // Filter products that are in the same category, but not the current product itself
-  const similar = allProducts.filter(
-    (p) => p.category === currentProduct.category && p.id !== currentProduct.id
-  );
+  const currentCategory = currentProduct.category;
+  let suggestionCategories: string[] = [];
 
-  // Return up to 3 similar items without random shuffling to avoid re-render loops
-  return similar.slice(0, 3);
+  // Define complementary categories
+  if (currentCategory === 'Bebidas') {
+    suggestionCategories = ['Acompañamientos', 'Hamburguesas', 'Pizzas'];
+  } else if (currentCategory === 'Acompañamientos') {
+    suggestionCategories = ['Hamburguesas', 'Pizzas', 'Bebidas'];
+  } else { // Hamburguesas, Pizzas, Otros
+    suggestionCategories = ['Acompañamientos', 'Bebidas'];
+  }
+
+  // Get one product from each suggestion category
+  const suggestions: Product[] = [];
+  
+  suggestionCategories.forEach(cat => {
+    const productFromCategory = allProducts.find(p => p.category === cat && p.id !== currentProduct.id);
+    if (productFromCategory && !suggestions.some(s => s.id === productFromCategory.id)) {
+      suggestions.push(productFromCategory);
+    }
+  });
+
+  // If not enough suggestions, fill with other random products not from the current category
+  const otherProducts = allProducts.filter(p => p.category !== currentCategory && p.id !== currentProduct.id && !suggestions.some(s => s.id === p.id));
+
+  let i = 0;
+  while(suggestions.length < 3 && i < otherProducts.length) {
+    suggestions.push(otherProducts[i]);
+    i++;
+  }
+  
+  return suggestions.slice(0, 3);
 }
