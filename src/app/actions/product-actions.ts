@@ -10,41 +10,45 @@ export function getSimilarItems(
   }
 
   const currentCategory = currentProduct.category;
-  let suggestionCategories: string[] = [];
+  let complementaryCategories: string[] = [];
 
-  // Define complementary categories
+  // Define complementary categories based on the current product
   if (currentCategory === 'Bebidas') {
-    suggestionCategories = ['Acompañamientos', 'Hamburguesas', 'Pizzas'];
+    complementaryCategories = ['Acompañamientos', 'Hamburguesas', 'Pizzas', 'Otros'];
   } else if (currentCategory === 'Acompañamientos') {
-    suggestionCategories = ['Hamburguesas', 'Pizzas', 'Bebidas'];
-  } else { // Hamburguesas, Pizzas, Otros
-    suggestionCategories = ['Acompañamientos', 'Bebidas'];
+    complementaryCategories = ['Hamburguesas', 'Pizzas', 'Bebidas', 'Otros'];
+  } else { // For Hamburguesas, Pizzas, Otros
+    complementaryCategories = ['Acompañamientos', 'Bebidas'];
   }
 
   const suggestions: Product[] = [];
-  
-  // Get one product from each suggestion category
-  suggestionCategories.forEach(cat => {
-    const productFromCategory = allProducts.find(p => p.category === cat && p.id !== currentProduct.id && !suggestions.some(s => s.id === p.id));
-    if (productFromCategory) {
-      suggestions.push(productFromCategory);
+  const usedIds = new Set<string>([currentProduct.id]);
+
+  // Prioritize one item from each complementary category
+  complementaryCategories.forEach(category => {
+    if (suggestions.length < 3) {
+      const product = allProducts.find(p => p.category === category && !usedIds.has(p.id));
+      if (product) {
+        suggestions.push(product);
+        usedIds.add(product.id);
+      }
     }
   });
 
-  // If not enough suggestions, fill with other products not from the current category
+  // If still not enough suggestions, fill with any other products not from the current category
   if (suggestions.length < 3) {
-    const otherProducts = allProducts.filter(p => 
-      p.category !== currentCategory && 
-      p.id !== currentProduct.id && 
-      !suggestions.some(s => s.id === p.id)
-    );
+    const remainingProducts = allProducts.filter(p => !usedIds.has(p.id) && p.category !== currentCategory);
     
-    let i = 0;
-    while(suggestions.length < 3 && i < otherProducts.length) {
-        suggestions.push(otherProducts[i]);
-        i++;
+    for (const product of remainingProducts) {
+      if (suggestions.length < 3) {
+        suggestions.push(product);
+        usedIds.add(product.id);
+      } else {
+        break; // Stop once we have 3 suggestions
+      }
     }
   }
   
   return suggestions.slice(0, 3);
 }
+
