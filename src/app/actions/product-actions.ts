@@ -52,3 +52,4 @@ export function getSimilarItems(
   return suggestions.slice(0, 3);
 }
 
+
