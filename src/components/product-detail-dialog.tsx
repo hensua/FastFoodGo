@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -51,7 +52,7 @@ export default function ProductDetailDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md p-0 max-h-[90vh] flex flex-col rounded-lg overflow-hidden">
         <div className="relative bg-muted">
-          <div className="relative aspect-square w-full overflow-hidden p-4 h-72">
+          <div className="relative aspect-square w-full overflow-hidden p-4 h-60">
             <Image
               src={product.imageUrl}
               alt={product.name}
@@ -65,17 +66,17 @@ export default function ProductDetailDialog({
           </Button>
         </div>
         <ScrollArea className="flex-1">
-          <DialogHeader className="p-6 space-y-4 text-left">
+          <DialogHeader className="p-6 space-y-2 text-left">
             
-            <DialogTitle className="text-3xl font-bold">{product.name}</DialogTitle>
-
-            <div className="flex justify-between items-center mt-4">
-              <p className="text-2xl font-bold text-primary">
+            <DialogTitle className="text-2xl font-bold">{product.name}</DialogTitle>
+            
+            <div className="flex justify-between items-center">
+              <p className="text-xl font-bold text-primary">
                 {formatCurrency(product.price)}
               </p>
               <div className="flex items-center gap-2">
                 <Button
-                  variant="default"
+                  variant="outline"
                   size="icon"
                   className="h-8 w-8 rounded-full"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
@@ -83,9 +84,9 @@ export default function ProductDetailDialog({
                 >
                   <Minus className="h-4 w-4" />
                 </Button>
-                <span className="text-xl font-bold w-10 text-center">{quantity}</span>
+                <span className="text-lg font-bold w-8 text-center">{quantity}</span>
                 <Button
-                  variant="default"
+                  variant="outline"
                   size="icon"
                   className="h-8 w-8 rounded-full"
                   onClick={() => setQuantity((q) => q + 1)}
@@ -95,9 +96,9 @@ export default function ProductDetailDialog({
               </div>
             </div>
 
-            <div>
-                <h4 className='font-bold mt-4 mb-1'>Acerca del producto</h4>
-                <DialogDescription className="text-base">{product.description}</DialogDescription>
+            <div className="pt-2">
+                <h4 className='font-bold text-sm mb-1'>Acerca del producto</h4>
+                <DialogDescription className="text-sm leading-snug">{product.description}</DialogDescription>
             </div>
             
             <SuggestedProducts currentProduct={product} allProducts={allProducts} />
@@ -106,7 +107,7 @@ export default function ProductDetailDialog({
         </ScrollArea>
         <DialogFooter className="p-4 border-t bg-background">
           <Button size="lg" className="w-full h-12 text-base" onClick={handleAddToCart}>
-            Añadir {formatCurrency(totalPrice)}
+            Añadir {quantity} por {formatCurrency(totalPrice)}
           </Button>
         </DialogFooter>
       </DialogContent>
