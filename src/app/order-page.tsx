@@ -11,7 +11,8 @@ import ProductDetailDialog from '@/components/product-detail-dialog';
 import { UtensilsCrossed } from 'lucide-react';
 import Footer from '@/components/footer';
 import { cn } from '@/lib/utils';
-import { products as allProductsData } from '@/lib/data';
+import { useUser } from '@/firebase';
+import { Loader2 } from 'lucide-react';
 
 interface OrderPageProps {
   products: Product[];
@@ -25,21 +26,13 @@ export default function OrderPage({ products, loading }: OrderPageProps) {
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   
-  const productList = useMemo(() => {
-    // We map the initial static data to ensure it has consistent IDs.
-    // In a real app, this would come directly from the backend/API.
-    return allProductsData.map((p, i) => ({
-      ...p,
-      id: p.id || p.name.toLowerCase().replace(/ /g, '-') + i,
-    }));
-  }, []);
-
   const filteredProducts = useMemo(() => {
+    if (loading) return [];
     if (selectedCategory === 'Todas') {
-      return productList;
+      return products;
     }
-    return productList.filter(product => product.category === selectedCategory);
-  }, [productList, selectedCategory]);
+    return products.filter(product => product.category === selectedCategory);
+  }, [products, selectedCategory, loading]);
 
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
@@ -48,10 +41,6 @@ export default function OrderPage({ products, loading }: OrderPageProps) {
   const handleDialogClose = () => {
     setSelectedProduct(null);
   };
-
-  if (loading) {
-    return <div className="h-screen flex items-center justify-center bg-orange-50 text-orange-600 font-bold">Cargando SpeedyBite...</div>;
-  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -87,7 +76,13 @@ export default function OrderPage({ products, loading }: OrderPageProps) {
           })}
         </div>
         
-        <ProductList products={filteredProducts} onProductClick={handleProductClick} />
+        {loading ? (
+            <div className="flex justify-center items-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-primary"/>
+            </div>
+        ) : (
+            <ProductList products={filteredProducts} onProductClick={handleProductClick} />
+        )}
       </main>
       <CartSheet open={isCartOpen} onOpenChange={setCartOpen} />
       {selectedProduct && (

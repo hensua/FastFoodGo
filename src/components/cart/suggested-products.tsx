@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { products as allProductsData } from "@/lib/data";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
 
 interface SuggestedProductsProps {
   currentProduct?: Product;
@@ -153,31 +154,18 @@ const SuggestedProductItem = ({ product }: { product: Product }) => {
 
 export default function SuggestedProducts({ currentProduct }: SuggestedProductsProps) {
   const [suggestions, setSuggestions] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const firestore = useFirestore();
 
-  // Memoize the product list to ensure IDs are consistent
-  const allProducts = useMemo(() => 
-    allProductsData.map((p, i) => ({
-      ...p,
-      id: p.id || p.name.toLowerCase().replace(/ /g, '-') + i,
-    })), 
-  []);
+  const productsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'products') : null, [firestore]);
+  const { data: allProducts, isLoading } = useCollection<Product>(productsCollection);
 
   useEffect(() => {
-    // Guard against running without a product
-    if (currentProduct) {
-      setIsLoading(true);
-      // Ensure the currentProduct has a consistent ID for comparison
-      const currentProductWithId = allProducts.find(p => p.name === currentProduct.name);
-      if (currentProductWithId) {
-        const suggestedProducts = getSimilarItems(currentProductWithId, allProducts);
-        setSuggestions(suggestedProducts);
-      }
-      setIsLoading(false);
+    // Guard against running without a product or product list
+    if (currentProduct && allProducts) {
+      const suggestedProducts = getSimilarItems(currentProduct, allProducts);
+      setSuggestions(suggestedProducts);
     } else {
-      // If there's no current product, clear suggestions.
       setSuggestions([]);
-      setIsLoading(false);
     }
   }, [currentProduct, allProducts]);
 

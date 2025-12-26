@@ -5,7 +5,7 @@ export function getSimilarItems(
   currentProduct: Product | undefined,
   allProducts: Product[]
 ): Product[] {
-  if (!currentProduct) {
+  if (!currentProduct || !allProducts || allProducts.length === 0) {
     return [];
   }
 
@@ -24,10 +24,14 @@ export function getSimilarItems(
   const suggestions: Product[] = [];
   const usedIds = new Set<string>([currentProduct.id]);
 
-  // Prioritize one item from each complementary category
+  // Create a list of potential products to suggest from, excluding the current one
+  const potentialProducts = allProducts.filter(p => p.id !== currentProduct.id);
+
+  // 1. Prioritize one item from each complementary category
   complementaryCategories.forEach(category => {
     if (suggestions.length < 3) {
-      const product = allProducts.find(p => p.category === category && !usedIds.has(p.id));
+      // Find the first product in the potential list that matches the category and hasn't been used
+      const product = potentialProducts.find(p => p.category === category && !usedIds.has(p.id));
       if (product) {
         suggestions.push(product);
         usedIds.add(product.id);
@@ -35,9 +39,9 @@ export function getSimilarItems(
     }
   });
 
-  // If still not enough suggestions, fill with any other products not from the current category
+  // 2. If still not enough suggestions, fill with any other products not already used
   if (suggestions.length < 3) {
-    const remainingProducts = allProducts.filter(p => !usedIds.has(p.id) && p.category !== currentCategory);
+    const remainingProducts = potentialProducts.filter(p => !usedIds.has(p.id));
     
     for (const product of remainingProducts) {
       if (suggestions.length < 3) {
@@ -49,7 +53,6 @@ export function getSimilarItems(
     }
   }
   
+  // 3. Ensure we only return up to 3 items.
   return suggestions.slice(0, 3);
 }
-
-
