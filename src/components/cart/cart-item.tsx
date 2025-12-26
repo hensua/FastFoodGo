@@ -70,11 +70,6 @@ export default function CartItem({ item }: CartItemProps) {
             <Trash2 className="h-4 w-4" />
           </Button>
       </div>
-      {item.note && (
-        <div className="mt-2 ml-20 text-sm text-muted-foreground bg-slate-100 p-2 rounded-md">
-          <span className="font-semibold">Nota:</span> {item.note}
-        </div>
-      )}
     </div>
   );
 }
