@@ -66,11 +66,11 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
   }
 
   const handleIncreaseQuantity = (e: React.MouseEvent) => {
-    handleInteraction(e, () => updateQuantity(product.product.id, quantityInCart + 1));
+    handleInteraction(e, () => updateQuantity(product.id, quantityInCart + 1));
   }
 
   const handleDecreaseQuantity = (e: React.MouseEvent) => {
-    handleInteraction(e, () => updateQuantity(product.product.id, quantityInCart - 1));
+    handleInteraction(e, () => updateQuantity(product.id, quantityInCart - 1));
   }
 
   const handleCompactClick = (e: React.MouseEvent) => {
