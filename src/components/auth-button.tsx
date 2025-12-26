@@ -62,11 +62,9 @@ export default function AuthButton() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-           <Avatar className="h-10 w-10">
+           <Avatar className="h-10 w-10 bg-muted">
               {isDefaultAvatar ? (
-                <div className="relative flex h-full w-full items-center justify-center rounded-full bg-muted p-2">
-                  <Image src={avatarUrl} alt={userRole || 'User'} fill sizes="40px" className="object-contain" />
-                </div>
+                <Image src={avatarUrl} alt={userRole || 'User'} fill sizes="40px" className="object-contain p-2" />
               ) : (
                 <AvatarImage src={avatarUrl} alt={user.displayName ?? 'User'} />
               )}
