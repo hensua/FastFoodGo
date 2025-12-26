@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -41,7 +42,7 @@ export default function CartSheet({ open, onOpenChange }: CartSheetProps) {
             <ScrollArea className="flex-grow pr-6">
               <div className="flex flex-col gap-4">
                 {cartItems.map((item) => (
-                  <CartItem key={`${item.product.id}-${item.note || ''}`} item={item} />
+                  <CartItem key={item.product.id} item={item} />
                 ))}
               </div>
               <SuggestedProducts />

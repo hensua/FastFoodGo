@@ -56,17 +56,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         (item) => item.product.id === product.id
       );
       if (existingItem) {
+        // If item exists, just update its quantity
         return prevItems.map((item) =>
           item.product.id === product.id
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       }
+      // If item doesn't exist, add it as a new item
       return [...prevItems, { product, quantity }];
     });
     toast({
       title: "Añadido al carrito",
-      description: `${quantity} x ${product.name} ha sido añadido a tu carrito.`,
+      description: `${product.name} ha sido añadido a tu carrito.`,
     });
   };
 
