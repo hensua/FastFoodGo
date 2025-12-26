@@ -60,7 +60,13 @@ const SuggestedProductItem = ({ product }: { product: Product }) => {
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {
-    handleInteraction(e, () => addToCart(product));
+    handleInteraction(e, () => {
+      if (itemInCart) {
+        updateQuantity(product.id, quantityInCart + 1);
+      } else {
+        addToCart(product);
+      }
+    });
   }
 
   const handleIncreaseQuantity = (e: React.MouseEvent) => {
@@ -150,16 +156,18 @@ export default function SuggestedProducts({ currentProduct }: SuggestedProductsP
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSuggestions = () => {
-      if (currentProduct) {
-        const suggestedProducts = getSimilarItems(currentProduct, products);
-        const filteredSuggestions = suggestedProducts.filter(p => p.id !== currentProduct.id);
-        setSuggestions(filteredSuggestions.slice(0, 3));
-      }
+    // Only fetch suggestions if there's a product to base them on.
+    if (currentProduct) {
+      setIsLoading(true);
+      // getSimilarItems is synchronous, so no need for an async function
+      const suggestedProducts = getSimilarItems(currentProduct, products);
+      setSuggestions(suggestedProducts);
       setIsLoading(false);
-    };
-
-    fetchSuggestions();
+    } else {
+      // If there's no current product, there are no suggestions.
+      setSuggestions([]);
+      setIsLoading(false);
+    }
   }, [currentProduct]);
 
 
@@ -197,3 +205,4 @@ export default function SuggestedProducts({ currentProduct }: SuggestedProductsP
     </div>
   );
 }
+
