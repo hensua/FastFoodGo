@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { createContext, useContext, useState, useMemo } from "react";
+import React, { createContext, useContext, useState, useMemo, useEffect } from "react";
 import type { Product, CartItem } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,6 +20,34 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const { toast } = useToast();
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Load cart from localStorage on initial render
+  useEffect(() => {
+    try {
+      const localData = window.localStorage.getItem('fastfoodgo-cart');
+      if (localData) {
+        setCartItems(JSON.parse(localData));
+      }
+    } catch (error) {
+      console.error("Error loading cart from localStorage", error);
+    } finally {
+      setIsInitialLoad(false);
+    }
+  }, []);
+
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    // Don't save during the initial load, wait until state is rehydrated.
+    if (!isInitialLoad) {
+      try {
+        window.localStorage.setItem('fastfoodgo-cart', JSON.stringify(cartItems));
+      } catch (error) {
+        console.error("Error saving cart to localStorage", error);
+      }
+    }
+  }, [cartItems, isInitialLoad]);
+
 
   const addToCart = (product: Product, quantity: number = 1) => {
     setCartItems((prevItems) => {
