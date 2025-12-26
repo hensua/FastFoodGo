@@ -10,6 +10,7 @@ interface CartContextType {
   addToCart: (product: Product, quantity?: number) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
+  setItemQuantity: (product: Product, quantity: number) => void;
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
@@ -77,11 +78,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   
   const updateQuantity = (productId: string, quantity: number) => {
     if (quantity <= 0) {
-        setCartItems((prevItems) =>
-            prevItems.filter(
-                (item) => item.product.id !== productId
-            )
-        );
+        removeFromCart(productId);
       return;
     }
     setCartItems((prevItems) =>
@@ -92,6 +89,31 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       )
     );
   };
+  
+  const setItemQuantity = (product: Product, quantity: number) => {
+     if (quantity <= 0) {
+        removeFromCart(product.id);
+        return;
+     }
+
+     setCartItems((prevItems) => {
+        const existingItem = prevItems.find(item => item.product.id === product.id);
+        if(existingItem) {
+          return prevItems.map(item => 
+            item.product.id === product.id 
+            ? { ...item, quantity: quantity } 
+            : item
+          );
+        }
+        // If it doesn't exist, add it.
+        return [...prevItems, { product, quantity }];
+     });
+     
+     toast({
+      title: "Carrito actualizado",
+      description: `Ahora tienes ${quantity} x ${product.name}.`,
+    });
+  }
 
   const clearCart = () => {
     setCartItems([]);
@@ -113,6 +135,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     addToCart,
     removeFromCart,
     updateQuantity,
+    setItemQuantity,
     clearCart,
     totalItems,
     totalPrice,
