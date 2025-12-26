@@ -30,8 +30,6 @@ export default function AuthButton() {
   const handleSignOut = async () => {
     if (auth) {
       await auth.signOut();
-      // Use window.location.href to force a full redirect to the homepage,
-      // preventing redirection conflicts on protected routes.
       window.location.href = '/';
     }
   };
@@ -58,13 +56,20 @@ export default function AuthButton() {
   };
   
   const avatarUrl = getAvatarUrl(user, userDoc);
+  const isDefaultAvatar = avatarUrl.startsWith('data:image/svg+xml');
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
            <Avatar className="h-10 w-10">
-              <AvatarImage src={avatarUrl} alt={user.displayName ?? 'User'} />
+              {isDefaultAvatar ? (
+                <div className="relative flex h-full w-full items-center justify-center rounded-full bg-muted p-2">
+                  <Image src={avatarUrl} alt={userRole || 'User'} fill sizes="40px" className="object-contain" />
+                </div>
+              ) : (
+                <AvatarImage src={avatarUrl} alt={user.displayName ?? 'User'} />
+              )}
               <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
           </Avatar>
         </Button>
