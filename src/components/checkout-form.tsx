@@ -100,7 +100,7 @@ export default function CheckoutForm() {
           <ScrollArea className="h-[400px] pr-4">
             <div className="space-y-4">
               {cartItems.map(item => (
-                <CartItem key={`${item.product.id}-${item.note}`} item={item} />
+                <CartItem key={item.product.id} item={item} />
               ))}
             </div>
           </ScrollArea>
