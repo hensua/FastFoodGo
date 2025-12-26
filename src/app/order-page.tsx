@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import ProductDetailDialog from '@/components/product-detail-dialog';
 import { Sparkles, UtensilsCrossed } from 'lucide-react';
 import Footer from '@/components/footer';
+import { cn } from '@/lib/utils';
 
 interface OrderPageProps {
   products: Product[];
@@ -59,16 +60,22 @@ export default function OrderPage({ products, loading }: OrderPageProps) {
         </div>
         
         <div className="flex gap-2 overflow-x-auto pb-4 mb-6">
-          {categories.map((category) => (
-            <Button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              variant={selectedCategory === category ? 'default' : 'outline'}
-              className="px-4 py-2 rounded-full whitespace-nowrap text-sm font-bold transition-colors"
-            >
-              {category}
-            </Button>
-          ))}
+          {categories.map((category) => {
+            const isSelected = selectedCategory === category;
+            return (
+              <Button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                variant={isSelected ? 'default' : 'secondary'}
+                className={cn(
+                  "px-4 py-2 rounded-full whitespace-nowrap text-sm font-bold transition-all duration-300",
+                  !isSelected && "text-secondary-foreground/80 hover:text-secondary-foreground"
+                )}
+              >
+                {category}
+              </Button>
+            )
+          })}
         </div>
         
         <ProductList products={filteredProducts} onProductClick={handleProductClick} />
