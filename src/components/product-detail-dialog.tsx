@@ -57,7 +57,7 @@ export default function ProductDetailDialog({
       <DialogContent className="sm:max-w-md p-0 h-[90dvh] grid grid-rows-[auto_1fr_auto] overflow-hidden rounded-lg">
         {/* Imagen (sección auto) */}
         <div className="relative bg-muted shrink-0">
-          <div className="relative aspect-square w-full h-60 overflow-hidden">
+          <div className="relative w-full aspect-[4/3] max-h-[35dvh] overflow-hidden">
             <Image
               src={product.imageUrl}
               alt={product.name}
@@ -79,17 +79,17 @@ export default function ProductDetailDialog({
         {/* CONTENIDO SCROLL (sección 1fr) */}
         <ScrollArea className="min-h-0 overscroll-contain">
           <div className="pb-4">
-            <DialogHeader className="p-6 pb-2 space-y-1 text-left">
+            <DialogHeader className="px-6 pt-4 pb-2 space-y-1 text-left">
               <DialogTitle className="text-2xl font-bold">
                 {product.name}
               </DialogTitle>
 
               <div className="flex justify-between items-center pt-2">
-                <p className="text-xl font-bold text-primary">
+                <p className="text-lg font-bold text-primary">
                   {formatCurrency(product.price)}
                 </p>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   <Button
                     variant="outline"
                     size="icon"
@@ -100,7 +100,7 @@ export default function ProductDetailDialog({
                     <Minus className="h-4 w-4" />
                   </Button>
 
-                  <span className="text-lg font-bold w-8 text-center">
+                  <span className="text-base font-bold w-6 text-center">
                     {quantity}
                   </span>
 
@@ -116,9 +116,9 @@ export default function ProductDetailDialog({
               </div>
             </DialogHeader>
 
-            <div className="px-6 space-y-4">
+            <div className="px-6 space-y-3">
               <div>
-                <h4 className="font-bold text-sm mb-1">
+                <h4 className="font-semibold text-xs mb-0.5">
                   Acerca del producto
                 </h4>
                 <DialogDescription className="text-sm leading-snug">
@@ -133,7 +133,7 @@ export default function ProductDetailDialog({
         </ScrollArea>
 
         {/* FOOTER FIJO (sección auto) */}
-        <DialogFooter className="p-4 border-t bg-background shrink-0">
+        <DialogFooter className="p-4 pb-[env(safe-area-inset-bottom)] border-t bg-background shrink-0">
           <Button
             size="lg"
             className="w-full h-12 text-base"
