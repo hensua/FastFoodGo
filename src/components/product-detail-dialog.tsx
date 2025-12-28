@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -55,26 +54,24 @@ export default function ProductDetailDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md p-0 max-h-[90vh] flex flex-col rounded-lg overflow-hidden">
+      <DialogContent className="sm:max-w-md p-0 max-h-[90vh] flex flex-col rounded-lg">
+        <div className="relative bg-muted">
+          <div className="relative aspect-square w-full overflow-hidden h-60">
+              <Image
+                src={product.imageUrl}
+                alt={product.name}
+                data-ai-hint={product.imageHint}
+                fill
+                className="object-cover"
+              />
+          </div>
+          <Button variant="ghost" size="icon" className="absolute bottom-[-20px] right-6 h-12 w-12 rounded-full bg-white shadow-lg hover:bg-gray-100">
+              <Heart className="h-6 w-6 text-gray-500" />
+          </Button>
+        </div>
         <ScrollArea className="flex-1">
-           <div className="relative bg-muted">
-            <div className="relative aspect-square w-full overflow-hidden h-60">
-                <Image
-                  src={product.imageUrl}
-                  alt={product.name}
-                  data-ai-hint={product.imageHint}
-                  fill
-                  className="object-cover"
-                />
-            </div>
-            <Button variant="ghost" size="icon" className="absolute bottom-[-20px] right-6 h-12 w-12 rounded-full bg-white shadow-lg hover:bg-gray-100">
-                <Heart className="h-6 w-6 text-gray-500" />
-            </Button>
-            </div>
           <DialogHeader className="p-6 pb-2 space-y-1 text-left">
-            
             <DialogTitle className="text-2xl font-bold">{product.name}</DialogTitle>
-            
             <div className="flex justify-between items-center pt-2">
               <p className="text-xl font-bold text-primary">
                 {formatCurrency(product.price)}
@@ -100,9 +97,8 @@ export default function ProductDetailDialog({
                 </Button>
               </div>
             </div>
-            
           </DialogHeader>
-           <div className="px-6 pb-6 space-y-4">
+          <div className="px-6 pb-6 space-y-4">
               <div className="pt-2">
                   <h4 className='font-bold text-sm mb-1'>Acerca del producto</h4>
                   <DialogDescription className="text-sm leading-snug">{product.description}</DialogDescription>
