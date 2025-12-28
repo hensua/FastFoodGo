@@ -47,7 +47,7 @@ const BrandingCustomizer = () => {
         resolver: zodResolver(brandingSchema),
         defaultValues: {
           appName: rawBrandingConfig.appName,
-          logoSvg: rawBrandingConfig.logoSvg,
+          logoSvg: "<svg fill=\"currentColor\" viewBox=\"0 0 32 32\" xmlns=\"http://www.w3.org/2000/svg\" id=\"Layer_1\" data-name=\"Layer 1\" stroke=\"currentColor\"><g id=\"SVGRepo_bgCarrier\" stroke-width=\"0\"></g><g id=\"SVGRepo_tracerCarrier\" stroke-linecap=\"round\" stroke-linejoin=\"round\"></g><g id=\"SVGRepo_iconCarrier\"><path d=\"M29.22,13.95h-.28v-2.07c0-4.75-5.76-8.61-12.84-8.61S3.26,7.14,3.26,11.88v2.07h-.48c-.84,0-1.52,.68-1.52,1.52v1.06c0,.84,.68,1.52,1.52,1.52h.48v2.07c0,4.74,5.76,8.6,12.84,8.6s12.84-3.86,12.84-8.6v-2.07h.28c.84,0,1.52-.68,1.52-1.52v-1.06c0-.84-.68-1.52-1.52-1.52ZM16.1,4.78c5.85,0,10.68,2.79,11.28,6.36H4.82c.6-3.57,5.43-6.36,11.28-6.36ZM4.76,12.63H27.44v1.32H4.76v-1.32Zm11.34,14.58c-5.85,0-10.68-2.79-11.28-6.35h12.49l1.8,3c.14,.23,.38,.36,.64,.36s.51-.14,.64-.36l1.8-3h5.17c-.6,3.56-5.43,6.35-11.28,6.35Zm11.34-7.85h-5.66c-.26,0-.51,.14-.64,.36l-1.38,2.29-1.38-2.29c-.14-.23-.38-.36-.64-.36H4.76v-1.32H27.44v1.32Zm1.78-2.82l-26.46-.02,.02-1.08h1.22s0,0,0,0H28.19s0,0,0,0h1.02s.02,.02,.02,.02l-.02,1.08Z\"></path></g></svg>",
           logoColor: rawBrandingConfig.theme.logoColor,
           primary: rawBrandingConfig.theme.primary,
           background: rawBrandingConfig.theme.background,
@@ -285,52 +285,16 @@ const BrandingCustomizer = () => {
     )
 }
 
-
-const DeveloperDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandingConfig: BrandingConfig }) => {
-    const [activeTab, setActiveTab] = useState('customize');
-
-    return (
-        <div>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
-                <h2 className="text-2xl font-bold flex items-center gap-2">
-                    <Code className="text-primary" /> Panel de Desarrollador
-                </h2>
-                <div className="flex gap-1 p-1 bg-muted rounded-lg flex-wrap">
-                    <button onClick={() => setActiveTab('customize')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'customize' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Palette size={16} /> Personalizar</button>
-                    <button onClick={() => setActiveTab('team')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'team' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Users size={16} /> Equipo</button>
-                </div>
-            </div>
-
-            {activeTab === 'customize' && <BrandingCustomizer />}
-            {activeTab === 'team' && (
-                <React.Suspense fallback={<div className="flex justify-center p-10"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-                    <TeamManagement userDoc={userDoc} />
-                </React.Suspense>
-            )}
-        </div>
-    );
-};
-
-// Server Component Wrapper
-export default function DeveloperPage() {
-    const [brandingConfig, setBrandingConfig] = useState<BrandingConfig | null>(null);
-
-    useEffect(() => {
-        getBrandingConfig().then(setBrandingConfig);
-    }, []);
-    
-    if (!brandingConfig) {
-        return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
-    }
-
+export async function DeveloperPage() {
+    const brandingConfig = await getBrandingConfig();
     return <DeveloperPageClient brandingConfig={brandingConfig} />;
 }
-
 
 function DeveloperPageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) {
     const { user, userDoc, isLoading } = useUser();
     const router = useRouter();
     const { toast } = useToast();
+    const [activeTab, setActiveTab] = useState('customize');
 
     useEffect(() => {
         if (isLoading) return;
@@ -364,10 +328,27 @@ function DeveloperPageClient({ brandingConfig }: { brandingConfig: BrandingConfi
         <div className="min-h-screen bg-background">
             <Header onCartClick={() => {}} showCart={false} brandingConfig={brandingConfig} />
             <main className="container mx-auto px-4 py-8">
-                <DeveloperDashboard userDoc={userDoc} brandingConfig={brandingConfig} />
+                <div>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
+                        <h2 className="text-2xl font-bold flex items-center gap-2">
+                            <Code className="text-primary" /> Panel de Desarrollador
+                        </h2>
+                        <div className="flex gap-1 p-1 bg-muted rounded-lg flex-wrap">
+                            <button onClick={() => setActiveTab('customize')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'customize' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Palette size={16} /> Personalizar</button>
+                            <button onClick={() => setActiveTab('team')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'team' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Users size={16} /> Equipo</button>
+                        </div>
+                    </div>
+
+                    {activeTab === 'customize' && <BrandingCustomizer />}
+                    {activeTab === 'team' && (
+                        <React.Suspense fallback={<div className="flex justify-center p-10"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+                            <TeamManagement userDoc={userDoc} />
+                        </React.Suspense>
+                    )}
+                </div>
             </main>
         </div>
     );
 }
 
-    
+export default DeveloperPage;
