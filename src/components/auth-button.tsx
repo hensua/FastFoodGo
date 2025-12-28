@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import { LogOut, Shield, User as UserIcon, Truck, UtensilsCrossed } from 'lucide-react';
+import { LogOut, Shield, User as UserIcon, Truck, UtensilsCrossed, Code } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { getAvatarUrl } from '@/lib/utils';
@@ -91,6 +91,14 @@ export default function AuthButton() {
             <Link href="/admin">
               <Shield className="mr-2 h-4 w-4" />
               <span>Panel de Admin</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
+        {userRole === 'developer' && (
+          <DropdownMenuItem asChild>
+            <Link href="/developer">
+              <Code className="mr-2 h-4 w-4" />
+              <span>Panel de Dev</span>
             </Link>
           </DropdownMenuItem>
         )}

@@ -69,6 +69,8 @@ export default function Home() {
         router.push('/host');
       } else if (userDoc.role === 'driver') {
         router.push('/delivery');
+      } else if (userDoc.role === 'developer') {
+        router.push('/developer');
       }
     }
     // If none of the above, the user is either not logged in or is a 'customer',

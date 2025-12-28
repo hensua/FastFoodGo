@@ -34,6 +34,10 @@ service cloud.firestore {
       return isSignedIn() && getUserRole(request.auth.uid) == 'driver';
     }
 
+    function isDeveloper() {
+      return isSignedIn() && getUserRole(request.auth.uid) == 'developer';
+    }
+
 
     /*********************************************************************
      *                                                                   *
@@ -55,13 +59,14 @@ service cloud.firestore {
      * @description
      * Stores public user information.
      * - Users can create and manage their own profile.
-     * - Admins and Hosts can list users.
+     * - Admins, Hosts and Developers can list users.
+     * - Admins and Developers can update any user profile (for role changes).
      */
      match /users/{userId} {
         allow get: if isSignedIn();
-        allow list: if isAdmin() || isHost();
+        allow list: if isAdmin() || isHost() || isDeveloper();
         allow create: if isOwner(userId);
-        allow update: if isOwner(userId) || isAdmin();
+        allow update: if isOwner(userId) || isAdmin() || isDeveloper();
         allow delete: if isAdmin();
      }
 

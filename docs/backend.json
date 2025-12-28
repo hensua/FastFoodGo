@@ -24,7 +24,7 @@
         "displayName": { "type": "string", "description": "Display name of the user." },
         "email": { "type": "string", "description": "Email address of the user.", "format": "email" },
         "photoURL": { "type": "string", "description": "URL of the user's profile picture.", "format": "uri" },
-        "role": { "type": "string", "description": "Role of the user (e.g., customer, admin, host, driver).", "enum": ["customer", "admin", "host", "driver"]},
+        "role": { "type": "string", "description": "Role of the user (e.g., customer, admin, host, driver, developer).", "enum": ["customer", "admin", "host", "driver", "developer"]},
         "phoneNumber": { "type": "string", "description": "Phone number of the user." },
         "deliveryAddress": { "type": "string", "description": "Primary delivery address of the user." },
         "createdAt": { "type": "string", "description": "Timestamp of user creation.", "format": "date-time" }

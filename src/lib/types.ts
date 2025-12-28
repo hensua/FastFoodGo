@@ -1,6 +1,3 @@
-
-
-
 export type Product = {
   id: string;
   name: string;
@@ -46,7 +43,7 @@ export type Order = {
   driverName?: string;
 };
 
-export type Role = 'admin' | 'host' | 'driver' | 'customer';
+export type Role = 'admin' | 'host' | 'driver' | 'customer' | 'developer';
 
 export type AppUser = {
   uid: string;
