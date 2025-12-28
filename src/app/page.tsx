@@ -1,9 +1,10 @@
 
+'use client';
+
 import { getBrandingConfig, type BrandingConfig } from '@/lib/branding-config';
 import OrderPage from './order-page';
 import { products as initialProducts } from '@/lib/data';
-import 'server-only';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, writeBatch, doc } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
@@ -11,20 +12,31 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
 
-// This is now a Server Component
-export default async function Home() {
-  // Fetch branding config on the server
-  const brandingConfig = await getBrandingConfig();
+// This is now a Server Component that fetches data and passes it to the client component.
+export default function Home() {
+  const [brandingConfig, setBrandingConfig] = useState<BrandingConfig | null>(null);
+  const [loadingConfig, setLoadingConfig] = useState(true);
 
+  useEffect(() => {
+    async function fetchConfig() {
+      const config = await getBrandingConfig();
+      setBrandingConfig(config);
+      setLoadingConfig(false);
+    }
+    fetchConfig();
+  }, []);
+
+  if (loadingConfig || !brandingConfig) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
+  }
+  
   // The content of the page is a client component
   // that will handle redirection and data fetching for products.
   return <HomePageClient brandingConfig={brandingConfig} />;
 }
 
 // All client-side logic is now encapsulated in this component.
-// It must be defined in the same file or imported dynamically.
 function HomePageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) {
-  'use client';
   const { user, userDoc, isLoading: isUserLoading } = useUser();
   const router = useRouter();
   const firestore = useFirestore();
