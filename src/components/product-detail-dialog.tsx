@@ -54,7 +54,7 @@ export default function ProductDetailDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md p-0 h-[90dvh] flex flex-col overflow-hidden rounded-lg">
+      <DialogContent className="p-0 gap-0 max-h-[100dvh] h-[100dvh] flex flex-col overflow-hidden">
         {/* Imagen (sección auto) */}
         <div className="relative bg-muted shrink-0">
           <div className="relative w-full aspect-[4/3] max-h-[35dvh] overflow-hidden">
@@ -92,9 +92,9 @@ export default function ProductDetailDialog({
 
                 <div className="flex items-center gap-1">
                   <Button
-                    variant="outline"
+                    //variant="outline"
                     size="icon"
-                    className="h-8 w-8 rounded-full"
+                    className="h-6 w-6"
                     onClick={() => setQuantity(q => Math.max(1, q - 1))}
                     disabled={quantity <= 1}
                   >
@@ -106,9 +106,9 @@ export default function ProductDetailDialog({
                   </span>
 
                   <Button
-                    variant="outline"
+                    //variant="outline"
                     size="icon"
-                    className="h-8 w-8 rounded-full"
+                    className="h-6 w-6"
                     onClick={() => setQuantity(q => q + 1)}
                   >
                     <Plus className="h-4 w-4" />
@@ -134,10 +134,10 @@ export default function ProductDetailDialog({
         </ScrollArea>
 
         {/* FOOTER FIJO (sección auto) */}
-        <DialogFooter className="p-4 pb-[env(safe-area-inset-bottom)] border-t bg-background shrink-0">
+        <DialogFooter className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t bg-background shrink-0">
           <Button
             size="lg"
-            className="w-full h-12 text-base"
+            className="w-full h-10 text-base"
             onClick={handleUpdateCart}
           >
             {buttonText}
