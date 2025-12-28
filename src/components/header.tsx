@@ -44,7 +44,7 @@ export default function Header({ onCartClick, showCart = true, brandingConfig }:
               <ShoppingCart className="h-6 w-6" />
               {totalItems > 0 && (
                 <Badge
-                  variant="destructive"
+                  variant="default"
                   className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full p-0"
                 >
                   {totalItems}
