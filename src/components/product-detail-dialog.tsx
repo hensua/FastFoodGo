@@ -54,7 +54,7 @@ export default function ProductDetailDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md p-0 h-[90dvh] grid grid-rows-[auto_1fr_auto] overflow-hidden rounded-lg">
+      <DialogContent className="sm:max-w-md p-0 h-[90dvh] flex flex-col overflow-hidden rounded-lg">
         {/* Imagen (sección auto) */}
         <div className="relative bg-muted shrink-0">
           <div className="relative w-full aspect-[4/3] max-h-[35dvh] overflow-hidden">
@@ -64,6 +64,7 @@ export default function ProductDetailDialog({
               data-ai-hint={product.imageHint}
               fill
               className="object-cover"
+              sizes="(max-width: 768px) 100vw, 33vw"
             />
           </div>
 
@@ -77,7 +78,7 @@ export default function ProductDetailDialog({
         </div>
 
         {/* CONTENIDO SCROLL (sección 1fr) */}
-        <ScrollArea className="min-h-0 overscroll-contain">
+        <ScrollArea className="min-h-0 flex-grow overscroll-contain">
           <div className="pb-4">
             <DialogHeader className="px-6 pt-4 pb-2 space-y-1 text-left">
               <DialogTitle className="text-2xl font-bold">
