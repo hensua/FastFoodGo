@@ -54,7 +54,7 @@ export default function CartSheet({ open, onOpenChange }: CartSheetProps) {
                   <span>Total:</span>
                   <span>{formatCurrency(totalPrice)}</span>
                 </div>
-                <Button asChild size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
+                <Button asChild size="lg" className="w-full">
                   <Link href="/checkout" onClick={() => onOpenChange(false)}>Proceder al Pago</Link>
                 </Button>
                 <Button variant="outline" size="lg" className="w-full" onClick={() => onOpenChange(false)}>

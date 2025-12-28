@@ -212,9 +212,8 @@ const BrandingCustomizer = () => {
                        {/* Theme Colors */}
                         <div className="space-y-4">
                           <h3 className="text-lg font-medium flex items-center gap-2"><Palette /> Colores del Tema</h3>
-                            {['primary', 'background', 'accent'].map((colorName) => {
-                                const name = colorName as 'primary' | 'background' | 'accent';
-                                const labels = { primary: 'Color Primario', background: 'Color de Fondo', accent: 'Color de Acento' };
+                            {[{id: 'primary', label: 'Color Primario'}, {id: 'background', label: 'Color de Fondo'}, {id: 'accent', label: 'Color Secundario'}].map((color) => {
+                                const name = color.id as 'primary' | 'background' | 'accent';
 
                                 return (
                                     <FormField
@@ -223,7 +222,7 @@ const BrandingCustomizer = () => {
                                         name={name}
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>{labels[name]}</FormLabel>
+                                                <FormLabel>{color.label}</FormLabel>
                                                 <div className="flex items-center gap-4">
                                                     <FormControl>
                                                         <Input 
