@@ -2,7 +2,7 @@ import data from './branding-config.json';
 import { hexToHslString } from './utils';
 
 // This is the shape of the config file
-interface BrandingConfigFile {
+export interface BrandingConfigFile {
     appName: string;
     logoSvg: string;
     theme: {
@@ -21,6 +21,7 @@ interface BrandingConfigFile {
 // This is the shape we use in the application, converting colors to HSL where needed
 export interface BrandingConfig {
     appName: string;
+    logoSvg: string;
     theme: {
         primary: string; // Converted to HSL for CSS
         background: string; // Converted to HSL for CSS
@@ -35,18 +36,19 @@ export interface BrandingConfig {
 }
 
 // Read the raw JSON data
-const rawConfig: BrandingConfigFile = data;
+export const rawBrandingConfig: BrandingConfigFile = data;
 
 // Create and export the processed defaultBranding object
 export const defaultBranding: BrandingConfig = {
-    ...rawConfig,
+    ...rawBrandingConfig,
+    logoSvg: rawBrandingConfig.logoSvg,
     theme: {
-        primary: hexToHslString(rawConfig.theme.primary),
-        background: hexToHslString(rawConfig.theme.background),
-        accent: hexToHslString(rawConfig.theme.accent),
-        logoColor: rawConfig.theme.logoColor,
+        primary: hexToHslString(rawBrandingConfig.theme.primary),
+        background: hexToHslString(rawBrandingConfig.theme.background),
+        accent: hexToHslString(rawBrandingConfig.theme.accent),
+        logoColor: rawBrandingConfig.theme.logoColor,
     }
 };
 
 // Export the raw SVG content from the config
-export const defaultLogo = rawConfig.logoSvg;
+export const defaultLogo = rawBrandingConfig.logoSvg;

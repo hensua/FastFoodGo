@@ -17,7 +17,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <head>
+       <head>
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+            :root {
+              --primary: ${defaultBranding.theme.primary};
+              --background: ${defaultBranding.theme.background};
+              --accent: ${defaultBranding.theme.accent};
+            }
+          `,
+          }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

@@ -8,19 +8,19 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 94%;
+    --background: 60 0% 94%; /* Fallback */
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 25 95% 53%;
+    --primary: 25 95% 53%; /* Fallback */
     --primary-foreground: 60 9.1% 97.8%;
     --secondary: 0 0% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 0 0% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 48 96% 53%;
+    --accent: 48 96% 53%; /* Fallback */
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 60 9.1% 97.8%;

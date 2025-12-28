@@ -15,8 +15,8 @@ import { Loader2, Palette, Users, Code, Link as LinkIcon, CaseSensitive, Bot, Im
 import { useToast } from '@/hooks/use-toast';
 import type { AppUser } from '@/lib/types';
 import { applyTheme } from '@/app/actions/theme-actions';
-import { hslStringToHex, hexToHslString } from '@/lib/utils';
-import { defaultBranding, defaultLogo } from '@/lib/branding-config';
+import { hexToHslString } from '@/lib/utils';
+import { defaultBranding, defaultLogo, rawBrandingConfig } from '@/lib/branding-config';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -43,16 +43,16 @@ const BrandingCustomizer = () => {
     const form = useForm<z.infer<typeof brandingSchema>>({
         resolver: zodResolver(brandingSchema),
         defaultValues: {
-          appName: defaultBranding.appName,
-          logoSvg: defaultLogo,
-          logoColor: defaultBranding.theme.logoColor,
-          primary: hslStringToHex(defaultBranding.theme.primary),
-          background: hslStringToHex(defaultBranding.theme.background),
-          accent: hslStringToHex(defaultBranding.theme.accent),
+          appName: rawBrandingConfig.appName,
+          logoSvg: rawBrandingConfig.logoSvg,
+          logoColor: rawBrandingConfig.theme.logoColor,
+          primary: rawBrandingConfig.theme.primary,
+          background: rawBrandingConfig.theme.background,
+          accent: rawBrandingConfig.theme.accent,
           social: {
-            twitter: defaultBranding.social.twitter,
-            instagram: defaultBranding.social.instagram,
-            facebook: defaultBranding.social.facebook,
+            twitter: rawBrandingConfig.social.twitter,
+            instagram: rawBrandingConfig.social.instagram,
+            facebook: rawBrandingConfig.social.facebook,
           }
         },
     });
@@ -60,9 +60,9 @@ const BrandingCustomizer = () => {
     const onSubmit = async (values: z.infer<typeof brandingSchema>) => {
         setIsSaving(true);
         const themeData = {
-            primary: hexToHslString(values.primary),
-            background: hexToHslString(values.background),
-            accent: hexToHslString(values.accent),
+            primary: values.primary,
+            background: values.background,
+            accent: values.accent,
             logoColor: values.logoColor,
         };
         const brandingData = {
