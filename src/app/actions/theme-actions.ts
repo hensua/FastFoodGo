@@ -2,6 +2,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
+import { hexToHslString } from '@/lib/utils';
 
 interface ThemeColors {
     primary: string;
@@ -19,8 +20,10 @@ export async function applyTheme(colors: ThemeColors) {
         // Regex to find and replace HSL values for specific CSS variables
         const replaceVariable = (content: string, variable: string, value: string) => {
             const regex = new RegExp(`(--${variable}:\\s*)[^;]+;`);
+            // The value is already in "h s% l%" format
+            const hslValue = value; 
             if (regex.test(content)) {
-                return content.replace(regex, `$1${value};`);
+                return content.replace(regex, `$1${hslValue};`);
             }
             return content;
         };

@@ -15,43 +15,55 @@ import { Loader2, Palette, Users, Code } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { AppUser } from '@/lib/types';
 import { applyTheme } from '@/app/actions/theme-actions';
+import { hslStringToHex, hexToHslString } from '@/lib/utils';
 
 // This is a simplified version of the TeamManagement component from the admin page
 // For a real app, this would be a shared component.
 const TeamManagement = React.lazy(() => import('@/components/team-management'));
 
-
 const themeSchema = z.object({
-  primary: z.string().regex(/^(\d{1,3})\s(\d{1,3})%\s(\d{1,3})%$/, { message: 'Formato HSL inválido (ej: 240 5.9% 10%)' }),
-  background: z.string().regex(/^(\d{1,3})\s(\d{1,3})%\s(\d{1,3})%$/, { message: 'Formato HSL inválido' }),
-  accent: z.string().regex(/^(\d{1,3})\s(\d{1,3})%\s(\d{1,3})%$/, { message: 'Formato HSL inválido' }),
+  primary: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido (ej: #RRGGBB)' }),
+  background: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
+  accent: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
 });
-
 
 const ThemeCustomizer = () => {
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
 
-    // TODO: Ideally, these default values would be dynamically read from globals.css
+    // Default HSL values from globals.css
+    const defaultHsl = {
+        primary: '4 90% 58%',
+        background: '0 0% 93.3%',
+        accent: '36 100% 50%',
+    };
+
+    // Convert default HSL to HEX for the form
+    const defaultHex = {
+        primary: hslStringToHex(defaultHsl.primary),
+        background: hslStringToHex(defaultHsl.background),
+        accent: hslStringToHex(defaultHsl.accent),
+    };
+
     const form = useForm<z.infer<typeof themeSchema>>({
         resolver: zodResolver(themeSchema),
-        defaultValues: {
-            primary: '4 90% 58%',
-            background: '0 0% 93.3%',
-            accent: '36 100% 50%',
-        },
+        defaultValues: defaultHex,
     });
 
     const onSubmit = async (values: z.infer<typeof themeSchema>) => {
         setIsSaving(true);
+        const hslValues = {
+            primary: hexToHslString(values.primary),
+            background: hexToHslString(values.background),
+            accent: hexToHslString(values.accent),
+        };
+
         try {
-            await applyTheme(values);
+            await applyTheme(hslValues);
             toast({
                 title: 'Tema Actualizado',
-                description: 'Los nuevos colores han sido aplicados. Refresca para ver los cambios.',
+                description: 'Los nuevos colores han sido aplicados. Puede que necesites refrescar la página para ver todos los cambios.',
             });
-            // Optional: force a reload to see changes immediately
-            // window.location.reload();
         } catch (error) {
             console.error("Error applying theme:", error);
             toast({
@@ -69,51 +81,47 @@ const ThemeCustomizer = () => {
             <CardHeader>
                 <CardTitle>Personalización de Apariencia</CardTitle>
                 <CardDescription>
-                    Cambia los colores principales de la aplicación. Usa valores HSL sin las funciones `hsl()` o `var()`.
+                    Cambia los colores principales de la aplicación usando valores hexadecimales.
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        <FormField
-                            control={form.control}
-                            name="primary"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Color Primario (botones, enlaces)</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="Ej: 4 90% 58%" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="background"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Color de Fondo</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="Ej: 0 0% 93.3%" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="accent"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Color de Acento</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="Ej: 36 100% 50%" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        {['primary', 'background', 'accent'].map((colorName) => {
+                            const name = colorName as 'primary' | 'background' | 'accent';
+                            const labels = { primary: 'Color Primario', background: 'Color de Fondo', accent: 'Color de Acento' };
+
+                            return (
+                                <FormField
+                                    key={name}
+                                    control={form.control}
+                                    name={name}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{labels[name]}</FormLabel>
+                                            <div className="flex items-center gap-4">
+                                                <FormControl>
+                                                    <Input 
+                                                        type="color" 
+                                                        className="w-12 h-10 p-1"
+                                                        {...field}
+                                                    />
+                                                </FormControl>
+                                                <FormControl>
+                                                    <Input 
+                                                        placeholder="#RRGGBB" 
+                                                        className="flex-1 font-mono"
+                                                        {...field}
+                                                    />
+                                                </FormControl>
+                                            </div>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            );
+                        })}
+                        
                         <Button type="submit" disabled={isSaving}>
                             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Aplicar Cambios
