@@ -25,6 +25,7 @@ const TeamManagement = React.lazy(() => import('@/components/team-management'));
 const brandingSchema = z.object({
   appName: z.string().min(3, { message: 'El nombre debe tener al menos 3 caracteres.' }),
   logoSvg: z.string().startsWith('<svg', { message: 'Debe ser un código SVG válido.'}),
+  logoColor: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
   primary: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido (ej: #RRGGBB)' }),
   background: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
   accent: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
@@ -44,6 +45,7 @@ const BrandingCustomizer = () => {
         defaultValues: {
           appName: defaultBranding.appName,
           logoSvg: defaultLogo,
+          logoColor: defaultBranding.theme.logoColor,
           primary: hslStringToHex(defaultBranding.theme.primary),
           background: hslStringToHex(defaultBranding.theme.background),
           accent: hslStringToHex(defaultBranding.theme.accent),
@@ -61,6 +63,7 @@ const BrandingCustomizer = () => {
             primary: hexToHslString(values.primary),
             background: hexToHslString(values.background),
             accent: hexToHslString(values.accent),
+            logoColor: values.logoColor,
         };
         const brandingData = {
           appName: values.appName,
@@ -120,6 +123,32 @@ const BrandingCustomizer = () => {
                        {/* Logo */}
                         <div className="space-y-4">
                             <h3 className="text-lg font-medium flex items-center gap-2"><ImageIcon /> Logo SVG</h3>
+                             <FormField
+                                control={form.control}
+                                name="logoColor"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Color del Logo</FormLabel>
+                                        <div className="flex items-center gap-4">
+                                            <FormControl>
+                                                <Input 
+                                                    type="color" 
+                                                    className="w-12 h-10 p-1"
+                                                    {...field}
+                                                />
+                                            </FormControl>
+                                            <FormControl>
+                                                <Input 
+                                                    placeholder="#RRGGBB" 
+                                                    className="flex-1 font-mono"
+                                                    {...field}
+                                                />
+                                            </FormControl>
+                                        </div>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                             <FormField
                                 control={form.control}
                                 name="logoSvg"
@@ -129,7 +158,9 @@ const BrandingCustomizer = () => {
                                         <FormControl>
                                             <Textarea placeholder='<svg>...</svg>' {...field} className="font-mono min-h-[150px]" />
                                         </FormControl>
-                                        <FormDescription>Pega el código completo de tu logo en formato SVG.</FormDescription>
+                                        <FormDescription>
+                                            Pega el código completo de tu logo en formato SVG. Para que el color se aplique, asegúrate de que los atributos `fill` o `stroke` en tu SVG estén configurados como `currentColor`.
+                                        </FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}
