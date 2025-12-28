@@ -285,11 +285,6 @@ const BrandingCustomizer = () => {
     )
 }
 
-export async function DeveloperPage() {
-    const brandingConfig = await getBrandingConfig();
-    return <DeveloperPageClient brandingConfig={brandingConfig} />;
-}
-
 function DeveloperPageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) {
     const { user, userDoc, isLoading } = useUser();
     const router = useRouter();
@@ -351,4 +346,8 @@ function DeveloperPageClient({ brandingConfig }: { brandingConfig: BrandingConfi
     );
 }
 
-export default DeveloperPage;
+
+export default async function DeveloperPage() {
+    const brandingConfig = await getBrandingConfig();
+    return <DeveloperPageClient brandingConfig={brandingConfig} />;
+}
