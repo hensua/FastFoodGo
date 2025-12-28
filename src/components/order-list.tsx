@@ -25,6 +25,7 @@ import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { ChatDialog } from './chat/ChatDialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import type { BrandingConfig } from '@/lib/branding-config';
 
 const statusConfig: Record<string, { title: string; icon: React.ElementType; color: string }> = {
   pending: { title: 'Pendientes', icon: Clock, color: 'border-l-4 border-yellow-500' },
@@ -191,7 +192,7 @@ const CancelOrderDialog = ({
     )
 }
 
-function KitchenView({ userDoc }: { userDoc: AppUser }) {
+function KitchenView({ userDoc, brandingConfig }: { userDoc: AppUser; brandingConfig: BrandingConfig }) {
   const firestore = useFirestore();
   const { toast } = useToast();
   
@@ -377,13 +378,14 @@ function KitchenView({ userDoc }: { userDoc: AppUser }) {
               user={userDoc}
               isOpen={!!chatOrder}
               onOpenChange={() => setChatOrder(null)}
+              brandingConfig={brandingConfig}
           />
       )}
     </>
   );
 }
 
-export function OrderList({ userDoc }: { userDoc: AppUser | null | undefined }) {
+export function OrderList({ userDoc, brandingConfig }: { userDoc: AppUser | null | undefined; brandingConfig: BrandingConfig }) {
   if (!userDoc) {
     return <div className="flex justify-center items-center py-10"><Loader2 className="animate-spin" /></div>;
   }
@@ -394,5 +396,5 @@ export function OrderList({ userDoc }: { userDoc: AppUser | null | undefined }) 
     return null; // Don't render if not admin or host
   }
   
-  return <KitchenView userDoc={userDoc} />;
+  return <KitchenView userDoc={userDoc} brandingConfig={brandingConfig} />;
 }

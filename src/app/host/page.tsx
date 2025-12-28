@@ -1,21 +1,37 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '@/components/header';
 import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 import { Loader2, UtensilsCrossed, TrendingUp, ChefHat, Ban, Trophy, Crown, PackageCheck, Store } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { AppUser } from '@/lib/types';
 import { OrderList } from '@/components/order-list';
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { useOrderStats } from '@/app/admin/page';
+import { useOrderStats } from '@/app/admin/AdminDashboardClient';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
 import { UserRound } from 'lucide-react';
+import { getBrandingConfig, type BrandingConfig } from '@/lib/branding-config';
+
+
+export default function HostPage() {
+    const [brandingConfig, setBrandingConfig] = useState<BrandingConfig | null>(null);
+
+    useEffect(() => {
+        getBrandingConfig().then(setBrandingConfig);
+    }, []);
+
+    if (!brandingConfig) {
+        return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
+    }
+
+    return <HostPageClient brandingConfig={brandingConfig} />;
+}
+
 
 // Simplified dashboard for hosts
 const HostStatsDashboard = ({userDoc}: {userDoc: AppUser}) => {
@@ -124,7 +140,7 @@ const HostStatsDashboard = ({userDoc}: {userDoc: AppUser}) => {
 };
 
 
-const HostDashboard = ({ userDoc }: { userDoc: AppUser }) => {
+const HostDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandingConfig: BrandingConfig }) => {
     const [activeTab, setActiveTab] = useState('kitchen');
 
     return (
@@ -139,14 +155,14 @@ const HostDashboard = ({ userDoc }: { userDoc: AppUser }) => {
                 </div>
             </div>
 
-            {activeTab === 'kitchen' && <OrderList userDoc={userDoc} />}
+            {activeTab === 'kitchen' && <OrderList userDoc={userDoc} brandingConfig={brandingConfig} />}
             {activeTab === 'stats' && <HostStatsDashboard userDoc={userDoc}/>}
         </div>
     );
 }
 
 
-export default function HostPage() {
+function HostPageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) {
     const { user, userDoc, isLoading } = useUser();
     const router = useRouter();
     const { toast } = useToast();
@@ -180,9 +196,9 @@ export default function HostPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <Header onCartClick={() => { }} showCart={false} />
+            <Header onCartClick={() => { }} showCart={false} brandingConfig={brandingConfig} />
             <main className="container mx-auto px-4 py-8">
-                <HostDashboard userDoc={userDoc} />
+                <HostDashboard userDoc={userDoc} brandingConfig={brandingConfig} />
             </main>
         </div>
     );

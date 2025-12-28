@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -18,8 +19,9 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from './ui/separator';
 import { Input } from './ui/input';
+import type { BrandingConfig } from '@/lib/branding-config';
 
-export default function CheckoutForm() {
+export default function CheckoutForm({ brandingConfig }: { brandingConfig: BrandingConfig }) {
   const { cartItems, totalPrice, clearCart } = useCart();
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [tip, setTip] = useState(0);

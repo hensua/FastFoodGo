@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -16,6 +16,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { getBrandingConfig, type BrandingConfig } from '@/lib/branding-config';
+
+export default function ProfilePage() {
+    const [brandingConfig, setBrandingConfig] = useState<BrandingConfig | null>(null);
+
+    useEffect(() => {
+        getBrandingConfig().then(setBrandingConfig);
+    }, []);
+
+    if (!brandingConfig) {
+        return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
+    }
+
+    return <ProfilePageClient brandingConfig={brandingConfig} />;
+}
 
 const profileSchema = z.object({
   displayName: z.string().min(2, { message: 'El nombre debe tener al menos 2 caracteres.' }).max(50),
@@ -23,7 +38,7 @@ const profileSchema = z.object({
   deliveryAddress: z.string().min(10, { message: 'La dirección debe tener al menos 10 caracteres.' }),
 });
 
-export default function ProfilePage() {
+function ProfilePageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) {
   const firestore = useFirestore();
   const { user, userDoc, isLoading } = useUser();
   const router = useRouter();
@@ -42,7 +57,7 @@ export default function ProfilePage() {
   const { isSubmitting } = form.formState;
 
   async function onSubmit(values: z.infer<typeof profileSchema>) {
-    if (!user) return;
+    if (!user || !firestore) return;
     const userDocRef = doc(firestore, 'users', user.uid);
     try {
       await updateDoc(userDocRef, values);
@@ -75,7 +90,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onCartClick={() => {}} showCart={false} />
+      <Header onCartClick={() => {}} showCart={false} brandingConfig={brandingConfig} />
       <main className="container mx-auto px-4 py-8 flex justify-center">
         <Card className="w-full max-w-2xl">
           <CardHeader>

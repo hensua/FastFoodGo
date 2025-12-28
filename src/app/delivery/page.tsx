@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -22,6 +23,22 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { isWithinInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from 'date-fns';
+import { getBrandingConfig, type BrandingConfig } from '@/lib/branding-config';
+
+
+export default function DeliveryPage() {
+  const [brandingConfig, setBrandingConfig] = useState<BrandingConfig | null>(null);
+
+  useEffect(() => {
+    getBrandingConfig().then(setBrandingConfig);
+  }, []);
+
+  if (!brandingConfig) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
+  }
+  
+  return <DeliveryPageClient brandingConfig={brandingConfig} />;
+}
 
 const OrderCard = ({ order, onAccept, isUpdating }: { order: Order; onAccept: (order: Order) => void; isUpdating: boolean }) => {
   return (
@@ -298,7 +315,7 @@ const StatsPanel = ({ deliveries }: { deliveries: Order[] }) => {
     );
 };
 
-export default function DeliveryPage() {
+function DeliveryPageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) {
   const firestore = useFirestore();
   const { user, userDoc, isLoading } = useUser();
   const { toast } = useToast();
@@ -402,7 +419,7 @@ export default function DeliveryPage() {
   if (userDoc && userDoc.role === 'driver') {
     return (
       <div className="min-h-screen bg-background">
-        <Header onCartClick={() => {}} showCart={false} />
+        <Header onCartClick={() => {}} showCart={false} brandingConfig={brandingConfig}/>
         <main className="container mx-auto px-4 py-8">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
             <h1 className="text-2xl font-bold flex items-center gap-2">

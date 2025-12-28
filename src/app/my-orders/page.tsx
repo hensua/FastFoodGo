@@ -26,7 +26,22 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { ChatDialog } from '@/components/chat/ChatDialog';
 import { useRouter } from 'next/navigation';
+import { getBrandingConfig, type BrandingConfig } from '@/lib/branding-config';
 
+
+export default function MyOrdersPage() {
+    const [brandingConfig, setBrandingConfig] = useState<BrandingConfig | null>(null);
+
+    useEffect(() => {
+        getBrandingConfig().then(setBrandingConfig);
+    }, []);
+
+    if (!brandingConfig) {
+        return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
+    }
+
+    return <MyOrdersPageClient brandingConfig={brandingConfig} />;
+}
 
 const statusConfig: Record<OrderStatus, { text: string; icon: React.ElementType; color: string; progress: string }> = {
   pending: { text: 'Pendiente', icon: Clock, color: 'text-gray-500', progress: 'w-1/6' },
@@ -204,7 +219,7 @@ const useUnreadMessages = (orders: Order[] | undefined, currentUser: AppUser | n
 };
 
 
-export default function MyOrdersPage() {
+function MyOrdersPageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) {
   const firestore = useFirestore();
   const { user, userDoc, isLoading } = useUser();
   const router = useRouter();
@@ -276,7 +291,7 @@ export default function MyOrdersPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onCartClick={() => {}} showCart={false} />
+      <Header onCartClick={() => {}} showCart={false} brandingConfig={brandingConfig} />
       <main className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">Mis Pedidos</h1>
         
@@ -352,6 +367,7 @@ export default function MyOrdersPage() {
               user={userDoc}
               isOpen={!!chatOrder}
               onOpenChange={() => setChatOrder(null)}
+              brandingConfig={brandingConfig}
           />
       )}
     </div>

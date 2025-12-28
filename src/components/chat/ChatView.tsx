@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -10,13 +11,15 @@ import { Loader2, Send } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import type { BrandingConfig } from '@/lib/branding-config';
 
 interface ChatViewProps {
   order: Order;
   currentUser: AppUser;
+  brandingConfig: BrandingConfig;
 }
 
-export function ChatView({ order, currentUser }: ChatViewProps) {
+export function ChatView({ order, currentUser, brandingConfig }: ChatViewProps) {
   const firestore = useFirestore();
   const [newMessage, setNewMessage] = useState('');
   const [isSending, setIsSending] = useState(false);

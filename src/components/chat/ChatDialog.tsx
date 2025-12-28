@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -11,15 +12,17 @@ import {
 import { ChatView } from './ChatView';
 import type { Order, AppUser } from '@/lib/types';
 import { MessageSquare } from 'lucide-react';
+import type { BrandingConfig } from '@/lib/branding-config';
 
 interface ChatDialogProps {
   order: Order;
   user: AppUser;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  brandingConfig: BrandingConfig;
 }
 
-export function ChatDialog({ order, user, isOpen, onOpenChange }: ChatDialogProps) {
+export function ChatDialog({ order, user, isOpen, onOpenChange, brandingConfig }: ChatDialogProps) {
   if (!isOpen) return null;
 
   return (
@@ -34,7 +37,7 @@ export function ChatDialog({ order, user, isOpen, onOpenChange }: ChatDialogProp
           </DialogDescription>
         </DialogHeader>
         <div className="flex-grow overflow-hidden px-6 pb-6">
-          <ChatView order={order} currentUser={user} />
+          <ChatView order={order} currentUser={user} brandingConfig={brandingConfig} />
         </div>
       </DialogContent>
     </Dialog>

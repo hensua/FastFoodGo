@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -19,6 +20,7 @@ import { rawBrandingConfig } from '@/lib/default-branding';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { getBrandingConfig, type BrandingConfig } from '@/lib/branding-config';
 
 const TeamManagement = React.lazy(() => import('@/components/team-management'));
 
@@ -285,7 +287,7 @@ const BrandingCustomizer = () => {
 }
 
 
-const DeveloperDashboard = ({ userDoc }: { userDoc: AppUser }) => {
+const DeveloperDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandingConfig: BrandingConfig }) => {
     const [activeTab, setActiveTab] = useState('customize');
 
     return (
@@ -311,7 +313,12 @@ const DeveloperDashboard = ({ userDoc }: { userDoc: AppUser }) => {
 };
 
 
-export default function DeveloperPage() {
+export default async function DeveloperPage() {
+    const brandingConfig = await getBrandingConfig();
+    return <DeveloperPageClient brandingConfig={brandingConfig} />;
+}
+
+function DeveloperPageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) {
     const { user, userDoc, isLoading } = useUser();
     const router = useRouter();
     const { toast } = useToast();
@@ -346,9 +353,9 @@ export default function DeveloperPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <Header onCartClick={() => {}} showCart={false} />
+            <Header onCartClick={() => {}} showCart={false} brandingConfig={brandingConfig} />
             <main className="container mx-auto px-4 py-8">
-                <DeveloperDashboard userDoc={userDoc} />
+                <DeveloperDashboard userDoc={userDoc} brandingConfig={brandingConfig} />
             </main>
         </div>
     );
