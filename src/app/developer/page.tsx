@@ -312,11 +312,21 @@ const DeveloperDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; bra
     );
 };
 
+// Server Component Wrapper
+export default function DeveloperPage() {
+    const [brandingConfig, setBrandingConfig] = useState<BrandingConfig | null>(null);
 
-export default async function DeveloperPage() {
-    const brandingConfig = await getBrandingConfig();
+    useEffect(() => {
+        getBrandingConfig().then(setBrandingConfig);
+    }, []);
+    
+    if (!brandingConfig) {
+        return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
+    }
+
     return <DeveloperPageClient brandingConfig={brandingConfig} />;
 }
+
 
 function DeveloperPageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) {
     const { user, userDoc, isLoading } = useUser();
@@ -360,3 +370,5 @@ function DeveloperPageClient({ brandingConfig }: { brandingConfig: BrandingConfi
         </div>
     );
 }
+
+    
