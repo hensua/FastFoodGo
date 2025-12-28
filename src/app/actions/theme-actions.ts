@@ -15,7 +15,8 @@ interface BrandingConfig {
         twitter: string;
         instagram: string;
         facebook: string;
-    }
+    },
+    logoSvg: string;
 }
 
 interface ApplyThemePayload {
@@ -27,6 +28,7 @@ export async function applyTheme(payload: ApplyThemePayload) {
     const { theme, branding } = payload;
     const cssPath = path.join(process.cwd(), 'src', 'app', 'globals.css');
     const brandingConfigPath = path.join(process.cwd(), 'src', 'lib', 'branding-config.json');
+    const logoPath = path.join(process.cwd(), 'public', 'logo.svg');
 
     try {
         // --- 1. Update Theme (CSS) ---
@@ -46,11 +48,15 @@ export async function applyTheme(payload: ApplyThemePayload) {
 
         // --- 2. Update Branding (JSON) ---
         const currentBrandingConfig = JSON.parse(await fs.readFile(brandingConfigPath, 'utf-8'));
+        const { logoSvg, ...brandingJson } = branding; // Exclude logo from JSON
         const newBrandingConfig = {
             ...currentBrandingConfig,
-            ...branding,
+            ...brandingJson,
         };
         await fs.writeFile(brandingConfigPath, JSON.stringify(newBrandingConfig, null, 2), 'utf-8');
+
+        // --- 3. Update Logo (SVG file) ---
+        await fs.writeFile(logoPath, branding.logoSvg, 'utf-8');
         
         return { success: true };
     } catch (error) {

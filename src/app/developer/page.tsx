@@ -9,20 +9,22 @@ import { useRouter } from 'next/navigation';
 import Header from '@/components/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Loader2, Palette, Users, Code, Link as LinkIcon, CaseSensitive, Bot } from 'lucide-react';
+import { Loader2, Palette, Users, Code, Link as LinkIcon, CaseSensitive, Bot, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { AppUser } from '@/lib/types';
 import { applyTheme } from '@/app/actions/theme-actions';
 import { hslStringToHex, hexToHslString } from '@/lib/utils';
-import { defaultBranding } from '@/lib/branding-config';
+import { defaultBranding, defaultLogo } from '@/lib/branding-config';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 
 const TeamManagement = React.lazy(() => import('@/components/team-management'));
 
 const brandingSchema = z.object({
   appName: z.string().min(3, { message: 'El nombre debe tener al menos 3 caracteres.' }),
+  logoSvg: z.string().startsWith('<svg', { message: 'Debe ser un código SVG válido.'}),
   primary: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido (ej: #RRGGBB)' }),
   background: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
   accent: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
@@ -41,6 +43,7 @@ const BrandingCustomizer = () => {
         resolver: zodResolver(brandingSchema),
         defaultValues: {
           appName: defaultBranding.appName,
+          logoSvg: defaultLogo,
           primary: hslStringToHex(defaultBranding.theme.primary),
           background: hslStringToHex(defaultBranding.theme.background),
           accent: hslStringToHex(defaultBranding.theme.accent),
@@ -62,6 +65,7 @@ const BrandingCustomizer = () => {
         const brandingData = {
           appName: values.appName,
           social: values.social,
+          logoSvg: values.logoSvg,
         }
 
         try {
@@ -87,7 +91,7 @@ const BrandingCustomizer = () => {
             <CardHeader>
                 <CardTitle>Personalización de la Marca</CardTitle>
                 <CardDescription>
-                    Cambia el nombre, colores principales y enlaces de redes sociales de la aplicación.
+                    Cambia el nombre, logo, colores principales y enlaces de redes sociales de la aplicación.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -110,6 +114,27 @@ const BrandingCustomizer = () => {
                                 )}
                             />
                        </div>
+                       
+                       <Separator />
+
+                       {/* Logo */}
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-medium flex items-center gap-2"><ImageIcon /> Logo SVG</h3>
+                            <FormField
+                                control={form.control}
+                                name="logoSvg"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Código del Logo SVG</FormLabel>
+                                        <FormControl>
+                                            <Textarea placeholder='<svg>...</svg>' {...field} className="font-mono min-h-[150px]" />
+                                        </FormControl>
+                                        <FormDescription>Pega el código completo de tu logo en formato SVG.</FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
 
                       <Separator />
 
