@@ -54,7 +54,19 @@ export default function ProductDetailDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="p-0 gap-0 max-h-[100dvh] h-[100dvh] flex flex-col overflow-hidden">
+      <DialogContent className="
+        p-0 gap-0 flex flex-col overflow-hidden
+
+        /* MÓVIL */
+        h-[100dvh] max-h-[100dvh] w-full
+
+        /* DESKTOP */
+        md:w-[500px]
+        md:max-w-[90vw]
+        md:h-auto
+        md:max-h-[90vh]
+        md:rounded-2xl">
+
         {/* Imagen (sección auto) */}
         <div className="relative bg-muted shrink-0">
           <div className="relative w-full aspect-[4/3] max-h-[35dvh] overflow-hidden">
