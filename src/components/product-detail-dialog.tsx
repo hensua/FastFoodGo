@@ -54,7 +54,7 @@ export default function ProductDetailDialog({
 
   return (
 <Dialog open={isOpen} onOpenChange={onOpenChange}>
-  <DialogContent className="sm:max-w-md p-0 max-h-[90vh] flex flex-col overflow-hidden rounded-lg">
+  <DialogContent className="sm:max-w-md p-0 max-h-[90vh] flex flex-col rounded-lg">
 
     {/* Imagen */}
     <div className="relative bg-muted shrink-0">
@@ -78,7 +78,7 @@ export default function ProductDetailDialog({
     </div>
 
     {/* CONTENIDO SCROLL */}
-    <ScrollArea className="flex-1">
+    <div className="flex-1 overflow-y-auto">
       <div className="pb-4">
 
         <DialogHeader className="p-6 pb-2 space-y-1 text-left">
@@ -132,7 +132,7 @@ export default function ProductDetailDialog({
           <SuggestedProducts currentProduct={product} />
         </div>
       </div>
-    </ScrollArea>
+    </div>
 
     {/* FOOTER FIJO */}
     <DialogFooter className="p-4 border-t bg-background shrink-0">
