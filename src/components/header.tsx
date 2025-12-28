@@ -15,6 +15,7 @@ interface HeaderProps {
 
 export default function Header({ onCartClick, showCart = true }: HeaderProps) {
   const { totalItems } = useCart();
+  // We use the statically imported config here. The dynamic styles are injected in the layout.
   const { appName, theme } = defaultBranding;
   const logoSvg = defaultLogo;
 
