@@ -2,7 +2,6 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import { hexToHslString } from '@/lib/utils';
 
 interface ThemeColors {
     primary: string;
@@ -10,33 +9,52 @@ interface ThemeColors {
     accent: string;
 }
 
-export async function applyTheme(colors: ThemeColors) {
+interface BrandingConfig {
+    appName: string;
+    social: {
+        twitter: string;
+        instagram: string;
+        facebook: string;
+    }
+}
 
+interface ApplyThemePayload {
+    theme: ThemeColors;
+    branding: BrandingConfig;
+}
+
+export async function applyTheme(payload: ApplyThemePayload) {
+    const { theme, branding } = payload;
     const cssPath = path.join(process.cwd(), 'src', 'app', 'globals.css');
+    const brandingConfigPath = path.join(process.cwd(), 'src', 'lib', 'branding-config.json');
 
     try {
+        // --- 1. Update Theme (CSS) ---
         let cssContent = await fs.readFile(cssPath, 'utf-8');
-
-        // Regex to find and replace HSL values for specific CSS variables
         const replaceVariable = (content: string, variable: string, value: string) => {
             const regex = new RegExp(`(--${variable}:\\s*)[^;]+;`);
-            // The value is already in "h s% l%" format
             const hslValue = value; 
             if (regex.test(content)) {
                 return content.replace(regex, `$1${hslValue};`);
             }
             return content;
         };
-
-        cssContent = replaceVariable(cssContent, 'primary', colors.primary);
-        cssContent = replaceVariable(cssContent, 'background', colors.background);
-        cssContent = replaceVariable(cssContent, 'accent', colors.accent);
-        
+        cssContent = replaceVariable(cssContent, 'primary', theme.primary);
+        cssContent = replaceVariable(cssContent, 'background', theme.background);
+        cssContent = replaceVariable(cssContent, 'accent', theme.accent);
         await fs.writeFile(cssPath, cssContent, 'utf-8');
+
+        // --- 2. Update Branding (JSON) ---
+        const currentBrandingConfig = JSON.parse(await fs.readFile(brandingConfigPath, 'utf-8'));
+        const newBrandingConfig = {
+            ...currentBrandingConfig,
+            ...branding,
+        };
+        await fs.writeFile(brandingConfigPath, JSON.stringify(newBrandingConfig, null, 2), 'utf-8');
         
         return { success: true };
     } catch (error) {
-        console.error('Failed to apply theme:', error);
-        throw new Error('Could not write to CSS file.');
+        console.error('Failed to apply settings:', error);
+        throw new Error('Could not write to configuration files.');
     }
 }

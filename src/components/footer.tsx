@@ -1,8 +1,10 @@
-
 import Link from 'next/link';
 import { UtensilsCrossed, Twitter, Instagram, Facebook } from 'lucide-react';
+import { defaultBranding } from '@/lib/branding-config';
 
 export default function Footer() {
+  const { appName, social } = defaultBranding;
+
   return (
     <footer className="bg-card border-t mt-8">
       <div className="container mx-auto px-4 py-8">
@@ -10,7 +12,7 @@ export default function Footer() {
           <div className="flex items-center gap-2">
             <UtensilsCrossed className="h-7 w-7 text-primary" />
             <span className="text-xl font-bold font-headline text-foreground">
-              FastFoodGo
+              {appName}
             </span>
           </div>
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
@@ -22,19 +24,19 @@ export default function Footer() {
             </Link>
           </div>
           <div className="flex items-center gap-4">
-             <Link href="#" aria-label="Twitter" className="text-muted-foreground hover:text-primary transition-colors">
+             <Link href={social.twitter || '#'} aria-label="Twitter" className="text-muted-foreground hover:text-primary transition-colors">
                 <Twitter size={20} />
              </Link>
-              <Link href="#" aria-label="Instagram" className="text-muted-foreground hover:text-primary transition-colors">
+              <Link href={social.instagram || '#'} aria-label="Instagram" className="text-muted-foreground hover:text-primary transition-colors">
                 <Instagram size={20} />
              </Link>
-              <Link href="#" aria-label="Facebook" className="text-muted-foreground hover:text-primary transition-colors">
+              <Link href={social.facebook || '#'} aria-label="Facebook" className="text-muted-foreground hover:text-primary transition-colors">
                 <Facebook size={20} />
              </Link>
           </div>
         </div>
         <div className="mt-8 text-center text-sm text-muted-foreground border-t pt-6">
-          <p>&copy; {new Date().getFullYear()} FastFoodGo. Todos los derechos reservados.</p>
+          <p>&copy; {new Date().getFullYear()} {appName}. Todos los derechos reservados.</p>
         </div>
       </div>
     </footer>

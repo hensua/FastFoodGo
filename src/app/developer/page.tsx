@@ -11,65 +11,71 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Loader2, Palette, Users, Code } from 'lucide-react';
+import { Loader2, Palette, Users, Code, Link as LinkIcon, CaseSensitive, Bot } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { AppUser } from '@/lib/types';
 import { applyTheme } from '@/app/actions/theme-actions';
 import { hslStringToHex, hexToHslString } from '@/lib/utils';
+import { defaultBranding } from '@/lib/branding-config';
+import { Separator } from '@/components/ui/separator';
 
-// This is a simplified version of the TeamManagement component from the admin page
-// For a real app, this would be a shared component.
 const TeamManagement = React.lazy(() => import('@/components/team-management'));
 
-const themeSchema = z.object({
+const brandingSchema = z.object({
+  appName: z.string().min(3, { message: 'El nombre debe tener al menos 3 caracteres.' }),
   primary: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido (ej: #RRGGBB)' }),
   background: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
   accent: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
+  social: z.object({
+    twitter: z.string().url({ message: 'URL inválida' }).or(z.literal('')),
+    instagram: z.string().url({ message: 'URL inválida' }).or(z.literal('')),
+    facebook: z.string().url({ message: 'URL inválida' }).or(z.literal('')),
+  })
 });
 
-const ThemeCustomizer = () => {
+const BrandingCustomizer = () => {
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
 
-    // Default HSL values from globals.css
-    const defaultHsl = {
-        primary: '4 90% 58%',
-        background: '0 0% 93.3%',
-        accent: '36 100% 50%',
-    };
-
-    // Convert default HSL to HEX for the form
-    const defaultHex = {
-        primary: hslStringToHex(defaultHsl.primary),
-        background: hslStringToHex(defaultHsl.background),
-        accent: hslStringToHex(defaultHsl.accent),
-    };
-
-    const form = useForm<z.infer<typeof themeSchema>>({
-        resolver: zodResolver(themeSchema),
-        defaultValues: defaultHex,
+    const form = useForm<z.infer<typeof brandingSchema>>({
+        resolver: zodResolver(brandingSchema),
+        defaultValues: {
+          appName: defaultBranding.appName,
+          primary: hslStringToHex(defaultBranding.theme.primary),
+          background: hslStringToHex(defaultBranding.theme.background),
+          accent: hslStringToHex(defaultBranding.theme.accent),
+          social: {
+            twitter: defaultBranding.social.twitter,
+            instagram: defaultBranding.social.instagram,
+            facebook: defaultBranding.social.facebook,
+          }
+        },
     });
 
-    const onSubmit = async (values: z.infer<typeof themeSchema>) => {
+    const onSubmit = async (values: z.infer<typeof brandingSchema>) => {
         setIsSaving(true);
-        const hslValues = {
+        const themeData = {
             primary: hexToHslString(values.primary),
             background: hexToHslString(values.background),
             accent: hexToHslString(values.accent),
         };
+        const brandingData = {
+          appName: values.appName,
+          social: values.social,
+        }
 
         try {
-            await applyTheme(hslValues);
+            await applyTheme({ theme: themeData, branding: brandingData });
             toast({
-                title: 'Tema Actualizado',
-                description: 'Los nuevos colores han sido aplicados. Puede que necesites refrescar la página para ver todos los cambios.',
+                title: 'Configuración Actualizada',
+                description: 'La apariencia y los datos de la marca han sido guardados. Puede que necesites refrescar la página para ver todos los cambios.',
             });
         } catch (error) {
             console.error("Error applying theme:", error);
             toast({
                 variant: 'destructive',
                 title: 'Error',
-                description: 'No se pudo guardar el tema. Revisa los permisos del servidor.',
+                description: 'No se pudo guardar la configuración. Revisa los permisos del servidor.',
             });
         } finally {
             setIsSaving(false);
@@ -79,52 +85,103 @@ const ThemeCustomizer = () => {
     return (
          <Card>
             <CardHeader>
-                <CardTitle>Personalización de Apariencia</CardTitle>
+                <CardTitle>Personalización de la Marca</CardTitle>
                 <CardDescription>
-                    Cambia los colores principales de la aplicación usando valores hexadecimales.
+                    Cambia el nombre, colores principales y enlaces de redes sociales de la aplicación.
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        {['primary', 'background', 'accent'].map((colorName) => {
-                            const name = colorName as 'primary' | 'background' | 'accent';
-                            const labels = { primary: 'Color Primario', background: 'Color de Fondo', accent: 'Color de Acento' };
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                       {/* General Branding */}
+                       <div className="space-y-4">
+                            <h3 className="text-lg font-medium flex items-center gap-2"><CaseSensitive /> Apariencia General</h3>
+                             <FormField
+                                control={form.control}
+                                name="appName"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Nombre de la Página</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="FastFoodGo" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                       </div>
 
-                            return (
-                                <FormField
-                                    key={name}
-                                    control={form.control}
-                                    name={name}
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>{labels[name]}</FormLabel>
-                                            <div className="flex items-center gap-4">
+                      <Separator />
+
+                       {/* Theme Colors */}
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-medium flex items-center gap-2"><Palette /> Colores del Tema</h3>
+                            {['primary', 'background', 'accent'].map((colorName) => {
+                                const name = colorName as 'primary' | 'background' | 'accent';
+                                const labels = { primary: 'Color Primario', background: 'Color de Fondo', accent: 'Color de Acento' };
+
+                                return (
+                                    <FormField
+                                        key={name}
+                                        control={form.control}
+                                        name={name}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{labels[name]}</FormLabel>
+                                                <div className="flex items-center gap-4">
+                                                    <FormControl>
+                                                        <Input 
+                                                            type="color" 
+                                                            className="w-12 h-10 p-1"
+                                                            {...field}
+                                                        />
+                                                    </FormControl>
+                                                    <FormControl>
+                                                        <Input 
+                                                            placeholder="#RRGGBB" 
+                                                            className="flex-1 font-mono"
+                                                            {...field}
+                                                        />
+                                                    </FormControl>
+                                                </div>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                );
+                            })}
+                        </div>
+                        
+                        <Separator />
+
+                        {/* Social Links */}
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-medium flex items-center gap-2"><LinkIcon /> Enlaces de Redes Sociales</h3>
+                             {['twitter', 'instagram', 'facebook'].map((socialName) => {
+                                const name = socialName as 'twitter' | 'instagram' | 'facebook';
+                                const labels = { twitter: 'Twitter / X', instagram: 'Instagram', facebook: 'Facebook' };
+                                 return (
+                                     <FormField
+                                        key={name}
+                                        control={form.control}
+                                        name={`social.${name}`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{labels[name]}</FormLabel>
                                                 <FormControl>
-                                                    <Input 
-                                                        type="color" 
-                                                        className="w-12 h-10 p-1"
-                                                        {...field}
-                                                    />
+                                                    <Input placeholder={`https://...`} {...field} />
                                                 </FormControl>
-                                                <FormControl>
-                                                    <Input 
-                                                        placeholder="#RRGGBB" 
-                                                        className="flex-1 font-mono"
-                                                        {...field}
-                                                    />
-                                                </FormControl>
-                                            </div>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            );
-                        })}
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                 )
+                             })}
+                        </div>
                         
                         <Button type="submit" disabled={isSaving}>
                             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Aplicar Cambios
+                            Guardar Cambios
                         </Button>
                     </form>
                 </Form>
@@ -149,7 +206,7 @@ const DeveloperDashboard = ({ userDoc }: { userDoc: AppUser }) => {
                 </div>
             </div>
 
-            {activeTab === 'customize' && <ThemeCustomizer />}
+            {activeTab === 'customize' && <BrandingCustomizer />}
             {activeTab === 'team' && (
                 <React.Suspense fallback={<div className="flex justify-center p-10"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
                     <TeamManagement userDoc={userDoc} />

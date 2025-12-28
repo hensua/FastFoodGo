@@ -3,10 +3,11 @@ import './globals.css';
 import { CartProvider } from '@/components/cart-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
+import { defaultBranding } from '@/lib/branding-config';
 
 export const metadata: Metadata = {
-  title: 'FastFoodGo',
-  description: 'La forma más rápida de llegar a tu comida favorita.',
+  title: defaultBranding.appName,
+  description: `La forma más rápida de llegar a tu comida favorita.`,
 };
 
 export default function RootLayout({

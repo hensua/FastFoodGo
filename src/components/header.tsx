@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/components/cart-provider";
 import AuthButton from "./auth-button";
 import Link from "next/link";
+import { defaultBranding } from "@/lib/branding-config";
 
 interface HeaderProps {
   onCartClick: () => void;
@@ -21,7 +22,7 @@ export default function Header({ onCartClick, showCart = true }: HeaderProps) {
         <Link href="/" className="flex items-center gap-2">
           <UtensilsCrossed className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-bold font-headline text-foreground">
-            FastFoodGo
+            {defaultBranding.appName}
           </h1>
         </Link>
         <div className="flex items-center gap-4">

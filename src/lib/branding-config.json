@@ -1,0 +1,13 @@
+{
+  "appName": "FastFoodGo",
+  "theme": {
+    "primary": "#F97316",
+    "background": "#F0F0F0",
+    "accent": "#FACC15"
+  },
+  "social": {
+    "twitter": "#",
+    "instagram": "#",
+    "facebook": "#"
+  }
+}
