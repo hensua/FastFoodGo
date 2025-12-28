@@ -54,7 +54,9 @@ export default function ProductDetailDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="
+      <DialogContent
+      onOpenAutoFocus={(e) => e.preventDefault()} 
+      className="
         p-0 gap-0 flex flex-col overflow-hidden
 
         /* MÓVIL */
@@ -83,7 +85,14 @@ export default function ProductDetailDialog({
           <Button
             variant="ghost"
             size="icon"
-            className="absolute bottom-[-20px] right-6 h-12 w-12 rounded-full bg-white shadow-lg hover:bg-gray-100"
+            className="
+              absolute bottom-[-20px] right-6
+              h-12 w-12 rounded-full
+              bg-white shadow-lg
+              hover:bg-gray-100
+
+              z-50
+            "
           >
             <Heart className="h-6 w-6 text-gray-500" />
           </Button>
