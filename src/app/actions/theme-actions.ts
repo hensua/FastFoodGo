@@ -1,3 +1,4 @@
+
 'use server';
 
 import { promises as fs } from 'fs';
@@ -8,6 +9,7 @@ interface ThemeColors {
     primary: string;
     background: string;
     accent: string;
+    bannerAccent: string;
 }
 
 interface BrandingConfig {
@@ -45,6 +47,7 @@ export async function applyTheme(payload: ApplyThemePayload) {
                 background: theme.background, // Store as HEX
                 accent: theme.accent,         // Store as HEX
                 logoColor: theme.logoColor,   // Store as HEX
+                bannerAccent: theme.bannerAccent, // Store as HEX
             }
         };
         

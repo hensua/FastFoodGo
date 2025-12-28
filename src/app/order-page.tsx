@@ -48,7 +48,14 @@ export default function OrderPage({ products, loading, brandingConfig }: OrderPa
       <Header onCartClick={() => setCartOpen(true)} brandingConfig={brandingConfig} />
 
       <main className="container mx-auto px-4 py-8 flex-grow">
-        <div className="bg-gradient-to-r from-primary to-accent rounded-2xl p-8 mb-8 text-white shadow-lg relative overflow-hidden">
+        <div 
+          className="bg-gradient-to-r rounded-2xl p-8 mb-8 text-white shadow-lg relative overflow-hidden"
+          style={{
+            '--tw-gradient-from': `hsl(var(--primary)) var(--tw-gradient-from-position)`,
+            '--tw-gradient-to': `hsl(var(--banner-accent)) var(--tw-gradient-to-position)`,
+            '--tw-gradient-stops': `var(--tw-gradient-from), var(--tw-gradient-to)`,
+          } as React.CSSProperties}
+        >
           <div className="relative z-10">
             <h1 className="text-3xl font-bold mb-2">¡El sabor más rápido de la ciudad! 🍔</h1>
             <p className="opacity-90">Pide ahora y recibe en minutos.</p>

@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { CartProvider } from '@/components/cart-provider';
@@ -40,6 +41,7 @@ export default async function RootLayout({
               --primary: ${brandingConfig.theme.primary};
               --background: ${brandingConfig.theme.background};
               --accent: ${brandingConfig.theme.accent};
+              --banner-accent: ${brandingConfig.theme.bannerAccent};
             }
           `,
           }}

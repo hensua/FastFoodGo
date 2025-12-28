@@ -13,7 +13,7 @@ export default function Footer({ brandingConfig }: { brandingConfig: BrandingCon
           <div className="flex items-center gap-2">
             <div 
               className="h-7 w-7"
-              style={{ color: theme.primary }}
+              style={{ color: theme.logoColor }}
               dangerouslySetInnerHTML={{ __html: logoSvg }}
             />
             <span className="text-xl font-bold font-headline text-foreground">

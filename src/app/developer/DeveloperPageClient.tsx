@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Loader2, Palette, Users, Code, Link as LinkIcon, CaseSensitive, Bot, Image as ImageIcon, Type } from 'lucide-react';
+import { Loader2, Palette, Users, Code, Link as LinkIcon, CaseSensitive, Bot, Image as ImageIcon, Type, PaintBucket } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { AppUser } from '@/lib/types';
 import { applyTheme } from '@/app/actions/theme-actions';
@@ -31,6 +31,7 @@ const brandingSchema = z.object({
   primary: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido (ej: #RRGGBB)' }),
   background: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
   accent: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
+  bannerAccent: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
   social: z.object({
     twitter: z.string().url({ message: 'URL inválida' }).or(z.literal('')),
     instagram: z.string().url({ message: 'URL inválida' }).or(z.literal('')),
@@ -52,6 +53,7 @@ const BrandingCustomizer = () => {
           primary: rawBrandingConfig.theme.primary,
           background: rawBrandingConfig.theme.background,
           accent: rawBrandingConfig.theme.accent,
+          bannerAccent: rawBrandingConfig.theme.bannerAccent || '#ff932e',
           social: {
             twitter: rawBrandingConfig.social.twitter,
             instagram: rawBrandingConfig.social.instagram,
@@ -68,6 +70,7 @@ const BrandingCustomizer = () => {
             background: values.background,
             accent: values.accent,
             logoColor: values.logoColor,
+            bannerAccent: values.bannerAccent,
         };
         const brandingData = {
           appName: values.appName,
@@ -93,6 +96,35 @@ const BrandingCustomizer = () => {
             setIsSaving(false);
         }
     };
+
+    const ColorField = ({ name, label }: { name: 'primary' | 'background' | 'accent' | 'logoColor' | 'bannerAccent', label: string }) => (
+        <FormField
+            control={form.control}
+            name={name}
+            render={({ field }) => (
+                <FormItem>
+                    <FormLabel>{label}</FormLabel>
+                    <div className="flex items-center gap-4">
+                        <FormControl>
+                            <Input 
+                                type="color" 
+                                className="w-12 h-10 p-1"
+                                {...field}
+                            />
+                        </FormControl>
+                        <FormControl>
+                            <Input 
+                                placeholder="#RRGGBB" 
+                                className="flex-1 font-mono"
+                                {...field}
+                            />
+                        </FormControl>
+                    </div>
+                    <FormMessage />
+                </FormItem>
+            )}
+        />
+    );
 
     return (
          <Card>
@@ -163,32 +195,7 @@ const BrandingCustomizer = () => {
                        {/* Logo */}
                         <div className="space-y-4">
                             <h3 className="text-lg font-medium flex items-center gap-2"><ImageIcon /> Logo SVG</h3>
-                             <FormField
-                                control={form.control}
-                                name="logoColor"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Color del Logo</FormLabel>
-                                        <div className="flex items-center gap-4">
-                                            <FormControl>
-                                                <Input 
-                                                    type="color" 
-                                                    className="w-12 h-10 p-1"
-                                                    {...field}
-                                                />
-                                            </FormControl>
-                                            <FormControl>
-                                                <Input 
-                                                    placeholder="#RRGGBB" 
-                                                    className="flex-1 font-mono"
-                                                    {...field}
-                                                />
-                                            </FormControl>
-                                        </div>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                             <ColorField name="logoColor" label="Color del Logo" />
                             <FormField
                                 control={form.control}
                                 name="logoSvg"
@@ -212,39 +219,10 @@ const BrandingCustomizer = () => {
                        {/* Theme Colors */}
                         <div className="space-y-4">
                           <h3 className="text-lg font-medium flex items-center gap-2"><Palette /> Colores del Tema</h3>
-                            {[{id: 'primary', label: 'Color Primario'}, {id: 'background', label: 'Color de Fondo'}, {id: 'accent', label: 'Color Secundario'}].map((color) => {
-                                const name = color.id as 'primary' | 'background' | 'accent';
-
-                                return (
-                                    <FormField
-                                        key={name}
-                                        control={form.control}
-                                        name={name}
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{color.label}</FormLabel>
-                                                <div className="flex items-center gap-4">
-                                                    <FormControl>
-                                                        <Input 
-                                                            type="color" 
-                                                            className="w-12 h-10 p-1"
-                                                            {...field}
-                                                        />
-                                                    </FormControl>
-                                                    <FormControl>
-                                                        <Input 
-                                                            placeholder="#RRGGBB" 
-                                                            className="flex-1 font-mono"
-                                                            {...field}
-                                                        />
-                                                    </FormControl>
-                                                </div>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                );
-                            })}
+                            <ColorField name="primary" label="Color Primario" />
+                            <ColorField name="background" label="Color de Fondo" />
+                            <ColorField name="accent" label="Color Secundario" />
+                            <ColorField name="bannerAccent" label="Color del Anuncio" />
                         </div>
                         
                         <Separator />

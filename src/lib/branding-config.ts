@@ -1,3 +1,4 @@
+
 // This file is now intended to run on the client, so we can't use 'fs' or 'path'.
 // We will fetch the config instead of reading it from the filesystem.
 
@@ -14,6 +15,7 @@ export interface BrandingConfigFile {
         background: string;    // Stored as HEX
         accent: string;        // Stored as HEX
         logoColor: string;     // Stored as HEX
+        bannerAccent: string;  // Stored as HEX
     };
     social: {
         twitter: string;
@@ -29,6 +31,7 @@ export interface BrandingConfig extends BrandingConfigFile {
         background: string;    // Converted to HSL for CSS
         accent: string;        // Converted to HSL for CSS
         logoColor: string;     // Kept as HEX for inline style
+        bannerAccent: string;  // Converted to HSL for CSS
     };
 }
 
@@ -41,6 +44,7 @@ function processBrandingConfig(rawConfig: BrandingConfigFile): BrandingConfig {
             background: hexToHslString(rawConfig.theme.background),
             accent: hexToHslString(rawConfig.theme.accent),
             logoColor: rawConfig.theme.logoColor,
+            bannerAccent: hexToHslString(rawConfig.theme.bannerAccent || rawConfig.theme.accent), // Fallback to accent
         }
     };
 }
