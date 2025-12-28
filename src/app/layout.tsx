@@ -3,18 +3,33 @@ import './globals.css';
 import { CartProvider } from '@/components/cart-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
-import { defaultBranding } from '@/lib/branding-config';
+import { getBrandingConfig } from '@/lib/branding-config';
+import { cn } from '@/lib/utils';
 
-export const metadata: Metadata = {
-  title: defaultBranding.appName,
-  description: `La forma más rápida de llegar a tu comida favorita.`,
+// Helper function to generate Google Font URL
+const getFontUrl = (fontFamily: string) => {
+  const fontName = fontFamily.replace(/ /g, '+');
+  return `https://fonts.googleapis.com/css2?family=${fontName}:ital,wght@0,400;0,700;1,400;1,700&display=swap`;
 };
 
-export default function RootLayout({
+// This function now runs on the server to generate metadata dynamically
+export async function generateMetadata(): Promise<Metadata> {
+  const brandingConfig = await getBrandingConfig();
+  return {
+    title: brandingConfig.appName,
+    description: `La forma más rápida de llegar a tu comida favorita.`,
+  };
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const brandingConfig = await getBrandingConfig();
+  const fontUrl = getFontUrl(brandingConfig.fontFamily);
+  const fontClass = `font-${brandingConfig.fontFamily.toLowerCase().replace(/ /g, '-')}`;
+
   return (
     <html lang="es" suppressHydrationWarning>
        <head>
@@ -22,9 +37,9 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
             :root {
-              --primary: ${defaultBranding.theme.primary};
-              --background: ${defaultBranding.theme.background};
-              --accent: ${defaultBranding.theme.accent};
+              --primary: ${brandingConfig.theme.primary};
+              --background: ${brandingConfig.theme.background};
+              --accent: ${brandingConfig.theme.accent};
             }
           `,
           }}
@@ -32,11 +47,11 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+          href={fontUrl}
           rel="stylesheet"
         />
       </head>
-      <body className="font-body antialiased">
+      <body className={cn("antialiased", fontClass)}>
         <FirebaseClientProvider>
           <CartProvider>
             {children}

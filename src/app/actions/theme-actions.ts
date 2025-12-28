@@ -16,8 +16,9 @@ interface BrandingConfig {
         twitter: string;
         instagram: string;
         facebook: string;
-    },
+    };
     logoSvg: string;
+    fontFamily: string;
 }
 
 interface ApplyThemePayload {
@@ -38,6 +39,7 @@ export async function applyTheme(payload: ApplyThemePayload) {
             appName: branding.appName,
             social: branding.social,
             logoSvg: branding.logoSvg,
+            fontFamily: branding.fontFamily,
             theme: {
                 primary: theme.primary,       // Store as HEX
                 background: theme.background, // Store as HEX

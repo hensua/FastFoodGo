@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { UtensilsCrossed, Twitter, Instagram, Facebook } from 'lucide-react';
-import { defaultBranding } from '@/lib/branding-config';
+import { defaultBranding } from '@/lib/default-branding';
 
 export default function Footer() {
   const { appName, social } = defaultBranding;

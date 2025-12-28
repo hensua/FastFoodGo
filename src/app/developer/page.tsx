@@ -11,14 +11,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Loader2, Palette, Users, Code, Link as LinkIcon, CaseSensitive, Bot, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Palette, Users, Code, Link as LinkIcon, CaseSensitive, Bot, Image as ImageIcon, Type } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { AppUser } from '@/lib/types';
 import { applyTheme } from '@/app/actions/theme-actions';
-import { hexToHslString } from '@/lib/utils';
-import { defaultBranding, defaultLogo, rawBrandingConfig } from '@/lib/branding-config';
+import { rawBrandingConfig } from '@/lib/default-branding';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 const TeamManagement = React.lazy(() => import('@/components/team-management'));
 
@@ -33,7 +33,8 @@ const brandingSchema = z.object({
     twitter: z.string().url({ message: 'URL inválida' }).or(z.literal('')),
     instagram: z.string().url({ message: 'URL inválida' }).or(z.literal('')),
     facebook: z.string().url({ message: 'URL inválida' }).or(z.literal('')),
-  })
+  }),
+  fontFamily: z.string(),
 });
 
 const BrandingCustomizer = () => {
@@ -53,7 +54,8 @@ const BrandingCustomizer = () => {
             twitter: rawBrandingConfig.social.twitter,
             instagram: rawBrandingConfig.social.instagram,
             facebook: rawBrandingConfig.social.facebook,
-          }
+          },
+          fontFamily: rawBrandingConfig.fontFamily || 'PT Sans',
         },
     });
 
@@ -69,6 +71,7 @@ const BrandingCustomizer = () => {
           appName: values.appName,
           social: values.social,
           logoSvg: values.logoSvg,
+          fontFamily: values.fontFamily,
         }
 
         try {
@@ -94,7 +97,7 @@ const BrandingCustomizer = () => {
             <CardHeader>
                 <CardTitle>Personalización de la Marca</CardTitle>
                 <CardDescription>
-                    Cambia el nombre, logo, colores principales y enlaces de redes sociales de la aplicación.
+                    Cambia el nombre, logo, colores y tipografía de la aplicación.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -118,6 +121,41 @@ const BrandingCustomizer = () => {
                             />
                        </div>
                        
+                       <Separator />
+
+                        {/* Font */}
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-medium flex items-center gap-2"><Type /> Tipografía</h3>
+                             <FormField
+                                control={form.control}
+                                name="fontFamily"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Fuente Principal</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Selecciona una fuente" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="PT Sans">PT Sans</SelectItem>
+                                                <SelectItem value="Lato">Lato</SelectItem>
+                                                <SelectItem value="Roboto">Roboto</SelectItem>
+                                                <SelectItem value="Open Sans">Open Sans</SelectItem>
+                                                <SelectItem value="Montserrat">Montserrat</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>
+                                            La fuente se cargará desde Google Fonts.
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+
+
                        <Separator />
 
                        {/* Logo */}

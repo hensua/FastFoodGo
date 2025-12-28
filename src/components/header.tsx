@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/components/cart-provider";
 import AuthButton from "./auth-button";
 import Link from "next/link";
-import { defaultBranding, defaultLogo } from "@/lib/branding-config";
+import { defaultBranding, defaultLogo } from "@/lib/default-branding";
 
 interface HeaderProps {
   onCartClick: () => void;

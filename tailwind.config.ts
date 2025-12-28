@@ -17,8 +17,12 @@ export default {
     },
     extend: {
       fontFamily: {
-        body: ['PT Sans', 'sans-serif'],
-        headline: ['PT Sans', 'sans-serif'],
+        'pt-sans': ['PT Sans', 'sans-serif'],
+        'lato': ['Lato', 'sans-serif'],
+        'roboto': ['Roboto', 'sans-serif'],
+        'open-sans': ['Open Sans', 'sans-serif'],
+        'montserrat': ['Montserrat', 'sans-serif'],
+        headline: ['PT Sans', 'sans-serif'], // You might want to make this dynamic too
         code: ['monospace'],
       },
       colors: {
