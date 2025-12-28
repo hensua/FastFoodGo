@@ -8,20 +8,21 @@ import ProductList from '@/components/product-list';
 import CartSheet from '@/components/cart/cart-sheet';
 import { Button } from '@/components/ui/button';
 import ProductDetailDialog from '@/components/product-detail-dialog';
-import { UtensilsCrossed } from 'lucide-react';
 import Footer from '@/components/footer';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/firebase';
 import { Loader2 } from 'lucide-react';
+import type { BrandingConfig } from '@/lib/branding-config';
 
 interface OrderPageProps {
   products: Product[];
   loading: boolean;
+  brandingConfig: BrandingConfig;
 }
 
 const categories = ['Todas', 'Hamburguesas', 'Pizzas', 'Acompañamientos', 'Bebidas', 'Otros'];
 
-export default function OrderPage({ products, loading }: OrderPageProps) {
+export default function OrderPage({ products, loading, brandingConfig }: OrderPageProps) {
   const [isCartOpen, setCartOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -44,17 +45,19 @@ export default function OrderPage({ products, loading }: OrderPageProps) {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header onCartClick={() => setCartOpen(true)} />
+      <Header onCartClick={() => setCartOpen(true)} brandingConfig={brandingConfig} />
 
       <main className="container mx-auto px-4 py-8 flex-grow">
-        <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-8 mb-8 text-white shadow-lg relative overflow-hidden">
+        <div className="bg-gradient-to-r from-primary to-orange-500 rounded-2xl p-8 mb-8 text-white shadow-lg relative overflow-hidden">
           <div className="relative z-10">
             <h1 className="text-3xl font-bold mb-2">¡El sabor más rápido de la ciudad! 🍔</h1>
             <p className="opacity-90">Pide ahora y recibe en minutos.</p>
           </div>
-          <div className="absolute right-0 top-0 opacity-10 transform translate-x-10 -translate-y-10">
-            <UtensilsCrossed size={200} />
-          </div>
+          <div
+            className="absolute right-0 top-0 opacity-10 transform translate-x-10 -translate-y-10 w-[200px] h-[200px]"
+            style={{ color: 'white' }}
+            dangerouslySetInnerHTML={{ __html: brandingConfig.logoSvg }}
+          />
         </div>
         
         <div className="flex gap-2 overflow-x-auto pb-4 mb-6">
@@ -92,7 +95,7 @@ export default function OrderPage({ products, loading }: OrderPageProps) {
           onOpenChange={handleDialogClose}
         />
       )}
-       <Footer />
+       <Footer brandingConfig={brandingConfig}/>
     </div>
   );
 }

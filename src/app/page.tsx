@@ -1,18 +1,34 @@
 
-'use client';
-
+import { getBrandingConfig, type BrandingConfig } from '@/lib/branding-config';
+import OrderPage from './order-page';
+import { products as initialProducts } from '@/lib/data';
+import 'server-only';
 import { useEffect, useMemo } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, writeBatch, doc } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
-import OrderPage from './order-page';
-import { products as initialProducts } from '@/lib/data';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
-function HomePageContent() {
+
+// This is now a Server Component
+export default async function Home() {
+  // Fetch branding config on the server
+  const brandingConfig = await getBrandingConfig();
+
+  // The content of the page is a client component
+  // that will handle redirection and data fetching for products.
+  return <HomePageClient brandingConfig={brandingConfig} />;
+}
+
+// All client-side logic is now encapsulated in this component.
+// It must be defined in the same file or imported dynamically.
+function HomePageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) {
+  'use client';
+  const { user, userDoc, isLoading: isUserLoading } = useUser();
+  const router = useRouter();
   const firestore = useFirestore();
-  
+
   const productsCollection = useMemoFirebase(() => 
     firestore ? collection(firestore, 'products') : null, 
     [firestore]
@@ -46,22 +62,11 @@ function HomePageContent() {
     return products || [];
   }, [products]);
 
-  const isLoading = isProductsLoading || products === null;
-
-  return <OrderPage products={productList || []} loading={isLoading} />;
-}
-
-export default function Home() {
-  const { user, userDoc, isLoading } = useUser();
-  const router = useRouter();
-
   useEffect(() => {
-    // Wait until the loading is complete before making any decisions.
-    if (isLoading) {
+    if (isUserLoading) {
       return;
     }
     
-    // If we have a user and their role document, decide where to redirect.
     if (user && userDoc) {
       if (userDoc.role === 'admin') {
         router.push('/admin');
@@ -73,22 +78,14 @@ export default function Home() {
         router.push('/developer');
       }
     }
-    // If none of the above, the user is either not logged in or is a 'customer',
-    // so we'll let the component render the customer view.
-  }, [isLoading, user, userDoc, router]);
+  }, [isUserLoading, user, userDoc, router]);
 
-  // While we are checking auth and roles, show a loading screen.
-  // This is crucial to prevent showing the customer UI to a privileged user before redirecting.
-  if (isLoading) {
-    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
-  }
-  
-  // If the user is logged in and has a non-customer role, show a loading screen while the
-  // useEffect above triggers the redirect. This avoids the flicker of the customer UI.
-  if (userDoc && userDoc.role && userDoc.role !== 'customer') {
-      return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo a tu panel...</div>;
+  const isLoading = isUserLoading || isProductsLoading || products === null;
+  const isPrivilegedUser = userDoc && userDoc.role && userDoc.role !== 'customer';
+
+  if (isLoading || isPrivilegedUser) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> {isPrivilegedUser && "Redirigiendo a tu panel..."}</div>;
   }
 
-  // If we've finished loading and the user is a customer or not logged in, show the main page.
-  return <HomePageContent />;
+  return <OrderPage products={productList || []} loading={isLoading} brandingConfig={brandingConfig} />;
 }

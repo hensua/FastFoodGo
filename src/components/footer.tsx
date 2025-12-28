@@ -1,16 +1,21 @@
-import Link from 'next/link';
-import { UtensilsCrossed, Twitter, Instagram, Facebook } from 'lucide-react';
-import { defaultBranding } from '@/lib/default-branding';
 
-export default function Footer() {
-  const { appName, social } = defaultBranding;
+import Link from 'next/link';
+import { Twitter, Instagram, Facebook } from 'lucide-react';
+import type { BrandingConfig } from '@/lib/branding-config';
+
+export default function Footer({ brandingConfig }: { brandingConfig: BrandingConfig }) {
+  const { appName, social, theme, logoSvg } = brandingConfig;
 
   return (
     <footer className="bg-card border-t mt-8">
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row justify-between items-center space-y-6 md:space-y-0">
           <div className="flex items-center gap-2">
-            <UtensilsCrossed className="h-7 w-7 text-primary" />
+            <div 
+              className="h-7 w-7"
+              style={{ color: theme.primary }}
+              dangerouslySetInnerHTML={{ __html: logoSvg }}
+            />
             <span className="text-xl font-bold font-headline text-foreground">
               {appName}
             </span>

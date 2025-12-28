@@ -1,3 +1,4 @@
+
 "use client";
 
 import { ShoppingCart } from "lucide-react";
@@ -6,18 +7,17 @@ import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/components/cart-provider";
 import AuthButton from "./auth-button";
 import Link from "next/link";
-import { defaultBranding, defaultLogo } from "@/lib/default-branding";
+import type { BrandingConfig } from "@/lib/branding-config";
 
 interface HeaderProps {
   onCartClick: () => void;
   showCart?: boolean;
+  brandingConfig: BrandingConfig;
 }
 
-export default function Header({ onCartClick, showCart = true }: HeaderProps) {
+export default function Header({ onCartClick, showCart = true, brandingConfig }: HeaderProps) {
   const { totalItems } = useCart();
-  // We use the statically imported config here. The dynamic styles are injected in the layout.
-  const { appName, theme } = defaultBranding;
-  const logoSvg = defaultLogo;
+  const { appName, theme, logoSvg } = brandingConfig;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-card shadow-sm">
