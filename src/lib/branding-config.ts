@@ -1,7 +1,8 @@
-import { promises as fs } from 'fs';
-import path from 'path';
+// This file is now intended to run on the client, so we can't use 'fs' or 'path'.
+// We will fetch the config instead of reading it from the filesystem.
+
 import { hexToHslString } from './utils';
-import { rawBrandingConfig } from './default-branding';
+import { rawBrandingConfig as defaultRawConfig } from './default-branding';
 
 // This is the shape of the config file as it's stored on disk
 export interface BrandingConfigFile {
@@ -31,36 +32,34 @@ export interface BrandingConfig extends BrandingConfigFile {
     };
 }
 
+// Helper function to process the raw config
+function processBrandingConfig(rawConfig: BrandingConfigFile): BrandingConfig {
+    return {
+        ...rawConfig,
+        theme: {
+            primary: hexToHslString(rawConfig.theme.primary),
+            background: hexToHslString(rawConfig.theme.background),
+            accent: hexToHslString(rawConfig.theme.accent),
+            logoColor: rawConfig.theme.logoColor,
+        }
+    };
+}
 
-// Asynchronously read the config file. This function runs on the server.
-// It will always read the latest version of the file, allowing for dynamic updates.
+// This function now fetches the config from a public path.
+// It's designed to be called from client components.
 export async function getBrandingConfig(): Promise<BrandingConfig> {
     try {
-        const configPath = path.join(process.cwd(), 'src', 'lib', 'branding-config.json');
-        const fileContents = await fs.readFile(configPath, 'utf8');
-        const rawConfig: BrandingConfigFile = JSON.parse(fileContents);
-        
-        // Process the raw config into the format the app uses
-        return {
-            ...rawConfig,
-            theme: {
-                primary: hexToHslString(rawConfig.theme.primary),
-                background: hexToHslString(rawConfig.theme.background),
-                accent: hexToHslString(rawConfig.theme.accent),
-                logoColor: rawConfig.theme.logoColor,
-            }
-        };
+        // Fetch the config from the public directory at runtime.
+        // The cache-busting `?_=${new Date().getTime()}` ensures we always get the latest version.
+        const response = await fetch(`/branding-config.json?_=${new Date().getTime()}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch branding config');
+        }
+        const rawConfig: BrandingConfigFile = await response.json();
+        return processBrandingConfig(rawConfig);
     } catch (error) {
-        console.error("Could not read branding-config.json, falling back to static import.", error);
-        // Fallback to the build-time config if the file is unreadable
-        return {
-            ...rawBrandingConfig,
-            theme: {
-                primary: hexToHslString(rawBrandingConfig.theme.primary),
-                background: hexToHslString(rawBrandingConfig.theme.background),
-                accent: hexToHslString(rawBrandingConfig.theme.accent),
-                logoColor: rawBrandingConfig.theme.logoColor,
-            }
-        };
+        console.error("Could not fetch branding-config.json, falling back to static import.", error);
+        // Fallback to the build-time config if the fetch fails
+        return processBrandingConfig(defaultRawConfig);
     }
 }

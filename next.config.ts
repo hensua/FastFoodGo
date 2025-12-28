@@ -16,6 +16,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/branding-config.json',
+        destination: '/api/branding-config',
+      },
+    ]
+  },
 };
 
 export default nextConfig;

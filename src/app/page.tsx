@@ -1,4 +1,3 @@
-
 'use client';
 
 import { getBrandingConfig, type BrandingConfig } from '@/lib/branding-config';
