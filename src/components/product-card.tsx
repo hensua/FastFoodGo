@@ -107,7 +107,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
             <p className="text-gray-500 text-[11px] leading-snug line-clamp-2">{product.description}</p>
         </div>
         <div className="flex justify-between items-center mt-1">
-          <span className="font-bold text-sm text-orange-600 flex-grow">{formatCurrency(product.price)}</span>
+          <span className="font-bold text-sm text-primary flex-grow">{formatCurrency(product.price)}</span>
           
           <div className="relative h-6 flex items-center justify-end">
             {quantityInCart === 0 ? (
