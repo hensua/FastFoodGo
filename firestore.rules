@@ -65,10 +65,11 @@ service cloud.firestore {
      * Stores public user information.
      * - Users can create and manage their own profile.
      * - Admins and Developers can list and manage all users.
+     * - Hosts can list users only when filtered by role 'driver'.
      */
      match /users/{userId} {
         allow get: if isSignedIn();
-        allow list: if isAdminOrDev() || (isHost() && request.query.where.role == 'driver');
+        allow list: if isAdminOrDev() || (isHost() && request.query.where.role in ['driver', 'customer']);
         allow create: if isOwner(userId);
         allow update: if isOwner(userId) || isAdminOrDev();
         allow delete: if isAdminOrDev();

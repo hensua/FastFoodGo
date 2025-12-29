@@ -199,8 +199,6 @@ function KitchenView({ userDoc, brandingConfig }: { userDoc: AppUser; brandingCo
   const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
   const [chatOrder, setChatOrder] = useState<Order | null>(null);
 
-  const isFullAdmin = userDoc.role === 'admin';
-
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collectionGroup(firestore, 'orders'), where('status', 'in', ['pending', 'cooking', 'ready', 'delivering', 'cancelled']));
@@ -210,7 +208,7 @@ function KitchenView({ userDoc, brandingConfig }: { userDoc: AppUser; brandingCo
   const driversQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     
-    // Admins and developers can see all users to potentially assign any role.
+    // Admins and developers can see all drivers.
     if (userDoc.role === 'admin' || userDoc.role === 'developer') {
       return query(collection(firestore, 'users'), where('role', '==', 'driver'));
     }
@@ -225,12 +223,7 @@ function KitchenView({ userDoc, brandingConfig }: { userDoc: AppUser; brandingCo
 
 
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
-  const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(driversQuery);
-  
-  const drivers = useMemo(() => {
-    // We filter for drivers here, as admins/devs get all users from the query.
-    return staff?.filter(s => s.role === 'driver') || [];
-  }, [staff]);
+  const { data: drivers, isLoading: driversLoading } = useCollection<AppUser>(driversQuery);
 
   const sendAutoChatMessage = async (order: Order) => {
     if (!firestore || !userDoc || !order.customerName) return;
@@ -341,7 +334,7 @@ function KitchenView({ userDoc, brandingConfig }: { userDoc: AppUser; brandingCo
               <span className="bg-background px-2 py-1 rounded-full text-xs shadow-sm">{ordersByStatus[statusKey as keyof typeof ordersByStatus].length}</span>
             </h3>
             <div className="space-y-4">
-              {ordersLoading || staffLoading ? (
+              {ordersLoading || driversLoading ? (
                 <div className="flex justify-center items-center py-10"><Loader2 className="animate-spin" /></div>
               ) : ordersByStatus[statusKey as keyof typeof ordersByStatus].length > 0 ? (
                 ordersByStatus[statusKey as keyof typeof ordersByStatus].map(order => (
@@ -388,7 +381,7 @@ export function OrderList({ userDoc, brandingConfig }: { userDoc: AppUser | null
     return <div className="flex justify-center items-center py-10"><Loader2 className="animate-spin" /></div>;
   }
   
-  const hasStoreAccess = userDoc.role === 'admin' || userDoc.role === 'host';
+  const hasStoreAccess = userDoc.role === 'admin' || userDoc.role === 'host' || userDoc.role === 'developer';
 
   if (!hasStoreAccess) {
     return null; // Don't render if not admin or host
