@@ -201,26 +201,36 @@ function KitchenView({ userDoc, brandingConfig }: { userDoc: AppUser; brandingCo
   const [chatOrder, setChatOrder] = useState<Order | null>(null);
 
   const isFullAdmin = userDoc.role === 'admin';
-  const isHost = userDoc.role === 'host';
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collectionGroup(firestore, 'orders'), where('status', 'in', ['pending', 'cooking', 'ready', 'delivering', 'cancelled']));
   }, [firestore]);
   
-  // Hosts can ONLY list users who are drivers. This query matches the security rule.
-  // Admins can list all users, but for the purpose of assigning drivers, we only need drivers.
+  // This query is now adapted based on the user's role.
   const driversQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'users'), where('role', '==', 'driver'));
-  }, [firestore]);
+    
+    // Admins and developers can see all users to potentially assign any role.
+    if (userDoc.role === 'admin' || userDoc.role === 'developer') {
+      return collection(firestore, 'users');
+    }
+    
+    // Hosts can ONLY list users who are drivers. This query matches the security rule.
+    if (userDoc.role === 'host') {
+      return query(collection(firestore, 'users'), where('role', '==', 'driver'));
+    }
+
+    return null; // Return null if the role has no permissions to see staff.
+  }, [firestore, userDoc.role]);
 
 
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
   const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(driversQuery);
   
   const drivers = useMemo(() => {
-    return staff || [];
+    // We filter for drivers here, as admins/devs get all users from the query.
+    return staff?.filter(s => s.role === 'driver') || [];
   }, [staff]);
 
   const sendAutoChatMessage = async (order: Order) => {
