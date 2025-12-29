@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useUser } from '@/firebase';
@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Loader2, Palette, Users, Code, Link as LinkIcon, CaseSensitive, Bot, Image as ImageIcon, Type, PaintBucket } from 'lucide-react';
+import { Loader2, Palette, Users, Code, Link as LinkIcon, CaseSensitive, Bot, Image as ImageIcon, Type, PaintBucket, PlusCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { AppUser } from '@/lib/types';
 import { applyTheme } from '@/app/actions/theme-actions';
@@ -20,9 +20,14 @@ import { rawBrandingConfig } from '@/lib/default-branding';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import type { BrandingConfig } from '@/lib/branding-config';
+import type { BrandingConfig, SocialLink } from '@/lib/branding-config';
 
 const TeamManagement = React.lazy(() => import('@/components/team-management'));
+
+const socialLinkSchema = z.object({
+  name: z.string().min(1, { message: 'Selecciona una red social.' }),
+  url: z.string().url({ message: 'URL inválida.' }),
+});
 
 const brandingSchema = z.object({
   appName: z.string().min(3, { message: 'El nombre debe tener al menos 3 caracteres.' }),
@@ -32,35 +37,32 @@ const brandingSchema = z.object({
   background: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
   accent: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
   bannerAccent: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
-  social: z.object({
-    twitter: z.string().url({ message: 'URL inválida' }).or(z.literal('')),
-    instagram: z.string().url({ message: 'URL inválida' }).or(z.literal('')),
-    facebook: z.string().url({ message: 'URL inválida' }).or(z.literal('')),
-  }),
+  social: z.array(socialLinkSchema),
   fontFamily: z.string(),
 });
 
-const BrandingCustomizer = () => {
+const BrandingCustomizer = ({ initialConfig }: { initialConfig: BrandingConfig }) => {
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
 
     const form = useForm<z.infer<typeof brandingSchema>>({
         resolver: zodResolver(brandingSchema),
         defaultValues: {
-          appName: rawBrandingConfig.appName,
-          logoSvg: rawBrandingConfig.logoSvg,
-          logoColor: rawBrandingConfig.theme.logoColor,
-          primary: rawBrandingConfig.theme.primary,
-          background: rawBrandingConfig.theme.background,
-          accent: rawBrandingConfig.theme.accent,
-          bannerAccent: rawBrandingConfig.theme.bannerAccent || '#FFFFFF',
-          social: {
-            twitter: rawBrandingConfig.social.twitter,
-            instagram: rawBrandingConfig.social.instagram,
-            facebook: rawBrandingConfig.social.facebook,
-          },
-          fontFamily: rawBrandingConfig.fontFamily || 'PT Sans',
+          appName: initialConfig.appName,
+          logoSvg: initialConfig.logoSvg,
+          logoColor: initialConfig.theme.logoColor,
+          primary: initialConfig.theme.primary,
+          background: initialConfig.theme.background,
+          accent: initialConfig.theme.accent,
+          bannerAccent: initialConfig.theme.bannerAccent || '#FFFFFF',
+          social: initialConfig.social,
+          fontFamily: initialConfig.fontFamily || 'PT Sans',
         },
+    });
+
+    const { fields, append, remove } = useFieldArray({
+      control: form.control,
+      name: "social",
     });
 
     const onSubmit = async (values: z.infer<typeof brandingSchema>) => {
@@ -230,26 +232,66 @@ const BrandingCustomizer = () => {
                         {/* Social Links */}
                         <div className="space-y-4">
                             <h3 className="text-lg font-medium flex items-center gap-2"><LinkIcon /> Enlaces de Redes Sociales</h3>
-                             {['twitter', 'instagram', 'facebook'].map((socialName) => {
-                                const name = socialName as 'twitter' | 'instagram' | 'facebook';
-                                const labels = { twitter: 'Twitter / X', instagram: 'Instagram', facebook: 'Facebook' };
-                                 return (
-                                     <FormField
-                                        key={name}
-                                        control={form.control}
-                                        name={`social.${name}`}
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{labels[name]}</FormLabel>
-                                                <FormControl>
-                                                    <Input placeholder={`https://...`} {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                 )
-                             })}
+                            <div className='space-y-4'>
+                                {fields.map((field, index) => (
+                                    <div key={field.id} className="flex items-end gap-2 p-3 border rounded-lg">
+                                        <div className="grid grid-cols-2 gap-2 flex-grow">
+                                             <FormField
+                                                control={form.control}
+                                                name={`social.${index}.name`}
+                                                render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Red Social</FormLabel>
+                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                        <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Selecciona..." />
+                                                        </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="twitter">Twitter / X</SelectItem>
+                                                            <SelectItem value="instagram">Instagram</SelectItem>
+                                                            <SelectItem value="facebook">Facebook</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`social.${index}.url`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>URL</FormLabel>
+                                                        <FormControl>
+                                                            <Input placeholder="https://..." {...field} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            size="icon"
+                                            onClick={() => remove(index)}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => append({ name: '', url: '' })}
+                            >
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Añadir Red Social
+                            </Button>
                         </div>
                         
                         <Button type="submit" disabled={isSaving}>
@@ -312,7 +354,7 @@ export default function DeveloperPageClient({ brandingConfig }: { brandingConfig
                         </div>
                     </div>
 
-                    {activeTab === 'customize' && <BrandingCustomizer />}
+                    {activeTab === 'customize' && <BrandingCustomizer initialConfig={brandingConfig} />}
                     {activeTab === 'team' && (
                         <React.Suspense fallback={<div className="flex justify-center p-10"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
                             <TeamManagement userDoc={userDoc} />

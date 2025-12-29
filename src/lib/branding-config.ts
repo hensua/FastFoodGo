@@ -5,6 +5,11 @@
 import { hexToHslString } from './utils';
 import { rawBrandingConfig as defaultRawConfig } from './default-branding';
 
+export interface SocialLink {
+    name: 'twitter' | 'instagram' | 'facebook' | string;
+    url: string;
+}
+
 // This is the shape of the config file as it's stored on disk
 export interface BrandingConfigFile {
     appName: string;
@@ -17,11 +22,7 @@ export interface BrandingConfigFile {
         logoColor: string;     // Stored as HEX
         bannerAccent: string;  // Stored as HEX (for banner logo color)
     };
-    social: {
-        twitter: string;
-        instagram: string;
-        facebook: string;
-    };
+    social: SocialLink[];
 }
 
 // This is the shape we use in the application, converting colors to HSL where needed

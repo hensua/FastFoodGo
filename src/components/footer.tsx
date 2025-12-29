@@ -1,7 +1,13 @@
 
 import Link from 'next/link';
 import { Twitter, Instagram, Facebook } from 'lucide-react';
-import type { BrandingConfig } from '@/lib/branding-config';
+import type { BrandingConfig, SocialLink } from '@/lib/branding-config';
+
+const socialIcons: { [key: string]: React.ElementType } = {
+  twitter: Twitter,
+  instagram: Instagram,
+  facebook: Facebook,
+};
 
 export default function Footer({ brandingConfig }: { brandingConfig: BrandingConfig }) {
   const { appName, social, theme, logoSvg } = brandingConfig;
@@ -29,15 +35,15 @@ export default function Footer({ brandingConfig }: { brandingConfig: BrandingCon
             </Link>
           </div>
           <div className="flex items-center gap-4">
-             <Link href={social.twitter || '#'} aria-label="Twitter" className="text-muted-foreground hover:text-primary transition-colors">
-                <Twitter size={20} />
-             </Link>
-              <Link href={social.instagram || '#'} aria-label="Instagram" className="text-muted-foreground hover:text-primary transition-colors">
-                <Instagram size={20} />
-             </Link>
-              <Link href={social.facebook || '#'} aria-label="Facebook" className="text-muted-foreground hover:text-primary transition-colors">
-                <Facebook size={20} />
-             </Link>
+             {social.map((link) => {
+                const Icon = socialIcons[link.name];
+                if (!Icon || !link.url) return null;
+                return (
+                    <Link key={link.name} href={link.url} aria-label={link.name} className="text-muted-foreground hover:text-primary transition-colors" target="_blank" rel="noopener noreferrer">
+                        <Icon size={20} />
+                    </Link>
+                );
+             })}
           </div>
         </div>
         <div className="mt-8 text-center text-sm text-muted-foreground border-t pt-6">

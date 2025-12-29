@@ -3,6 +3,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
+import type { SocialLink } from '@/lib/branding-config';
 
 interface ThemeColors {
     logoColor: string;
@@ -14,11 +15,7 @@ interface ThemeColors {
 
 interface BrandingConfig {
     appName: string;
-    social: {
-        twitter: string;
-        instagram: string;
-        facebook: string;
-    };
+    social: SocialLink[];
     logoSvg: string;
     fontFamily: string;
 }
@@ -59,3 +56,4 @@ export async function applyTheme(payload: ApplyThemePayload) {
         throw new Error('Could not write to configuration files.');
     }
 }
+
