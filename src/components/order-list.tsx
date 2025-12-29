@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -397,5 +396,3 @@ export function OrderList({ userDoc, brandingConfig }: { userDoc: AppUser | null
   
   return <KitchenView userDoc={userDoc} brandingConfig={brandingConfig} />;
 }
-
-    
