@@ -47,3 +47,5 @@ export default function Footer({ brandingConfig }: { brandingConfig: BrandingCon
     </footer>
   );
 }
+
+    

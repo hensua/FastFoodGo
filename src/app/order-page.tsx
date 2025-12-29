@@ -52,7 +52,7 @@ export default function OrderPage({ products, loading, brandingConfig }: OrderPa
           className="bg-gradient-to-r rounded-2xl p-8 mb-8 text-white shadow-lg relative overflow-hidden"
           style={{
             '--tw-gradient-from': `hsl(var(--primary)) var(--tw-gradient-from-position)`,
-            '--tw-gradient-to': `hsl(var(--banner-accent)) var(--tw-gradient-to-position)`,
+            '--tw-gradient-to': `hsl(var(--accent)) var(--tw-gradient-to-position)`,
             '--tw-gradient-stops': `var(--tw-gradient-from), var(--tw-gradient-to)`,
           } as React.CSSProperties}
         >
@@ -62,7 +62,7 @@ export default function OrderPage({ products, loading, brandingConfig }: OrderPa
           </div>
           <div
             className="absolute right-0 top-0 opacity-10 transform translate-x-10 -translate-y-10 w-[200px] h-[200px]"
-            style={{ color: 'white' }}
+            style={{ color: brandingConfig.theme.bannerAccent }}
             dangerouslySetInnerHTML={{ __html: brandingConfig.logoSvg }}
           />
         </div>
@@ -106,3 +106,5 @@ export default function OrderPage({ products, loading, brandingConfig }: OrderPa
     </div>
   );
 }
+
+    

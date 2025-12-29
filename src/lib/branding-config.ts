@@ -13,9 +13,9 @@ export interface BrandingConfigFile {
     theme: {
         primary: string;       // Stored as HEX
         background: string;    // Stored as HEX
-        accent: string;        // Stored as HEX
+        accent: string;        // Stored as HEX (for secondary color)
         logoColor: string;     // Stored as HEX
-        bannerAccent: string;  // Stored as HEX
+        bannerAccent: string;  // Stored as HEX (for banner logo color)
     };
     social: {
         twitter: string;
@@ -29,9 +29,9 @@ export interface BrandingConfig extends BrandingConfigFile {
     theme: {
         primary: string;       // Converted to HSL for CSS
         background: string;    // Converted to HSL for CSS
-        accent: string;        // Converted to HSL for CSS
+        accent: string;        // Converted to HSL for CSS (secondary color)
         logoColor: string;     // Kept as HEX for inline style
-        bannerAccent: string;  // Converted to HSL for CSS
+        bannerAccent: string;  // Kept as HEX for banner logo inline style
     };
 }
 
@@ -44,7 +44,7 @@ function processBrandingConfig(rawConfig: BrandingConfigFile): BrandingConfig {
             background: hexToHslString(rawConfig.theme.background),
             accent: hexToHslString(rawConfig.theme.accent),
             logoColor: rawConfig.theme.logoColor,
-            bannerAccent: hexToHslString(rawConfig.theme.bannerAccent || rawConfig.theme.accent), // Fallback to accent
+            bannerAccent: rawConfig.theme.bannerAccent,
         }
     };
 }
@@ -67,3 +67,5 @@ export async function getBrandingConfig(): Promise<BrandingConfig> {
         return processBrandingConfig(defaultRawConfig);
     }
 }
+
+    
