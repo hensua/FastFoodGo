@@ -208,30 +208,19 @@ function KitchenView({ userDoc, brandingConfig }: { userDoc: AppUser; brandingCo
     return query(collectionGroup(firestore, 'orders'), where('status', 'in', ['pending', 'cooking', 'ready', 'delivering', 'cancelled']));
   }, [firestore]);
   
-  const staffQuery = useMemoFirebase(() => {
+  // Hosts can ONLY list users who are drivers. This query matches the security rule.
+  // Admins can list all users, but for the purpose of assigning drivers, we only need drivers.
+  const driversQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-
-    if (isFullAdmin) {
-      // Admins can get all staff members
-      return query(collection(firestore, 'users'), where('role', 'in', ['admin', 'host', 'driver']));
-    }
-    
-    if (isHost) {
-      // Hosts can ONLY list users who are drivers. This query matches the security rule.
-      return query(collection(firestore, 'users'), where('role', '==', 'driver'));
-    }
-    
-    return null; // Return null if neither admin nor host
-  }, [firestore, isFullAdmin, isHost]);
+    return query(collection(firestore, 'users'), where('role', '==', 'driver'));
+  }, [firestore]);
 
 
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
-  const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(staffQuery);
+  const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(driversQuery);
   
   const drivers = useMemo(() => {
-    if (!staff) return [];
-    // The query is already filtered for hosts, but this ensures admins also only see drivers for assignments.
-    return staff.filter(s => s.role === 'driver');
+    return staff || [];
   }, [staff]);
 
   const sendAutoChatMessage = async (order: Order) => {

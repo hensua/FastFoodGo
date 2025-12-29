@@ -19,7 +19,9 @@ service cloud.firestore {
     }
     
     function getUserRole(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.role;
+      // Use .get('role', 'customer') to provide a default value and avoid errors
+      // if the role field doesn't exist on a user document.
+      return get(/databases/$(database)/documents/users/$(userId)).data.get('role', 'customer');
     }
 
     function isAdmin() {
@@ -58,15 +60,23 @@ service cloud.firestore {
     /**
      * @description
      * Stores public user information.
-     * - Users can create and manage their own profile.
-     * - Any signed-in user can list other users (for role management UI).
-     * - Admins and Developers can update any user profile (for role changes).
      */
      match /users/{userId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
+        // Any signed-in user can view their own profile.
+        allow get: if isOwner(userId);
+        
+        // Admins and Developers can list all users for management panels.
+        // Hosts can list users, but ONLY if they are filtering for 'driver' role.
+        allow list: if isAdmin() || isDeveloper() || (isHost() && request.query.where.role == 'driver');
+        
+        // A user can create their own document.
         allow create: if isOwner(userId);
+        
+        // A user can update their own profile.
+        // Admins and Developers can update any user profile (for role changes).
         allow update: if isOwner(userId) || isAdmin() || isDeveloper();
+        
+        // Only admins can delete users.
         allow delete: if isAdmin();
      }
 
