@@ -204,21 +204,18 @@ function KitchenView({ userDoc, brandingConfig }: { userDoc: AppUser; brandingCo
     return query(collectionGroup(firestore, 'orders'), where('status', 'in', ['pending', 'cooking', 'ready', 'delivering', 'cancelled']));
   }, [firestore]);
   
-  // This query is now adapted based on the user's role.
   const driversQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    
-    // Admins and developers can see all drivers.
-    if (userDoc.role === 'admin' || userDoc.role === 'developer') {
-      return query(collection(firestore, 'users'), where('role', '==', 'driver'));
-    }
-    
-    // Hosts can ONLY list users who are drivers. This query matches the security rule.
+
     if (userDoc.role === 'host') {
       return query(collection(firestore, 'users'), where('role', '==', 'driver'));
     }
+    
+    if (userDoc.role === 'admin' || userDoc.role === 'developer') {
+      return query(collection(firestore, 'users'), where('role', '==', 'driver'));
+    }
 
-    return null; // Return null if the role has no permissions to see staff.
+    return null;
   }, [firestore, userDoc.role]);
 
 
