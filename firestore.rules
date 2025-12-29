@@ -26,8 +26,17 @@ service cloud.firestore {
       return isSignedIn() && getUserRole(request.auth.uid) == 'admin';
     }
     
+    function isDeveloper() {
+      return isSignedIn() && getUserRole(request.auth.uid) == 'developer';
+    }
+
+    function isAdminOrDev() {
+      let userRole = getUserRole(request.auth.uid);
+      return isSignedIn() && (userRole == 'admin' || userRole == 'developer');
+    }
+    
     function isHost() {
-        return isSignedIn() && getUserRole(request.auth.uid) == 'host';
+      return isSignedIn() && getUserRole(request.auth.uid) == 'host';
     }
     
     function isDriver() {
@@ -44,25 +53,25 @@ service cloud.firestore {
     /**
      * @description
      *   Stores the restaurant's product catalog. Publicly readable, but only
-     *   administrators can manage products.
+     *   administrators and developers can manage products.
      */
     match /products/{productId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdminOrDev();
     }
     
     /**
      * @description
      * Stores public user information.
      * - Users can create and manage their own profile.
-     * - Admins can list staff members.
+     * - Admins and Developers can list and manage all users.
      */
      match /users/{userId} {
         allow get: if isSignedIn();
-        allow list: if isAdmin(); // Admins can list users for the team panel
+        allow list: if isAdminOrDev();
         allow create: if isOwner(userId);
-        allow update: if isOwner(userId) || isAdmin();
-        allow delete: if isAdmin();
+        allow update: if isOwner(userId) || isAdminOrDev();
+        allow delete: if isAdminOrDev();
      }
 
     /**
@@ -77,35 +86,35 @@ service cloud.firestore {
         return isDriver() && getOrder().data.driverId == request.auth.uid;
       }
       
-      allow get: if isOwner(userId) || isAdmin() || isHost() || isOrderDriver();
-      allow list: if isOwner(userId) || isAdmin() || isHost();
+      allow get: if isOwner(userId) || isAdminOrDev() || isHost() || isOrderDriver();
+      allow list: if isOwner(userId) || isAdminOrDev() || isHost();
       allow create: if isOwner(userId);
       allow update: if 
             // The customer can only cancel their own order if it's 'pending'.
             (isOwner(userId) && request.resource.data.status == 'cancelled' && resource.data.status == 'pending') ||
-            // Admin or Host can manage most order state transitions.
-            isAdmin() || isHost() ||
+            // Admin, Developer or Host can manage most order state transitions.
+            isAdminOrDev() || isHost() ||
             // An assigned driver can update the status to 'delivering' or 'delivered'.
             (isOrderDriver() && (
                   (resource.data.status == 'ready' && request.resource.data.status == 'delivering') ||
                   (resource.data.status == 'delivering' && request.resource.data.status == 'delivered' && resource.data.pin == request.resource.data.pin)
                 )
             );
-      allow delete: if isAdmin();
+      allow delete: if isAdminOrDev();
 
       match /messages/{messageId} {
-        allow read, write: if isOwner(userId) || isAdmin() || isHost() || isOrderDriver();
+        allow read, write: if isOwner(userId) || isAdminOrDev() || isHost() || isOrderDriver();
       }
     }
     
     /**
      * @description
      *   This rule is for the `collectionGroup` query on 'orders'.
-     *   It allows administrators, hosts, and drivers to list orders across all users,
+     *   It allows administrators, developers, hosts, and drivers to list orders across all users,
      *   which is necessary for their respective panels.
      */
     match /{path=**}/orders/{orderId} {
-       allow list: if isAdmin() || isHost() || isDriver();
+       allow list: if isAdminOrDev() || isHost() || isDriver();
     }
   }
 }
