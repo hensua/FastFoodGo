@@ -59,12 +59,12 @@ service cloud.firestore {
      * @description
      * Stores public user information.
      * - Users can create and manage their own profile.
-     * - Admins and Developers can list all users to manage roles.
+     * - Any signed-in user can list other users (for role management UI).
      * - Admins and Developers can update any user profile (for role changes).
      */
      match /users/{userId} {
         allow get: if isSignedIn();
-        allow list: if isAdmin() || isDeveloper();
+        allow list: if isSignedIn();
         allow create: if isOwner(userId);
         allow update: if isOwner(userId) || isAdmin() || isDeveloper();
         allow delete: if isAdmin();
