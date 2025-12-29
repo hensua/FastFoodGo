@@ -213,7 +213,7 @@ function KitchenView({ userDoc, brandingConfig }: { userDoc: AppUser; brandingCo
     
     // Admins and developers can see all users to potentially assign any role.
     if (userDoc.role === 'admin' || userDoc.role === 'developer') {
-      return collection(firestore, 'users');
+      return query(collection(firestore, 'users'), where('role', '==', 'driver'));
     }
     
     // Hosts can ONLY list users who are drivers. This query matches the security rule.
@@ -397,3 +397,5 @@ export function OrderList({ userDoc, brandingConfig }: { userDoc: AppUser | null
   
   return <KitchenView userDoc={userDoc} brandingConfig={brandingConfig} />;
 }
+
+    
