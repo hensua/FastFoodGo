@@ -62,11 +62,12 @@ service cloud.firestore {
      * Stores public user information.
      */
      match /users/{userId} {
-        // Any signed-in user can view their own profile.
+        // Any signed-in user can view their own profile, or roles that need to see other profiles.
         allow get: if isOwner(userId) || isHost() || isAdmin() || isDeveloper();
         
         // Any signed-in user can list users. The UI layer restricts access to the
-        // pages that actually perform these queries.
+        // pages that actually perform these queries (Team/Admin panels). This is
+        // necessary to avoid circular dependencies in security rules.
         allow list: if isSignedIn();
         
         // A user can create their own document.
@@ -74,7 +75,9 @@ service cloud.firestore {
         
         // A user can update their own profile.
         // Admins and Developers can update any user profile (for role changes).
-        allow update: if isOwner(userId) || isAdmin() || isDeveloper();
+        // A developer cannot demote an admin.
+        allow update: if isOwner(userId) || 
+                       (isAdmin() || (isDeveloper() && resource.data.role != 'admin'));
         
         // Only admins can delete users.
         allow delete: if isAdmin();
