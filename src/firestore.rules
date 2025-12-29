@@ -54,7 +54,7 @@ service cloud.firestore {
      */
     match /products/{productId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isDeveloper();
     }
     
     /**
@@ -78,8 +78,8 @@ service cloud.firestore {
         allow update: if isOwner(userId) || 
                        (isAdmin() || (isDeveloper() && resource.data.role != 'admin'));
         
-        // Only admins can delete users.
-        allow delete: if isAdmin();
+        // Only admins and developers can delete users.
+        allow delete: if isAdmin() || isDeveloper();
      }
 
     /**
@@ -94,35 +94,35 @@ service cloud.firestore {
         return isDriver() && getOrder().data.driverId == request.auth.uid;
       }
       
-      allow get: if isOwner(userId) || isAdmin() || isHost() || isOrderDriver();
-      allow list: if isOwner(userId) || isAdmin() || isHost();
+      allow get: if isOwner(userId) || isAdmin() || isHost() || isOrderDriver() || isDeveloper();
+      allow list: if isOwner(userId) || isAdmin() || isHost() || isDeveloper();
       allow create: if isOwner(userId);
       allow update: if 
             // The customer can only cancel their own order if it's 'pending'.
             (isOwner(userId) && request.resource.data.status == 'cancelled' && resource.data.status == 'pending') ||
-            // Admin or Host can manage most order state transitions.
-            isAdmin() || isHost() ||
+            // Admin, Host, or Developer can manage most order state transitions.
+            isAdmin() || isHost() || isDeveloper() ||
             // An assigned driver can update the status to 'delivering' or 'delivered'.
             (isOrderDriver() && (
                   (resource.data.status == 'ready' && request.resource.data.status == 'delivering') ||
                   (resource.data.status == 'delivering' && request.resource.data.status == 'delivered' && resource.data.pin == request.resource.data.pin)
                 )
             );
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || isDeveloper();
 
       match /messages/{messageId} {
-        allow read, write: if isOwner(userId) || isAdmin() || isHost() || isOrderDriver();
+        allow read, write: if isOwner(userId) || isAdmin() || isHost() || isOrderDriver() || isDeveloper();
       }
     }
     
     /**
      * @description
      *   This rule is for the `collectionGroup` query on 'orders'.
-     *   It allows administrators, hosts, and drivers to list orders across all users,
+     *   It allows administrators, hosts, drivers and developers to list orders across all users,
      *   which is necessary for their respective panels.
      */
     match /{path=**}/orders/{orderId} {
-       allow list: if isAdmin() || isHost() || isDriver();
+       allow list: if isAdmin() || isHost() || isDriver() || isDeveloper();
     }
   }
 }
