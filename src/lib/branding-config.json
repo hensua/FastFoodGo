@@ -5,10 +5,15 @@
   "theme": {
     "primary": "#ff4d00",
     "background": "#f7f7f7",
-    "accent": "#facc15",
+    "accent": "#facc14",
+    "card": "#ffffff",
     "logoColor": "#ff4d00",
-    "bannerAccent": "#ffffff",
-    "card": "#ffffff"
+    "bannerAccent": "#ffffff"
   },
-  "social": []
+  "social": [
+    {
+      "name": "instagram",
+      "url": "https://www.instagram.com/curiososmental/"
+    }
+  ]
 }

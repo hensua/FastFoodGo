@@ -31,31 +31,34 @@ const TeamManagement = ({ userDoc }: { userDoc: AppUser }) => {
   const [roleChangeData, setRoleChangeData] = useState<{ user: AppUser; newRole: Role; } | null>(null);
   
   const isFullAdmin = userDoc.role === 'admin';
+  const isDeveloper = userDoc.role === 'developer';
 
-  // Only run the query if the user is an admin.
-  const staffCollectionQuery = useMemoFirebase(() => 
-      (firestore && (isFullAdmin || userDoc.role === 'developer'))
-          ? query(collection(firestore, 'users'), where('role', 'in', ['admin', 'host', 'driver', 'developer'])) 
+  // Admins and developers can list all users.
+  const usersCollectionQuery = useMemoFirebase(() => 
+      (firestore && (isFullAdmin || isDeveloper))
+          ? collection(firestore, 'users')
           : null,
-      [firestore, isFullAdmin, userDoc.role]
+      [firestore, isFullAdmin, isDeveloper]
   );
-  const { data: staff, isLoading: staffLoading } = useCollection<AppUser>(staffCollectionQuery);
+  const { data: allUsers, isLoading: staffLoading } = useCollection<AppUser>(usersCollectionQuery);
 
-  const { admins, hosts, drivers, developers } = useMemo(() => {
+  const { admins, hosts, drivers, developers, customers } = useMemo(() => {
     const admins: AppUser[] = [];
     const hosts: AppUser[] = [];
     const drivers: AppUser[] = [];
     const developers: AppUser[] = [];
+    const customers: AppUser[] = [];
     
-    staff?.forEach(user => {
+    allUsers?.forEach(user => {
         if (user.role === 'admin') admins.push(user);
         else if (user.role === 'host') hosts.push(user);
         else if (user.role === 'driver') drivers.push(user);
         else if (user.role === 'developer') developers.push(user);
+        else if (user.role === 'customer') customers.push(user);
     });
 
-    return { admins, hosts, drivers, developers };
-  }, [staff]);
+    return { admins, hosts, drivers, developers, customers };
+  }, [allUsers]);
 
   const handleRoleChangeRequest = (user: AppUser, newRole: Role) => {
     if (user.role === newRole) return;
@@ -87,7 +90,7 @@ const TeamManagement = ({ userDoc }: { userDoc: AppUser }) => {
       
       toast({
         title: "Rol actualizado",
-        description: `El rol del usuario ha sido cambiado a ${newRole}.`
+        description: `El rol de ${user.displayName || user.email} ha sido cambiado a ${newRole}.`
       });
     } catch (error: any) {
       console.error("Error updating role:", error);
@@ -138,13 +141,12 @@ const TeamManagement = ({ userDoc }: { userDoc: AppUser }) => {
                       <Select 
                         value={user.role} 
                         onValueChange={(newRole) => handleRoleChangeRequest(user, newRole as Role)}
-                        // Admins cannot be demoted by developers
-                        disabled={userDoc.role === 'developer' && user.role === 'admin'}
+                        disabled={(userDoc.role === 'developer' && user.role === 'admin') || user.uid === userDoc.uid}
                       >
                         <SelectTrigger className="w-40 ml-auto h-9"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="developer">Developer</SelectItem>
+                           {isFullAdmin && <SelectItem value="admin">Admin</SelectItem>}
+                           {isFullAdmin && <SelectItem value="developer">Developer</SelectItem>}
                           <SelectItem value="host">Anfitrión</SelectItem>
                           <SelectItem value="driver">Repartidor</SelectItem>
                           <SelectItem value="customer">Cliente</SelectItem>
@@ -181,6 +183,7 @@ const TeamManagement = ({ userDoc }: { userDoc: AppUser }) => {
           <UserTable users={filterUsers(developers)} title="Desarrolladores" isLoading={staffLoading} />
           <UserTable users={filterUsers(hosts)} title="Anfitriones" isLoading={staffLoading} />
           <UserTable users={filterUsers(drivers)} title="Repartidores" isLoading={staffLoading}/>
+          <UserTable users={filterUsers(customers)} title="Clientes" isLoading={staffLoading}/>
         </div>
 
       <AlertDialog open={!!roleChangeData} onOpenChange={() => setRoleChangeData(null)}>
