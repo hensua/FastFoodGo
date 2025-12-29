@@ -50,7 +50,7 @@ service cloud.firestore {
     /**
      * @description
      *   Stores the restaurant's product catalog. Publicly readable, but only
-     *   administrators can manage products.
+     *   administrators or developers can manage products.
      */
     match /products/{productId} {
       allow read: if true;
@@ -62,12 +62,11 @@ service cloud.firestore {
      * Stores public user information.
      */
      match /users/{userId} {
-        // Any signed-in user can view their own profile.
-        allow get: if isOwner(userId) || isAdmin() || isHost() || isDeveloper();
+        // Any signed-in user can view their own profile, or admins/developers can view any.
+        allow get: if isOwner(userId) || isAdmin() || isDeveloper();
         
-        // Any signed-in user can list users. The UI layer restricts access to the
-        // pages that actually perform these queries (Team/Admin panels).
-        allow list: if isSignedIn();
+        // Admins and Developers can list all users for their panels.
+        allow list: if isAdmin() || isDeveloper();
         
         // A user can create their own document.
         allow create: if isOwner(userId);
