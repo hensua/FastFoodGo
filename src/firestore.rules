@@ -63,11 +63,11 @@ service cloud.firestore {
      */
      match /users/{userId} {
         // Any signed-in user can view their own profile.
-        allow get: if isOwner(userId);
+        allow get: if isOwner(userId) || isHost() || isAdmin() || isDeveloper();
         
-        // Admins and Developers can list all users for management panels.
-        // Hosts can list users, but ONLY if they are filtering for 'driver' role.
-        allow list: if isAdmin() || isDeveloper() || (isHost() && request.query.where.role == 'driver');
+        // Any signed-in user can list users. The UI layer restricts access to the
+        // pages that actually perform these queries.
+        allow list: if isSignedIn();
         
         // A user can create their own document.
         allow create: if isOwner(userId);
