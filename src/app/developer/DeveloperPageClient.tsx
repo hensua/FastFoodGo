@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -12,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Loader2, Palette, Users, Code, Link as LinkIcon, CaseSensitive, Bot, Image as ImageIcon, Type, PaintBucket, PlusCircle, Trash2 } from 'lucide-react';
+import { Loader2, Palette, Users, Code, Link as LinkIcon, CaseSensitive, Bot, Image as ImageIcon, Type, PaintBrush, PlusCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { AppUser } from '@/lib/types';
 import { applyTheme } from '@/app/actions/theme-actions';
@@ -46,6 +45,7 @@ const brandingSchema = z.object({
   primary: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido (ej: #RRGGBB)' }),
   background: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
   accent: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
+  card: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
   bannerAccent: z.string().regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, { message: 'Formato HEX inválido' }),
   social: z.array(socialLinkSchema),
   fontFamily: z.string(),
@@ -58,23 +58,20 @@ const BrandingCustomizer = ({ initialConfig }: { initialConfig: BrandingConfig }
 
     const form = useForm<z.infer<typeof brandingSchema>>({
         resolver: zodResolver(brandingSchema),
-        // Default values are set once. We will use form.reset() in a useEffect to update them.
         defaultValues: {
           appName: initialConfig.appName,
           logoSvg: initialConfig.logoSvg,
           social: initialConfig.social,
           fontFamily: initialConfig.fontFamily || 'PT Sans',
-          // Convert HSL back to HEX for color pickers
-          logoColor: initialConfig.theme.logoColor, // Stays HEX
+          logoColor: initialConfig.theme.logoColor,
           primary: hslStringToHex(initialConfig.theme.primary),
           background: hslStringToHex(initialConfig.theme.background),
           accent: hslStringToHex(initialConfig.theme.accent),
-          bannerAccent: initialConfig.theme.bannerAccent, // Stays HEX
+          card: hslStringToHex(initialConfig.theme.card),
+          bannerAccent: initialConfig.theme.bannerAccent,
         },
     });
 
-    // This effect listens for changes in initialConfig and resets the form,
-    // ensuring the UI always reflects the latest saved state after a refresh.
     useEffect(() => {
         form.reset({
             appName: initialConfig.appName,
@@ -85,6 +82,7 @@ const BrandingCustomizer = ({ initialConfig }: { initialConfig: BrandingConfig }
             primary: hslStringToHex(initialConfig.theme.primary),
             background: hslStringToHex(initialConfig.theme.background),
             accent: hslStringToHex(initialConfig.theme.accent),
+            card: hslStringToHex(initialConfig.theme.card),
             bannerAccent: initialConfig.theme.bannerAccent,
         });
     }, [initialConfig, form]);
@@ -107,6 +105,7 @@ const BrandingCustomizer = ({ initialConfig }: { initialConfig: BrandingConfig }
             primary: values.primary,
             background: values.background,
             accent: values.accent,
+            card: values.card,
             logoColor: values.logoColor,
             bannerAccent: values.bannerAccent,
         };
@@ -123,7 +122,6 @@ const BrandingCustomizer = ({ initialConfig }: { initialConfig: BrandingConfig }
                 title: 'Configuración Actualizada',
                 description: 'La apariencia y los datos de la marca han sido guardados. Puede que necesites refrescar la página para ver todos los cambios.',
             });
-            // Force a reload to see changes immediately
             window.location.reload();
         } catch (error) {
             console.error("Error applying theme:", error);
@@ -137,7 +135,7 @@ const BrandingCustomizer = ({ initialConfig }: { initialConfig: BrandingConfig }
         }
     };
 
-    const ColorField = ({ name, label }: { name: 'primary' | 'background' | 'accent' | 'logoColor' | 'bannerAccent', label: string }) => (
+    const ColorField = ({ name, label }: { name: 'primary' | 'background' | 'accent' | 'card' | 'logoColor' | 'bannerAccent', label: string }) => (
         <FormField
             control={form.control}
             name={name}
@@ -178,7 +176,6 @@ const BrandingCustomizer = ({ initialConfig }: { initialConfig: BrandingConfig }
                 <CardContent>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                           {/* General Branding */}
                            <div className="space-y-4">
                                 <h3 className="text-lg font-medium flex items-center gap-2"><CaseSensitive /> Apariencia General</h3>
                                  <FormField
@@ -198,7 +195,6 @@ const BrandingCustomizer = ({ initialConfig }: { initialConfig: BrandingConfig }
                            
                            <Separator />
 
-                            {/* Font */}
                             <div className="space-y-4">
                                 <h3 className="text-lg font-medium flex items-center gap-2"><Type /> Tipografía</h3>
                                  <FormField
@@ -230,10 +226,8 @@ const BrandingCustomizer = ({ initialConfig }: { initialConfig: BrandingConfig }
                                 />
                             </div>
 
-
                            <Separator />
 
-                           {/* Logo */}
                             <div className="space-y-4">
                                 <h3 className="text-lg font-medium flex items-center gap-2"><ImageIcon /> Logo SVG</h3>
                                  <ColorField name="logoColor" label="Color del Logo" />
@@ -257,18 +251,17 @@ const BrandingCustomizer = ({ initialConfig }: { initialConfig: BrandingConfig }
 
                           <Separator />
 
-                           {/* Theme Colors */}
-                            <div className="space-y-4">
+                           <div className="space-y-4">
                               <h3 className="text-lg font-medium flex items-center gap-2"><Palette /> Colores del Tema</h3>
                                 <ColorField name="primary" label="Color Primario" />
                                 <ColorField name="background" label="Color de Fondo" />
                                 <ColorField name="accent" label="Color Secundario" />
+                                <ColorField name="card" label="Fondo de Tarjetas/Botones" />
                                 <ColorField name="bannerAccent" label="Color Logo del Anuncio" />
                             </div>
                             
                             <Separator />
 
-                            {/* Social Links */}
                             <div className="space-y-4">
                                 <h3 className="text-lg font-medium flex items-center gap-2"><LinkIcon /> Enlaces de Redes Sociales</h3>
                                 <div className='space-y-4'>

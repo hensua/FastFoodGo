@@ -4,23 +4,11 @@
   "fontFamily": "PT Sans",
   "theme": {
     "primary": "#ff4d00",
-    "background": "#f5fdff",
-    "accent": "#f50000",
+    "background": "#f7f7f7",
+    "accent": "#facc15",
     "logoColor": "#ff4d00",
-    "bannerAccent": "#ffffff"
+    "bannerAccent": "#ffffff",
+    "card": "#ffffff"
   },
-  "social": [
-    {
-      "name": "twitter",
-      "url": "https://twitter.com/curiososmental"
-    },
-    {
-      "name": "instagram",
-      "url": "https://www.instagram.com/curiososmental/"
-    },
-    {
-      "name": "facebook",
-      "url": "https://www.facebook.com/curiososmental"
-    }
-  ]
+  "social": []
 }

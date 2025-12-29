@@ -1,4 +1,3 @@
-
 // This file is now intended to run on the client, so we can't use 'fs' or 'path'.
 // We will fetch the config instead of reading it from the filesystem.
 
@@ -16,11 +15,12 @@ export interface BrandingConfigFile {
     logoSvg: string;
     fontFamily: string;
     theme: {
-        primary: string;       // Stored as HEX
-        background: string;    // Stored as HEX
-        accent: string;        // Stored as HEX (for secondary color)
-        logoColor: string;     // Stored as HEX
-        bannerAccent: string;  // Stored as HEX (for banner logo color)
+        primary: string;
+        background: string;
+        accent: string;
+        card: string;
+        logoColor: string;
+        bannerAccent: string;
     };
     social: SocialLink[];
 }
@@ -28,11 +28,12 @@ export interface BrandingConfigFile {
 // This is the shape we use in the application, converting colors to HSL where needed
 export interface BrandingConfig extends BrandingConfigFile {
     theme: {
-        primary: string;       // Converted to HSL for CSS
-        background: string;    // Converted to HSL for CSS
-        accent: string;        // Converted to HSL for CSS (secondary color)
-        logoColor: string;     // Kept as HEX for inline style
-        bannerAccent: string;  // Kept as HEX for banner logo inline style
+        primary: string;
+        background: string;
+        accent: string;
+        card: string;
+        logoColor: string;
+        bannerAccent: string;
     };
 }
 
@@ -44,8 +45,9 @@ function processBrandingConfig(rawConfig: BrandingConfigFile): BrandingConfig {
             primary: hexToHslString(rawConfig.theme.primary),
             background: hexToHslString(rawConfig.theme.background),
             accent: hexToHslString(rawConfig.theme.accent),
+            card: hexToHslString(rawConfig.theme.card),
             logoColor: rawConfig.theme.logoColor,
-            bannerAccent: rawConfig.theme.bannerAccent || '#FFFFFF', // Fallback for banner accent
+            bannerAccent: rawConfig.theme.bannerAccent || '#FFFFFF',
         }
     };
 }
@@ -54,8 +56,6 @@ function processBrandingConfig(rawConfig: BrandingConfigFile): BrandingConfig {
 // It's designed to be called from client components.
 export async function getBrandingConfig(): Promise<BrandingConfig> {
     try {
-        // Fetch the config from the public directory at runtime.
-        // The cache-busting `?_=${new Date().getTime()}` ensures we always get the latest version.
         const response = await fetch(`/branding-config.json?_=${new Date().getTime()}`, { cache: 'no-store' });
         if (!response.ok) {
           throw new Error('Failed to fetch branding config');
@@ -64,7 +64,6 @@ export async function getBrandingConfig(): Promise<BrandingConfig> {
         return processBrandingConfig(rawConfig);
     } catch (error) {
         console.error("Could not fetch branding-config.json, falling back to static import.", error);
-        // Fallback to the build-time config if the fetch fails
         return processBrandingConfig(defaultRawConfig);
     }
 }

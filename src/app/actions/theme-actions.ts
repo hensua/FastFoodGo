@@ -10,6 +10,7 @@ interface ThemeColors {
     primary: string;
     background: string;
     accent: string;
+    card: string;
     bannerAccent: string;
 }
 
@@ -32,7 +33,6 @@ export async function applyTheme(payload: ApplyThemePayload) {
     try {
         const currentBrandingConfig = JSON.parse(await fs.readFile(brandingConfigPath, 'utf-8'));
         
-        // Prepare the new branding data, storing theme colors as HEX
         const newBrandingConfig = {
             ...currentBrandingConfig,
             appName: branding.appName,
@@ -40,11 +40,12 @@ export async function applyTheme(payload: ApplyThemePayload) {
             logoSvg: branding.logoSvg,
             fontFamily: branding.fontFamily,
             theme: {
-                primary: theme.primary,       // Store as HEX
-                background: theme.background, // Store as HEX
-                accent: theme.accent,         // Store as HEX
-                logoColor: theme.logoColor,   // Store as HEX
-                bannerAccent: theme.bannerAccent, // Store as HEX
+                primary: theme.primary,
+                background: theme.background,
+                accent: theme.accent,
+                card: theme.card,
+                logoColor: theme.logoColor,
+                bannerAccent: theme.bannerAccent,
             }
         };
         
@@ -56,4 +57,3 @@ export async function applyTheme(payload: ApplyThemePayload) {
         throw new Error('Could not write to configuration files.');
     }
 }
-
