@@ -33,7 +33,7 @@ const TeamManagement = ({ userDoc }: { userDoc: AppUser }) => {
   const isFullAdmin = userDoc.role === 'admin';
   const isDeveloper = userDoc.role === 'developer';
 
-  // Admins and developers can list all users.
+  // Admins and developers can list all users. The component is only rendered for them.
   const usersCollectionQuery = useMemoFirebase(() => 
       (firestore && (isFullAdmin || isDeveloper))
           ? collection(firestore, 'users')
