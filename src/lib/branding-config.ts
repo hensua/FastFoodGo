@@ -45,7 +45,7 @@ function processBrandingConfig(rawConfig: BrandingConfigFile): BrandingConfig {
             background: hexToHslString(rawConfig.theme.background),
             accent: hexToHslString(rawConfig.theme.accent),
             logoColor: rawConfig.theme.logoColor,
-            bannerAccent: rawConfig.theme.bannerAccent,
+            bannerAccent: rawConfig.theme.bannerAccent || '#FFFFFF', // Fallback for banner accent
         }
     };
 }
@@ -56,7 +56,7 @@ export async function getBrandingConfig(): Promise<BrandingConfig> {
     try {
         // Fetch the config from the public directory at runtime.
         // The cache-busting `?_=${new Date().getTime()}` ensures we always get the latest version.
-        const response = await fetch(`/branding-config.json?_=${new Date().getTime()}`);
+        const response = await fetch(`/branding-config.json?_=${new Date().getTime()}`, { cache: 'no-store' });
         if (!response.ok) {
           throw new Error('Failed to fetch branding config');
         }
@@ -68,5 +68,3 @@ export async function getBrandingConfig(): Promise<BrandingConfig> {
         return processBrandingConfig(defaultRawConfig);
     }
 }
-
-    

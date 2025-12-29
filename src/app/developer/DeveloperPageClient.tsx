@@ -16,11 +16,21 @@ import { Loader2, Palette, Users, Code, Link as LinkIcon, CaseSensitive, Bot, Im
 import { useToast } from '@/hooks/use-toast';
 import type { AppUser } from '@/lib/types';
 import { applyTheme } from '@/app/actions/theme-actions';
-import { rawBrandingConfig } from '@/lib/default-branding';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import type { BrandingConfig, SocialLink } from '@/lib/branding-config';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { hslStringToHex } from '@/lib/utils';
 
 const TeamManagement = React.lazy(() => import('@/components/team-management'));
 
@@ -44,26 +54,52 @@ const brandingSchema = z.object({
 const BrandingCustomizer = ({ initialConfig }: { initialConfig: BrandingConfig }) => {
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
+    const [socialLinkToDelete, setSocialLinkToDelete] = useState<number | null>(null);
 
     const form = useForm<z.infer<typeof brandingSchema>>({
         resolver: zodResolver(brandingSchema),
+        // Default values are set once. We will use form.reset() in a useEffect to update them.
         defaultValues: {
           appName: initialConfig.appName,
           logoSvg: initialConfig.logoSvg,
-          logoColor: initialConfig.theme.logoColor,
-          primary: initialConfig.theme.primary,
-          background: initialConfig.theme.background,
-          accent: initialConfig.theme.accent,
-          bannerAccent: initialConfig.theme.bannerAccent || '#FFFFFF',
           social: initialConfig.social,
           fontFamily: initialConfig.fontFamily || 'PT Sans',
+          // Convert HSL back to HEX for color pickers
+          logoColor: initialConfig.theme.logoColor, // Stays HEX
+          primary: hslStringToHex(initialConfig.theme.primary),
+          background: hslStringToHex(initialConfig.theme.background),
+          accent: hslStringToHex(initialConfig.theme.accent),
+          bannerAccent: initialConfig.theme.bannerAccent, // Stays HEX
         },
     });
+
+    // This effect listens for changes in initialConfig and resets the form,
+    // ensuring the UI always reflects the latest saved state after a refresh.
+    useEffect(() => {
+        form.reset({
+            appName: initialConfig.appName,
+            logoSvg: initialConfig.logoSvg,
+            social: initialConfig.social,
+            fontFamily: initialConfig.fontFamily,
+            logoColor: initialConfig.theme.logoColor,
+            primary: hslStringToHex(initialConfig.theme.primary),
+            background: hslStringToHex(initialConfig.theme.background),
+            accent: hslStringToHex(initialConfig.theme.accent),
+            bannerAccent: initialConfig.theme.bannerAccent,
+        });
+    }, [initialConfig, form]);
 
     const { fields, append, remove } = useFieldArray({
       control: form.control,
       name: "social",
     });
+
+    const handleConfirmDelete = () => {
+        if (socialLinkToDelete !== null) {
+            remove(socialLinkToDelete);
+            setSocialLinkToDelete(null);
+        }
+    };
 
     const onSubmit = async (values: z.infer<typeof brandingSchema>) => {
         setIsSaving(true);
@@ -87,6 +123,8 @@ const BrandingCustomizer = ({ initialConfig }: { initialConfig: BrandingConfig }
                 title: 'Configuración Actualizada',
                 description: 'La apariencia y los datos de la marca han sido guardados. Puede que necesites refrescar la página para ver todos los cambios.',
             });
+            // Force a reload to see changes immediately
+            window.location.reload();
         } catch (error) {
             console.error("Error applying theme:", error);
             toast({
@@ -129,179 +167,198 @@ const BrandingCustomizer = ({ initialConfig }: { initialConfig: BrandingConfig }
     );
 
     return (
-         <Card>
-            <CardHeader>
-                <CardTitle>Personalización de la Marca</CardTitle>
-                <CardDescription>
-                    Cambia el nombre, logo, colores y tipografía de la aplicación.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                       {/* General Branding */}
-                       <div className="space-y-4">
-                            <h3 className="text-lg font-medium flex items-center gap-2"><CaseSensitive /> Apariencia General</h3>
-                             <FormField
-                                control={form.control}
-                                name="appName"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Nombre de la Página</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="FastFoodGo" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                       </div>
-                       
-                       <Separator />
-
-                        {/* Font */}
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-medium flex items-center gap-2"><Type /> Tipografía</h3>
-                             <FormField
-                                control={form.control}
-                                name="fontFamily"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Fuente Principal</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+        <>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Personalización de la Marca</CardTitle>
+                    <CardDescription>
+                        Cambia el nombre, logo, colores y tipografía de la aplicación.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                           {/* General Branding */}
+                           <div className="space-y-4">
+                                <h3 className="text-lg font-medium flex items-center gap-2"><CaseSensitive /> Apariencia General</h3>
+                                 <FormField
+                                    control={form.control}
+                                    name="appName"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Nombre de la Página</FormLabel>
                                             <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Selecciona una fuente" />
-                                                </SelectTrigger>
+                                                <Input placeholder="FastFoodGo" {...field} />
                                             </FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="PT Sans">PT Sans</SelectItem>
-                                                <SelectItem value="Lato">Lato</SelectItem>
-                                                <SelectItem value="Roboto">Roboto</SelectItem>
-                                                <SelectItem value="Open Sans">Open Sans</SelectItem>
-                                                <SelectItem value="Montserrat">Montserrat</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormDescription>
-                                            La fuente se cargará desde Google Fonts.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                           </div>
+                           
+                           <Separator />
+
+                            {/* Font */}
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-medium flex items-center gap-2"><Type /> Tipografía</h3>
+                                 <FormField
+                                    control={form.control}
+                                    name="fontFamily"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Fuente Principal</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Selecciona una fuente" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="PT Sans">PT Sans</SelectItem>
+                                                    <SelectItem value="Lato">Lato</SelectItem>
+                                                    <SelectItem value="Roboto">Roboto</SelectItem>
+                                                    <SelectItem value="Open Sans">Open Sans</SelectItem>
+                                                    <SelectItem value="Montserrat">Montserrat</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormDescription>
+                                                La fuente se cargará desde Google Fonts.
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
 
 
-                       <Separator />
+                           <Separator />
 
-                       {/* Logo */}
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-medium flex items-center gap-2"><ImageIcon /> Logo SVG</h3>
-                             <ColorField name="logoColor" label="Color del Logo" />
-                            <FormField
-                                control={form.control}
-                                name="logoSvg"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Código del Logo SVG</FormLabel>
-                                        <FormControl>
-                                            <Textarea placeholder='<svg>...</svg>' {...field} className="font-mono min-h-[150px]" />
-                                        </FormControl>
-                                        <FormDescription>
-                                            Pega el código completo de tu logo en formato SVG. Para que el color se aplique, asegúrate de que los atributos `fill` o `stroke` en tu SVG estén configurados como `currentColor`.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
+                           {/* Logo */}
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-medium flex items-center gap-2"><ImageIcon /> Logo SVG</h3>
+                                 <ColorField name="logoColor" label="Color del Logo" />
+                                <FormField
+                                    control={form.control}
+                                    name="logoSvg"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Código del Logo SVG</FormLabel>
+                                            <FormControl>
+                                                <Textarea placeholder='<svg>...</svg>' {...field} className="font-mono min-h-[150px]" />
+                                            </FormControl>
+                                            <FormDescription>
+                                                Pega el código completo de tu logo en formato SVG. Para que el color se aplique, asegúrate de que los atributos `fill` o `stroke` en tu SVG estén configurados como `currentColor`.
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
 
-                      <Separator />
+                          <Separator />
 
-                       {/* Theme Colors */}
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-medium flex items-center gap-2"><Palette /> Colores del Tema</h3>
-                            <ColorField name="primary" label="Color Primario" />
-                            <ColorField name="background" label="Color de Fondo" />
-                            <ColorField name="accent" label="Color Secundario" />
-                            <ColorField name="bannerAccent" label="Color Logo del Anuncio" />
-                        </div>
-                        
-                        <Separator />
+                           {/* Theme Colors */}
+                            <div className="space-y-4">
+                              <h3 className="text-lg font-medium flex items-center gap-2"><Palette /> Colores del Tema</h3>
+                                <ColorField name="primary" label="Color Primario" />
+                                <ColorField name="background" label="Color de Fondo" />
+                                <ColorField name="accent" label="Color Secundario" />
+                                <ColorField name="bannerAccent" label="Color Logo del Anuncio" />
+                            </div>
+                            
+                            <Separator />
 
-                        {/* Social Links */}
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-medium flex items-center gap-2"><LinkIcon /> Enlaces de Redes Sociales</h3>
-                            <div className='space-y-4'>
-                                {fields.map((field, index) => (
-                                    <div key={field.id} className="flex items-end gap-2 p-3 border rounded-lg">
-                                        <div className="grid grid-cols-2 gap-2 flex-grow">
-                                             <FormField
-                                                control={form.control}
-                                                name={`social.${index}.name`}
-                                                render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Red Social</FormLabel>
-                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                        <FormControl>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Selecciona..." />
-                                                        </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            <SelectItem value="twitter">Twitter / X</SelectItem>
-                                                            <SelectItem value="instagram">Instagram</SelectItem>
-                                                            <SelectItem value="facebook">Facebook</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <FormMessage />
-                                                </FormItem>
-                                                )}
-                                            />
-                                            <FormField
-                                                control={form.control}
-                                                name={`social.${index}.url`}
-                                                render={({ field }) => (
+                            {/* Social Links */}
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-medium flex items-center gap-2"><LinkIcon /> Enlaces de Redes Sociales</h3>
+                                <div className='space-y-4'>
+                                    {fields.map((field, index) => (
+                                        <div key={field.id} className="flex items-end gap-2 p-3 border rounded-lg">
+                                            <div className="grid grid-cols-2 gap-2 flex-grow">
+                                                 <FormField
+                                                    control={form.control}
+                                                    name={`social.${index}.name`}
+                                                    render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel>URL</FormLabel>
-                                                        <FormControl>
-                                                            <Input placeholder="https://..." {...field} />
-                                                        </FormControl>
+                                                        <FormLabel>Red Social</FormLabel>
+                                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                            <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecciona..." />
+                                                            </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent>
+                                                                <SelectItem value="twitter">Twitter / X</SelectItem>
+                                                                <SelectItem value="instagram">Instagram</SelectItem>
+                                                                <SelectItem value="facebook">Facebook</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
                                                         <FormMessage />
                                                     </FormItem>
-                                                )}
-                                            />
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`social.${index}.url`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>URL</FormLabel>
+                                                            <FormControl>
+                                                                <Input placeholder="https://..." {...field} />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                variant="destructive"
+                                                size="icon"
+                                                onClick={() => setSocialLinkToDelete(index)}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
                                         </div>
-                                        <Button
-                                            type="button"
-                                            variant="destructive"
-                                            size="icon"
-                                            onClick={() => remove(index)}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => append({ name: '', url: '' })}
+                                >
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Añadir Red Social
+                                </Button>
                             </div>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => append({ name: '', url: '' })}
-                            >
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Añadir Red Social
+                            
+                            <Button type="submit" disabled={isSaving}>
+                                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Guardar Cambios
                             </Button>
-                        </div>
-                        
-                        <Button type="submit" disabled={isSaving}>
-                            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Guardar Cambios
-                        </Button>
-                    </form>
-                </Form>
-            </CardContent>
-        </Card>
+                        </form>
+                    </Form>
+                </CardContent>
+            </Card>
+
+            <AlertDialog open={socialLinkToDelete !== null} onOpenChange={() => setSocialLinkToDelete(null)}>
+                <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                    Esta acción eliminará el enlace de la red social. No se puede deshacer.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setSocialLinkToDelete(null)}>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/80">
+                        Sí, eliminar
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     )
 }
 
@@ -365,5 +422,3 @@ export default function DeveloperPageClient({ brandingConfig }: { brandingConfig
         </div>
     );
 }
-
-    
