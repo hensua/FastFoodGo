@@ -567,7 +567,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
 
-  const [inventoryView, setInventoryView] = useState<'products' | 'categories' | null>(null);
+  const [inventoryView, setInventoryView] = useState<'products' | 'categories' | null>('products');
 
   const isFullAdmin = userDoc.role === 'admin';
 
