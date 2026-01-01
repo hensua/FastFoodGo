@@ -206,11 +206,7 @@ function KitchenView({ userDoc, brandingConfig }: { userDoc: AppUser; brandingCo
   
   const driversQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Admins, developers, and hosts can all see the list of drivers
-    if (userDoc.role === 'admin' || userDoc.role === 'developer' || userDoc.role === 'host') {
-      return collection(firestore, 'users');
-    }
-    return null;
+    return collection(firestore, 'users');
   }, [firestore, userDoc.role]);
 
 
