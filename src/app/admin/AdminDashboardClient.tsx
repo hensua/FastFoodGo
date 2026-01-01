@@ -729,9 +729,9 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
             </Card>
           </div>
           <div>
-            <div className="flex gap-1 p-1 bg-muted rounded-lg flex-wrap mb-4">
-                <button onClick={handleAddNewProductClick} className={`w-1/2 px-4 py-2 rounded-md flex items-center justify-center gap-2 text-sm font-semibold transition-all ${inventoryView === 'products' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><PlusCircle size={16} /> Producto</button>
-                <button onClick={() => setInventoryView('categories')} className={`w-1/2 px-4 py-2 rounded-md flex items-center justify-center gap-2 text-sm font-semibold transition-all ${inventoryView === 'categories' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Edit size={16} /> Categorías</button>
+            <div className="flex gap-1 p-1 bg-muted rounded-lg mb-4">
+                <button onClick={handleAddNewProductClick} className={`flex-1 px-4 py-2 rounded-md flex items-center justify-center gap-2 text-sm font-semibold transition-all ${inventoryView === 'products' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><PlusCircle size={16} /> Producto</button>
+                <button onClick={() => setInventoryView('categories')} className={`flex-1 px-4 py-2 rounded-md flex items-center justify-center gap-2 text-sm font-semibold transition-all ${inventoryView === 'categories' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Edit size={16} /> Categorías</button>
             </div>
 
             {categoriesLoading ? <Loader2 className='animate-spin'/> : (
@@ -830,3 +830,4 @@ export default function AdminDashboardClient({ brandingConfig }: { brandingConfi
     
 
     
+
