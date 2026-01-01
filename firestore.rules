@@ -117,5 +117,15 @@ service cloud.firestore {
     match /{path=**}/orders/{orderId} {
        allow list: if isAdminOrDevOrHost() || isDriver();
     }
+
+    /**
+     * @description
+     *   Stores all product categories. Readable by any authenticated user,
+     *   but only writable by admin, developer or host.
+     */
+    match /categories/{categoryId} {
+      allow read: if isSignedIn();
+      allow write: if isAdminOrDevOrHost();
+    }
   }
 }
