@@ -1,8 +1,8 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
-import type { Product } from '@/lib/types';
+import React, { useState, useMemo, useEffect } from 'react';
+import type { Product, Category } from '@/lib/types';
 import Header from '@/components/header';
 import ProductList from '@/components/product-list';
 import CartSheet from '@/components/cart/cart-sheet';
@@ -16,20 +16,30 @@ import type { BrandingConfig } from '@/lib/branding-config';
 
 interface OrderPageProps {
   products: Product[];
+  categories: Category[];
   loading: boolean;
   brandingConfig: BrandingConfig;
 }
 
-export default function OrderPage({ products, loading, brandingConfig }: OrderPageProps) {
+export default function OrderPage({ products, categories: allCategories, loading, brandingConfig }: OrderPageProps) {
   const [isCartOpen, setCartOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   const categories = useMemo(() => {
     if (loading || !products) return ['Todas'];
-    const uniqueCategories = new Set(products.map(p => p.category));
-    return ['Todas', ...Array.from(uniqueCategories)];
-  }, [products, loading]);
+    
+    // Get all unique categories that actually have products
+    const productCategories = new Set(products.map(p => p.category));
+
+    // Get the full category objects for those that have products
+    const availableCategoryObjects = allCategories.filter(c => productCategories.has(c.name));
+
+    // Sort them alphabetically
+    const sortedCategories = availableCategoryObjects.sort((a,b) => a.name.localeCompare(b.name));
+
+    return ['Todas', ...sortedCategories.map(c => c.name)];
+  }, [products, allCategories, loading]);
   
   const filteredProducts = useMemo(() => {
     if (loading) return [];

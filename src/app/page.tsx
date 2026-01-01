@@ -6,7 +6,7 @@ import { products as initialProducts } from '@/lib/data';
 import { useEffect, useMemo, useState } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, writeBatch, doc } from 'firebase/firestore';
-import type { Product } from '@/lib/types';
+import type { Product, Category } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
@@ -44,8 +44,13 @@ function HomePageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) 
     firestore ? collection(firestore, 'products') : null, 
     [firestore]
   );
+   const categoriesCollection = useMemoFirebase(() => 
+    firestore ? collection(firestore, 'categories') : null, 
+    [firestore]
+  );
   
   const { data: products, isLoading: isProductsLoading } = useCollection<Product>(productsCollection);
+  const { data: categories, isLoading: isCategoriesLoading } = useCollection<Category>(categoriesCollection);
 
   useEffect(() => {
     const seedDatabase = async () => {
@@ -73,6 +78,10 @@ function HomePageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) 
     return products || [];
   }, [products]);
 
+  const categoryList = useMemo(() => {
+    return categories || [];
+  }, [categories]);
+
   useEffect(() => {
     if (isUserLoading) {
       return;
@@ -91,12 +100,12 @@ function HomePageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) 
     }
   }, [isUserLoading, user, userDoc, router]);
 
-  const isLoading = isUserLoading || isProductsLoading || products === null;
+  const isLoading = isUserLoading || isProductsLoading || isCategoriesLoading || products === null;
   const isPrivilegedUser = userDoc && userDoc.role && userDoc.role !== 'customer';
 
   if (isLoading || isPrivilegedUser) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> {isPrivilegedUser && "Redirigiendo a tu panel..."}</div>;
   }
 
-  return <OrderPage products={productList || []} loading={isLoading} brandingConfig={brandingConfig} />;
+  return <OrderPage products={productList || []} categories={categoryList} loading={isLoading} brandingConfig={brandingConfig} />;
 }

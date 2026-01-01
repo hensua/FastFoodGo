@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
@@ -10,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { ChefHat, Package, Trash2, Edit, X, Users, Loader2, UtensilsCrossed, TrendingUp, Download, BarChart, ShoppingBag, Ban, Ticket, CircleDollarSign, XCircle, PackageCheck, Banknote, Landmark, Star, Crown, Trophy, UserRound, Store, Info, Calendar, ChevronsUpDown, Check } from 'lucide-react';
+import { ChefHat, Package, Trash2, Edit, X, Users, Loader2, UtensilsCrossed, TrendingUp, Download, BarChart, ShoppingBag, Ban, Ticket, CircleDollarSign, XCircle, PackageCheck, Banknote, Landmark, Star, Crown, Trophy, UserRound, Store, Info, Calendar, ChevronsUpDown, Check, PlusCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/provider';
 import { Input } from '@/components/ui/input';
@@ -35,89 +34,40 @@ import { OrderList } from '@/components/order-list';
 import Image from 'next/image';
 import { FirestorePermissionError, errorEmitter } from '@/firebase';
 import type { BrandingConfig } from '@/lib/branding-config';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 
 const TeamManagement = lazy(() => import('@/components/team-management'));
 
-// Combobox for Categories
-const CategoryCombobox = ({ value, onChange, categories, onCategoryCreate }: { value: string, onChange: (value: string) => void, categories: Category[], onCategoryCreate: (name: string) => Promise<void> }) => {
-  const [open, setOpen] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-
-  const handleSelect = (currentValue: string) => {
-    onChange(currentValue);
-    setOpen(false);
-  };
-
-  const handleCreate = async () => {
-    if (inputValue && !categories.find(c => c.name.toLowerCase() === inputValue.toLowerCase())) {
-      await onCategoryCreate(inputValue);
-      onChange(inputValue); // Select the newly created category
-    }
-    setOpen(false);
-  };
-
+// Category Selector as clickable buttons
+const CategorySelector = ({ value, onChange, categories }: { value: string, onChange: (value: string) => void, categories: Category[] }) => {
   const sortedCategories = useMemo(() => {
     return [...categories].sort((a, b) => a.name.localeCompare(b.name));
   }, [categories]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between"
-        >
-          {value || "Seleccionar categoría..."}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-full p-0">
-        <Command>
-          <CommandInput 
-            placeholder="Buscar o crear..."
-            onValueChange={setInputValue}
-          />
-           <CommandList>
-            <CommandEmpty>
-              <Button variant="outline" size="sm" onClick={handleCreate} className="w-full">
-                Crear nueva categoría: "{inputValue}"
-              </Button>
-            </CommandEmpty>
-            <CommandGroup>
-              {sortedCategories.map((category) => (
-                <CommandItem
-                  key={category.id}
-                  value={category.name}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleSelect(category.name);
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === category.name ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {category.name}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <div>
+        <Label>Categoría</Label>
+        <div className="flex flex-wrap gap-2 mt-2">
+        {sortedCategories.map(category => (
+            <Button
+                key={category.id}
+                type="button"
+                variant={value === category.name ? 'default' : 'outline'}
+                onClick={() => onChange(category.name)}
+                className="text-sm h-8"
+            >
+                {value === category.name && <Check className="mr-2 h-4 w-4" />}
+                {category.name}
+            </Button>
+        ))}
+        </div>
+    </div>
   );
 };
 
 
 // Inventory View Components
-const ProductForm = ({ product, onSave, onCancel, isSaving, categories, onCategoryCreate }: { product: Product | null, onSave: (product: Omit<Product, 'id'> | Product) => void, onCancel: () => void, isSaving: boolean, categories: Category[], onCategoryCreate: (name: string) => Promise<void> }) => {
+const ProductForm = ({ product, onSave, onCancel, isSaving, categories }: { product: Product | null, onSave: (product: Omit<Product, 'id'> | Product) => void, onCancel: () => void, isSaving: boolean, categories: Category[] }) => {
   const [formData, setFormData] = useState<Omit<Product, 'id' | 'imageHint'>>(
     product || { name: '', description: '', price: 0, imageUrl: '', category: '', stockQuantity: 0 }
   );
@@ -143,14 +93,14 @@ const ProductForm = ({ product, onSave, onCancel, isSaving, categories, onCatego
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.category) {
-      alert('Por favor, selecciona o crea una categoría.');
+      toast({ variant: 'destructive', title: 'Error', description: 'Por favor, selecciona una categoría.'});
       return;
     }
     onSave(formData as Omit<Product, 'id'> | Product);
   };
 
   return (
-    <Card className="h-fit sticky top-24">
+    <Card className="h-fit sticky top-24 animate-fade-in">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           {product ? 'Editar Producto' : 'Añadir Producto'}
@@ -171,11 +121,10 @@ const ProductForm = ({ product, onSave, onCancel, isSaving, categories, onCatego
               <Input id="stockQuantity" name="stockQuantity" type="number" value={formData.stockQuantity || 0} onChange={handleChange} placeholder="" />
             </div>
           </div>
-          <CategoryCombobox 
+          <CategorySelector 
             value={formData.category} 
             onChange={handleCategoryChange}
             categories={categories}
-            onCategoryCreate={onCategoryCreate}
           />
           <div className="space-y-2">
               <Label htmlFor="imageUrl">URL de la imagen</Label>
@@ -189,6 +138,70 @@ const ProductForm = ({ product, onSave, onCancel, isSaving, categories, onCatego
     </Card>
   );
 };
+
+
+const CategoryManager = ({ categories, onSave, onCancel }: { categories: Category[], onSave: (categories: { id?: string, name: string }[]) => Promise<void>, onCancel: () => void }) => {
+    const [localCategories, setLocalCategories] = useState([...categories].sort((a,b) => a.name.localeCompare(b.name)));
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleNameChange = (id: string, newName: string) => {
+        setLocalCategories(prev => prev.map(c => c.id === id ? { ...c, name: newName } : c));
+    };
+
+    const handleAddCategory = () => {
+        setLocalCategories(prev => [...prev, { id: `new-${Date.now()}`, name: '' }]);
+    };
+    
+    const handleRemoveCategory = (id: string) => {
+        setLocalCategories(prev => prev.filter(c => c.id !== id));
+    };
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        const categoriesToSave = localCategories.map(c => ({
+            id: c.id.startsWith('new-') ? undefined : c.id,
+            name: c.name,
+        }));
+        await onSave(categoriesToSave);
+        setIsSaving(false);
+    };
+
+    return (
+        <Card className="animate-fade-in">
+            <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                    Gestionar Categorías
+                    <Button variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
+                </CardTitle>
+                <CardDescription>Añade, edita o elimina las categorías de productos.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {localCategories.map(category => (
+                    <div key={category.id} className="flex items-center gap-2">
+                        <Input 
+                            value={category.name} 
+                            onChange={(e) => handleNameChange(category.id, e.target.value)}
+                            placeholder="Nombre de la categoría"
+                        />
+                        <Button variant="ghost" size="icon" onClick={() => handleRemoveCategory(category.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive"/>
+                        </Button>
+                    </div>
+                ))}
+                <Button variant="outline" onClick={handleAddCategory} className="w-full">
+                    <PlusCircle className="mr-2 h-4 w-4"/> Añadir Nueva Categoría
+                </Button>
+            </CardContent>
+            <CardFooter className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={onCancel}>Cancelar</Button>
+                <Button onClick={handleSave} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="animate-spin" /> : 'Guardar Cambios'}
+                </Button>
+            </CardFooter>
+        </Card>
+    );
+};
+
 
 type TimeFilter = 'day' | 'week' | 'month' | 'year' | 'all';
 
@@ -554,15 +567,49 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
 
+  const [inventoryView, setInventoryView] = useState<'products' | 'categories' | null>(null);
+
   const isFullAdmin = userDoc.role === 'admin';
 
-  const handleCreateCategory = async (name: string) => {
-    if (!firestore || !name) return;
-    const newDocRef = doc(collection(firestore, 'categories'));
-    const newCategory: Category = { id: newDocRef.id, name };
-    await setDoc(newDocRef, newCategory);
-    toast({ title: "Categoría creada", description: `La categoría "${name}" ha sido creada.` });
-  };
+  const handleSaveCategories = async (categoriesToSave: { id?: string; name: string }[]) => {
+    if (!firestore) return;
+    const batch = writeBatch(firestore);
+    const existingCategoryNames = (categories || []).map(c => c.name.toLowerCase());
+    
+    categoriesToSave.forEach(cat => {
+        if (!cat.name.trim()) return; // Skip empty names
+
+        if (cat.id && !cat.id.startsWith('new-')) {
+            // This is an existing category, update it
+            const docRef = doc(firestore, 'categories', cat.id);
+            batch.update(docRef, { name: cat.name });
+        } else {
+            // This is a new category, create it if name is unique
+            if (!existingCategoryNames.includes(cat.name.toLowerCase())) {
+                const newDocRef = doc(collection(firestore, 'categories'));
+                batch.set(newDocRef, { id: newDocRef.id, name: cat.name });
+            }
+        }
+    });
+
+    // Handle deletions
+    const categoriesToDelete = (categories || []).filter(
+        existingCat => !categoriesToSave.some(savingCat => savingCat.id === existingCat.id)
+    );
+    categoriesToDelete.forEach(cat => {
+        const docRef = doc(firestore, 'categories', cat.id);
+        batch.delete(docRef);
+    });
+
+    try {
+        await batch.commit();
+        toast({ title: 'Categorías actualizadas', description: 'Los cambios se han guardado con éxito.' });
+        setInventoryView(null);
+    } catch(e) {
+        console.error("Error saving categories:", e);
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron guardar las categorías.' });
+    }
+};
 
   const handleSaveProduct = async (productData: Omit<Product, 'id'> | Product) => {
     if (!firestore) {
@@ -582,6 +629,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
         toast({ title: "Producto creado", description: `Se ha añadido un nuevo producto al catálogo.`});
       }
       setEditingProduct(null);
+      setInventoryView(null);
     } catch (error: any) {
       console.error("Error saving product:", error);
       const permissionError = new FirestorePermissionError({
@@ -621,6 +669,16 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
     }
   };
 
+  const handleEditClick = (product: Product) => {
+    setEditingProduct(product);
+    setInventoryView('products');
+  };
+
+  const handleAddNewProductClick = () => {
+    setEditingProduct(null);
+    setInventoryView('products');
+  };
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
@@ -641,7 +699,10 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <Card>
-              <CardHeader><CardTitle>Productos</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle>Productos</CardTitle>
+                <CardDescription>Catálogo actual de productos disponibles en la tienda.</CardDescription>
+              </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -655,7 +716,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
                             <td className="p-2">{formatCurrency(p.price)}</td>
                             <td className="p-2">{p.stockQuantity}</td>
                             <td className='flex justify-end gap-1 p-2'>
-                              <Button variant="ghost" size="icon" onClick={() => setEditingProduct(p)}><Edit className='h-4 w-4'/></Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleEditClick(p)}><Edit className='h-4 w-4'/></Button>
                               <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(p.id)}><Trash2 className='h-4 w-4 text-destructive'/></Button>
                             </td>
                           </tr>
@@ -668,15 +729,30 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
             </Card>
           </div>
           <div>
+            <div className="flex gap-1 p-1 bg-muted rounded-lg flex-wrap mb-4">
+                <button onClick={handleAddNewProductClick} className={`w-1/2 px-4 py-2 rounded-md flex items-center justify-center gap-2 text-sm font-semibold transition-all ${inventoryView === 'products' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><PlusCircle size={16} /> Producto</button>
+                <button onClick={() => setInventoryView('categories')} className={`w-1/2 px-4 py-2 rounded-md flex items-center justify-center gap-2 text-sm font-semibold transition-all ${inventoryView === 'categories' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Edit size={16} /> Categorías</button>
+            </div>
+
             {categoriesLoading ? <Loader2 className='animate-spin'/> : (
-              <ProductForm 
-                product={editingProduct} 
-                onSave={handleSaveProduct} 
-                onCancel={() => setEditingProduct(null)} 
-                isSaving={isSavingProduct}
-                categories={categories || []}
-                onCategoryCreate={handleCreateCategory}
-              />
+              <>
+                 {inventoryView === 'products' && (
+                    <ProductForm 
+                        product={editingProduct} 
+                        onSave={handleSaveProduct} 
+                        onCancel={() => setInventoryView(null)} 
+                        isSaving={isSavingProduct}
+                        categories={categories || []}
+                    />
+                 )}
+                 {inventoryView === 'categories' && (
+                     <CategoryManager
+                        categories={categories || []}
+                        onSave={handleSaveCategories}
+                        onCancel={() => setInventoryView(null)}
+                     />
+                 )}
+              </>
             )}
           </div>
         </div>
