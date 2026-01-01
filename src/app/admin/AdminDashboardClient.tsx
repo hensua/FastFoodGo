@@ -740,7 +740,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
   };
 
   return (
-    <TooltipProvider>
+    <TooltipProvider delayDuration={0}>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
         <h2 className="text-2xl font-bold flex items-center gap-2">
             <UtensilsCrossed className="text-primary" /> Panel de Control
@@ -780,7 +780,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
                                 ) : (
                                   <Tooltip>
                                     <TooltipTrigger>
-                                        <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20">
+                                        <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive hover:text-destructive-foreground">
                                             <Ban className="mr-1 h-3 w-3"/>
                                             {p.category}
                                         </Badge>
@@ -808,7 +808,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
             </Card>
           </div>
           <div>
-             <div className="bg-card border rounded-lg p-4 shadow-sm mb-4">
+            <div className="bg-card border rounded-lg p-4 shadow-sm mb-4">
               <div className="flex gap-1 p-1 bg-muted rounded-lg">
                   <button onClick={handleAddNewProductClick} className={`flex-1 px-4 py-2 rounded-md flex items-center justify-center gap-2 text-sm font-semibold transition-all ${inventoryView === 'products' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><PlusCircle size={16} /> Producto</button>
                   <button onClick={() => setInventoryView('categories')} className={`flex-1 px-4 py-2 rounded-md flex items-center justify-center gap-2 text-sm font-semibold transition-all ${inventoryView === 'categories' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Edit size={16} /> Categorías</button>
