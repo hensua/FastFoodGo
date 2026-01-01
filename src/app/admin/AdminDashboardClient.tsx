@@ -567,7 +567,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
 
-  const [inventoryView, setInventoryView] = useState<'products' | 'categories' | null>('products');
+  const [inventoryView, setInventoryView] = useState<'products' | 'categories'>('products');
 
   const isFullAdmin = userDoc.role === 'admin';
 
@@ -604,7 +604,6 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
     try {
         await batch.commit();
         toast({ title: 'Categorías actualizadas', description: 'Los cambios se han guardado con éxito.' });
-        setInventoryView(null);
     } catch(e) {
         console.error("Error saving categories:", e);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron guardar las categorías.' });
@@ -629,7 +628,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
         toast({ title: "Producto creado", description: `Se ha añadido un nuevo producto al catálogo.`});
       }
       setEditingProduct(null);
-      setInventoryView(null);
+      setInventoryView('products');
     } catch (error: any) {
       console.error("Error saving product:", error);
       const permissionError = new FirestorePermissionError({
