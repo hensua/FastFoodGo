@@ -93,7 +93,10 @@ const CategoryCombobox = ({ value, onChange, categories, onCategoryCreate }: { v
                 <CommandItem
                   key={category.id}
                   value={category.name}
-                  onSelect={() => handleSelect(category.name)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelect(category.name);
+                  }}
                 >
                   <Check
                     className={cn(
@@ -747,5 +750,7 @@ export default function AdminDashboardClient({ brandingConfig }: { brandingConfi
     </div>
   );
 }
+
+    
 
     
