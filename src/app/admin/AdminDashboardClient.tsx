@@ -265,7 +265,7 @@ const CancelledOrdersHistory = ({ filter, orders: allCancelledOrders }: { filter
                                         <td className="p-2 font-mono text-primary">#{order.id.slice(-6).toUpperCase()}</td>
                                         <td className="p-2 text-muted-foreground">{order.orderDate?.toDate ? format(order.orderDate.toDate(), 'dd MMM yyyy, HH:mm', { locale: es }) : 'N/A'}</td>
                                         <td className="p-2">{order.customerName}</td>
-                                        <td className="p-2 text-sm italic text-destructive-foreground/80">{order.cancellationReason || 'No especificado'}</td>
+                                        <td className="p-2 text-sm italic text-destructive/80">{order.cancellationReason || 'No especificado'}</td>
                                     </tr>
                                 ))}
                             </tbody>
