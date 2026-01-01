@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { Loader2, ShoppingBag, Clock, ChefHat, Truck, CheckCircle2, KeyRound, Ban, Gift, Info, MessageSquare } from 'lucide-react';
+import { Loader2, ShoppingBag, Clock, ChefHat, Truck, CheckCircle2, KeyRound, Ban, Gift, Info, MessageSquare, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import {
   AlertDialog,
@@ -27,6 +27,8 @@ import { Separator } from '@/components/ui/separator';
 import { ChatDialog } from '@/components/chat/ChatDialog';
 import { useRouter } from 'next/navigation';
 import { getBrandingConfig, type BrandingConfig } from '@/lib/branding-config';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { cn } from '@/lib/utils';
 
 
 export default function MyOrdersPage() {
@@ -68,90 +70,92 @@ const OrderCard = ({
   const canChat = ['cooking', 'ready', 'delivering'].includes(order.status);
 
   return (
-    <Card className="shadow-md animate-fade-in w-full flex flex-col">
-      <CardHeader>
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle>Pedido #{order.id.slice(-6).toUpperCase()}</CardTitle>
-            <CardDescription>
-              {order.orderDate?.toDate ? new Date(order.orderDate.toDate()).toLocaleString('es-CO', {
-                year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-              }) : ''}
-            </CardDescription>
-          </div>
-          <Badge variant={order.status === 'delivered' ? 'default' : 'secondary'} className={`${config.color.replace('text-', 'bg-').replace('-500', '/10')} border ${config.color.replace('text-','border-')}`}>
-            <config.icon className={`mr-2 ${config.color}`} size={16}/> {config.text}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4 flex-grow">
-        <div>
-          <div className="w-full bg-muted rounded-full h-2.5">
-            <div className={`h-2.5 rounded-full transition-all duration-500 ${order.status === 'cancelled' ? 'bg-red-500' : 'bg-primary'} ${config.progress}`} />
-          </div>
-        </div>
-
-        {order.status === 'cancelled' && order.cancellationReason && (
-             <div className="text-sm text-destructive-foreground bg-destructive/80 p-3 rounded-md flex items-start gap-3">
-                 <Info className="h-5 w-5 mt-0.5 shrink-0"/>
-                 <div>
-                    <p className="font-semibold">Motivo de cancelación:</p>
-                    <p>{order.cancellationReason}</p>
-                 </div>
-             </div>
-        )}
-
-        {order.status !== 'pending' && order.status !== 'cooking' && order.status !== 'cancelled' && (
-          <div className="text-sm text-muted-foreground bg-primary/5 p-3 rounded-md flex items-center gap-3">
-             {order.status === 'delivering' ? <Truck className="text-primary h-8 w-8"/> : <KeyRound className="text-primary h-8 w-8"/>}
-             <div>
-                {order.status === 'delivering' && order.driverName && (
-                  <><span className="font-semibold">{order.driverName}</span> está en camino con tu pedido.</>
-                )}
-                 {order.status !== 'delivered' && order.status !== 'cancelled' && (
-                  <>
-                    <p className="font-semibold mt-1">Tu PIN de entrega es:</p>
-                    <p className="font-bold text-lg text-primary tracking-widest">{order.pin}</p>
-                  </>
-                )}
-                 {order.status === 'delivered' && (
-                  <p className="font-semibold">¡Tu pedido fue entregado con éxito!</p>
-                )}
-             </div>
-          </div>
-        )}
-
-        <div className="border-t pt-4">
-          <h4 className="font-semibold mb-2">Resumen del pedido:</h4>
-          <div className="space-y-1 text-sm text-muted-foreground">
-            {order.items.map((item, index) => (
-              <div key={index} className="flex justify-between">
-                <span>{item.quantity}x {item.product.name}</span>
-                <span>{formatCurrency(item.product.price * item.quantity)}</span>
-              </div>
-            ))}
-          </div>
-           <Separator className="my-2"/>
-            <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span>{formatCurrency(subtotal)}</span>
-                </div>
-                <div className="flex justify-between">
-                    <span className="text-muted-foreground flex items-center gap-1"><Truck size={14}/> Domicilio</span>
-                    <span>{formatCurrency(order.deliveryFee)}</span>
-                </div>
-                <div className="flex justify-between">
-                    <span className="text-muted-foreground flex items-center gap-1"><Gift size={14}/> Propina</span>
-                    <span>{formatCurrency(order.tip)}</span>
-                </div>
+    <Accordion type="single" collapsible className="w-full shadow-md rounded-lg border">
+      <AccordionItem value={order.id} className="border-none">
+        <AccordionTrigger className="p-4 hover:no-underline data-[state=open]:border-b">
+           <div className="flex justify-between items-start w-full">
+            <div className="text-left space-y-1">
+              <h3 className="font-bold">Pedido #{order.id.slice(-6).toUpperCase()}</h3>
+              <p className="text-xs text-muted-foreground">
+                {order.orderDate?.toDate ? new Date(order.orderDate.toDate()).toLocaleString('es-CO', {
+                  year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                }) : ''}
+              </p>
+               <p className="font-bold text-primary">{formatCurrency(order.totalAmount)}</p>
             </div>
-        </div>
-      </CardContent>
-      <CardFooter className="flex justify-between items-center bg-muted/50 p-4">
-         <div className='flex gap-2'>
+             <Badge variant={order.status === 'delivered' ? 'default' : 'secondary'} className={cn(`${config.color.replace('text-', 'bg-').replace('-500', '/10')} border ${config.color.replace('text-','border-')}`, 'self-start')}>
+              <config.icon className={`mr-2 ${config.color}`} size={16}/> {config.text}
+            </Badge>
+          </div>
+        </AccordionTrigger>
+        <AccordionContent className="p-0">
+          <div className="p-4 space-y-4">
+              <div>
+                <div className="w-full bg-muted rounded-full h-2.5">
+                  <div className={`h-2.5 rounded-full transition-all duration-500 ${order.status === 'cancelled' ? 'bg-red-500' : 'bg-primary'} ${config.progress}`} />
+                </div>
+              </div>
+
+              {order.status === 'cancelled' && order.cancellationReason && (
+                   <div className="text-sm text-destructive-foreground bg-destructive/80 p-3 rounded-md flex items-start gap-3">
+                       <Info className="h-5 w-5 mt-0.5 shrink-0"/>
+                       <div>
+                          <p className="font-semibold">Motivo de cancelación:</p>
+                          <p>{order.cancellationReason}</p>
+                       </div>
+                   </div>
+              )}
+
+              {order.status !== 'pending' && order.status !== 'cooking' && order.status !== 'cancelled' && (
+                <div className="text-sm text-muted-foreground bg-primary/5 p-3 rounded-md flex items-center gap-3">
+                   {order.status === 'delivering' ? <Truck className="text-primary h-8 w-8"/> : <KeyRound className="text-primary h-8 w-8"/>}
+                   <div>
+                      {order.status === 'delivering' && order.driverName && (
+                        <><span className="font-semibold">{order.driverName}</span> está en camino con tu pedido.</>
+                      )}
+                       {order.status !== 'delivered' && order.status !== 'cancelled' && (
+                        <>
+                          <p className="font-semibold mt-1">Tu PIN de entrega es:</p>
+                          <p className="font-bold text-lg text-primary tracking-widest">{order.pin}</p>
+                        </>
+                      )}
+                       {order.status === 'delivered' && (
+                        <p className="font-semibold">¡Tu pedido fue entregado con éxito!</p>
+                      )}
+                   </div>
+                </div>
+              )}
+
+              <div className="border-t pt-4">
+                <h4 className="font-semibold mb-2">Resumen del pedido:</h4>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  {order.items.map((item, index) => (
+                    <div key={index} className="flex justify-between">
+                      <span>{item.quantity}x {item.product.name}</span>
+                      <span>{formatCurrency(item.product.price * item.quantity)}</span>
+                    </div>
+                  ))}
+                </div>
+                 <Separator className="my-2"/>
+                  <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                          <span className="text-muted-foreground">Subtotal</span>
+                          <span>{formatCurrency(subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-1"><Truck size={14}/> Domicilio</span>
+                          <span>{formatCurrency(order.deliveryFee)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                          <span className="text-muted-foreground flex items-center gap-1"><Gift size={14}/> Propina</span>
+                          <span>{formatCurrency(order.tip)}</span>
+                      </div>
+                  </div>
+              </div>
+          </div>
+          <div className="bg-muted/50 p-4 flex gap-2">
             {order.status === 'pending' && (
-                <Button variant="destructive" size="sm" onClick={() => onCancel(order)}>Cancelar</Button>
+                <Button variant="destructive" size="sm" onClick={() => onCancel(order)}>Cancelar Pedido</Button>
             )}
              {canChat && (
                 <Button variant="outline" size="sm" onClick={() => onChat(order)} className="relative">
@@ -164,15 +168,13 @@ const OrderCard = ({
                     <MessageSquare className='mr-2' size={14} /> Chat
                 </Button>
             )}
-         </div>
-        <div className="flex flex-col items-end flex-grow">
-          <span className="text-sm">Total del Pedido</span>
-          <span className="font-bold text-lg">{formatCurrency(order.totalAmount)}</span>
-        </div>
-      </CardFooter>
-    </Card>
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 };
+
 
 // Custom hook to manage unread messages
 const useUnreadMessages = (orders: Order[] | undefined, currentUser: AppUser | null) => {
@@ -310,39 +312,41 @@ function MyOrdersPageClient({ brandingConfig }: { brandingConfig: BrandingConfig
           </div>
         )}
         
-        {activeOrders.length > 0 && (
-            <>
-              <h2 className="text-2xl font-semibold mb-4">Pedidos Activos</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {activeOrders.map(order => (
-                  <OrderCard 
-                    key={order.id} 
-                    order={order} 
-                    onCancel={setOrderToCancel} 
-                    onChat={handleOpenChat}
-                    hasUnreadMessages={unreadState[order.id] || false}
-                  />
-                ))}
-              </div>
-            </>
-        )}
+        <div className="space-y-4">
+            {activeOrders.length > 0 && (
+                <>
+                  <h2 className="text-2xl font-semibold">Pedidos Activos</h2>
+                  <div className="space-y-4">
+                    {activeOrders.map(order => (
+                      <OrderCard 
+                        key={order.id} 
+                        order={order} 
+                        onCancel={setOrderToCancel} 
+                        onChat={handleOpenChat}
+                        hasUnreadMessages={unreadState[order.id] || false}
+                      />
+                    ))}
+                  </div>
+                </>
+            )}
 
-        {pastOrders.length > 0 && (
-          <>
-            <h2 className="text-2xl font-semibold my-8 pt-4 border-t">Historial de Pedidos</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {pastOrders.map(order => (
-                <OrderCard 
-                  key={order.id} 
-                  order={order} 
-                  onCancel={() => {}} 
-                  onChat={handleOpenChat} 
-                  hasUnreadMessages={false}
-                />
-              ))}
-            </div>
-          </>
-        )}
+            {pastOrders.length > 0 && (
+              <>
+                <h2 className="text-2xl font-semibold mt-8 pt-4 border-t">Historial de Pedidos</h2>
+                <div className="space-y-4">
+                  {pastOrders.map(order => (
+                    <OrderCard 
+                      key={order.id} 
+                      order={order} 
+                      onCancel={() => {}} 
+                      onChat={handleOpenChat} 
+                      hasUnreadMessages={false}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+        </div>
       </main>
       <AlertDialog open={!!orderToCancel} onOpenChange={() => setOrderToCancel(null)}>
         <AlertDialogContent>

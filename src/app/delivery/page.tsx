@@ -113,7 +113,7 @@ const DeliveringCard = ({ order, onDeliver, isUpdating }: { order: Order; onDeli
         </div>
       </CardContent>
       <CardFooter>
-        <Button onClick={() => onDeliver(order)} className="w-full bg-green-600 hover:bg-green-700" disabled={isUpdating}>
+        <Button onClick={() => onDeliver(order)} className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={isUpdating}>
           {isUpdating ? <Loader2 className="mr-2 animate-spin" /> : <CheckCircle2 className="mr-2" />}
            Marcar como Entregado
         </Button>
@@ -368,7 +368,7 @@ function DeliveryPageClient({ brandingConfig }: { brandingConfig: BrandingConfig
 
   const { data: assignedOrders, isLoading: assignedOrdersLoading } = useCollection<Order>(assignedOrdersQuery);
   const { data: myDeliveries, isLoading: myDeliveriesLoading } = useCollection<Order>(myDeliveriesQuery);
-  const { data: pastDeliveries, isLoading: pastDeliveriesLoading } = useCollection<Order>(myPastDeliveriesQuery);
+  const { data: pastDeliveries, isLoading: pastDeliveriesLoading } = useCollection<Order>(pastDeliveriesQuery);
 
   const handleStartDelivery = async (order: Order) => {
     if (!firestore || !user || !userDoc) return;
