@@ -68,7 +68,7 @@ const CategorySelector = ({ value, onChange, categories }: { value: string, onCh
 
 
 // Inventory View Components
-const ProductForm = ({ product, onSave, onCancel, isSaving, categories }: { product: Product | null, onSave: (product: Omit<Product, 'id'> | Product) => void, onCancel: () => void, isSaving: boolean, categories: Category[] }) => {
+const ProductForm = ({ product, onSave, onCancel, isSaving, categories }: { product: Product | null, onSave: (productData: Omit<Product, 'id'> | Product, originalProduct: Product | null) => void, onCancel: () => void, isSaving: boolean, categories: Category[] }) => {
   const [formData, setFormData] = useState<Omit<Product, 'id' | 'imageHint'>>(
     product || { name: '', description: '', price: 0, imageUrl: '', category: '', stockQuantity: 0 }
   );
@@ -98,8 +98,22 @@ const ProductForm = ({ product, onSave, onCancel, isSaving, categories }: { prod
       toast({ variant: 'destructive', title: 'Error', description: 'Por favor, selecciona una categoría.'});
       return;
     }
-    onSave(formData as Omit<Product, 'id'> | Product);
+    onSave(formData as Omit<Product, 'id'> | Product, product);
   };
+  
+  const hasChanges = useMemo(() => {
+    if (!product) return false; // No changes to track if creating a new product
+    return JSON.stringify(formData) !== JSON.stringify({
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        imageUrl: product.imageUrl,
+        category: product.category,
+        stockQuantity: product.stockQuantity,
+    });
+  }, [formData, product]);
+  
 
   return (
     <Card className="h-fit sticky top-24 animate-fade-in">
@@ -131,9 +145,16 @@ const ProductForm = ({ product, onSave, onCancel, isSaving, categories }: { prod
               <Label htmlFor="imageUrl">URL de la imagen</Label>
               <Input id="imageUrl" name="imageUrl" value={formData.imageUrl} onChange={handleChange} placeholder="https://example.com/image.png" required />
           </div>
-          <Button type="submit" className="w-full" disabled={isSaving}>
-            {isSaving ? <Loader2 className="animate-spin" /> : (product ? 'Guardar Cambios' : 'Crear Producto')}
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button type="submit" className="w-full" disabled={isSaving || (!!product && !hasChanges)}>
+                {isSaving ? <Loader2 className="animate-spin" /> : (product ? 'Guardar Cambios' : 'Crear Producto')}
+            </Button>
+            {product && (
+                <Button type="button" variant="outline" className="w-full" onClick={onCancel}>
+                    Cancelar Edición
+                </Button>
+            )}
+          </div>
         </form>
       </CardContent>
     </Card>
@@ -671,29 +692,27 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
     return categories ? new Set(categories.map(c => c.name)) : new Set();
   }, [categories]);
 
-  const handleSaveProduct = async (productData: Omit<Product, 'id'> | Product) => {
+  const handleSaveProduct = async (productData: Omit<Product, 'id'> | Product, originalProduct: Product | null) => {
     if (!firestore) {
       toast({ variant: "destructive", title: "Error", description: "La base de datos no está disponible."});
       return;
     };
     setIsSavingProduct(true);
     try {
-      if ('id' in productData && productData.id) {
-        const productRef = doc(firestore, 'products', productData.id);
-        const { id, ...dataToUpdate } = productData;
-        await updateDoc(productRef, dataToUpdate);
-        toast({ title: "Producto actualizado", description: `${productData.name} fue actualizado con éxito.`});
+      if (originalProduct && 'id' in originalProduct) {
+        const productRef = doc(firestore, 'products', originalProduct.id);
+        await updateDoc(productRef, productData);
+        toast({ title: "Producto actualizado", description: `${(productData as Product).name} fue actualizado con éxito.`});
       } else {
         const newDocRef = doc(collection(firestore, 'products'));
         await setDoc(newDocRef, { ...productData, id: newDocRef.id });
         toast({ title: "Producto creado", description: `Se ha añadido un nuevo producto al catálogo.`});
       }
-      setEditingProduct(null);
-      setInventoryView('products');
+      setEditingProduct(null); // Return to "Add Product" view after saving
     } catch (error: any) {
       console.error("Error saving product:", error);
       const permissionError = new FirestorePermissionError({
-        path: 'id' in productData ? `/products/${productData.id}`: '/products',
+        path: originalProduct ? `/products/${originalProduct.id}`: '/products',
         operation: 'write',
         requestResourceData: productData
       });
@@ -738,6 +757,10 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
     setEditingProduct(null);
     setInventoryView('products');
   };
+  
+  const handleCancelEdit = () => {
+    setEditingProduct(null);
+  }
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -821,7 +844,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
                     <ProductForm 
                         product={editingProduct} 
                         onSave={handleSaveProduct} 
-                        onCancel={() => {}}
+                        onCancel={handleCancelEdit}
                         isSaving={isSavingProduct}
                         categories={categories || []}
                     />
