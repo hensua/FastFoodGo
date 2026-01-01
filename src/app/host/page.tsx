@@ -175,7 +175,7 @@ function HostPageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) 
             return;
         }
 
-        if (userDoc && userDoc.role !== 'admin' && userDoc.role !== 'host') {
+        if (userDoc && userDoc.role !== 'admin' && userDoc.role !== 'host' && userDoc.role !== 'developer') {
             toast({
                 variant: "destructive",
                 title: "Acceso denegado",
@@ -189,7 +189,7 @@ function HostPageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) 
         return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
     }
 
-    const hasAccess = userDoc.role === 'admin' || userDoc.role === 'host';
+    const hasAccess = userDoc.role === 'admin' || userDoc.role === 'host' || userDoc.role === 'developer';
     if (!hasAccess) {
         return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
     }

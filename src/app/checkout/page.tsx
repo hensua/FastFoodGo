@@ -26,24 +26,21 @@ export default function CheckoutPage() {
 
 function CheckoutPageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) {
   const { totalItems } = useCart();
-  const { user, isUserLoading } = useUser();
+  const { user, isLoading } = useUser();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.push('/login?redirect=/checkout');
+    if (!isLoading) {
+      if (!user) {
+        router.push('/login?redirect=/checkout');
+      } else if (totalItems === 0) {
+        router.push('/');
+      }
     }
-    if (!isUserLoading && totalItems === 0) {
-      router.push('/');
-    }
-  }, [totalItems, router, user, isUserLoading]);
+  }, [totalItems, router, user, isLoading]);
 
-  if (isUserLoading || !user) {
+  if (isLoading || !user || totalItems === 0) {
     return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>; 
-  }
-
-  if (totalItems === 0) {
-    return null; // or a message telling user their cart is empty and redirecting
   }
   
   return (

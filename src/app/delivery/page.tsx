@@ -327,25 +327,14 @@ function DeliveryPageClient({ brandingConfig }: { brandingConfig: BrandingConfig
   const [pinOrder, setPinOrder] = useState<Order | null>(null);
 
   useEffect(() => {
-    // Wait until loading is complete before making any decisions
-    if (isLoading) {
-      return;
-    }
+    if (isLoading) return;
 
-    // If, after loading, there's no user, redirect to login
     if (!user) {
       router.push('/login?redirect=/delivery');
       return;
     }
     
-    // If there's a user but their document (with role) hasn't loaded or doesn't exist
-    if (!userDoc) {
-      router.push('/');
-      return;
-    }
-    
-    // If we have all the data, check the role
-    if (userDoc.role !== 'driver') {
+    if (userDoc && userDoc.role !== 'driver') {
       toast({ variant: 'destructive', title: 'Acceso Denegado', description: 'No tienes permisos de repartidor.' });
       router.push('/');
     }
@@ -368,7 +357,7 @@ function DeliveryPageClient({ brandingConfig }: { brandingConfig: BrandingConfig
 
   const { data: assignedOrders, isLoading: assignedOrdersLoading } = useCollection<Order>(assignedOrdersQuery);
   const { data: myDeliveries, isLoading: myDeliveriesLoading } = useCollection<Order>(myDeliveriesQuery);
-  const { data: pastDeliveries, isLoading: pastDeliveriesLoading } = useCollection<Order>(pastDeliveriesQuery);
+  const { data: pastDeliveries, isLoading: pastDeliveriesLoading } = useCollection<Order>(myPastDeliveriesQuery);
 
   const handleStartDelivery = async (order: Order) => {
     if (!firestore || !user || !userDoc) return;
@@ -416,96 +405,95 @@ function DeliveryPageClient({ brandingConfig }: { brandingConfig: BrandingConfig
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando...</div>;
   }
   
-  if (userDoc && userDoc.role === 'driver') {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header onCartClick={() => {}} showCart={false} brandingConfig={brandingConfig}/>
-        <main className="container mx-auto px-4 py-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-                <Truck className="text-primary" /> Panel de Repartidor
-            </h1>
-            <div className="flex gap-1 p-1 bg-muted rounded-lg flex-wrap">
-                <button onClick={() => setActiveTab('deliveries')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'deliveries' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Truck size={16} /> Entregas</button>
-                <button onClick={() => setActiveTab('history')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'history' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><History size={16} /> Historial</button>
-                <button onClick={() => setActiveTab('stats')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'stats' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><BarChart2 size={16} /> Estadísticas</button>
+  if (userDoc.role !== 'driver') {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
+  }
+  
+  return (
+    <div className="min-h-screen bg-background">
+      <Header onCartClick={() => {}} showCart={false} brandingConfig={brandingConfig}/>
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Truck className="text-primary" /> Panel de Repartidor
+          </h1>
+          <div className="flex gap-1 p-1 bg-muted rounded-lg flex-wrap">
+              <button onClick={() => setActiveTab('deliveries')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'deliveries' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Truck size={16} /> Entregas</button>
+              <button onClick={() => setActiveTab('history')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'history' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><History size={16} /> Historial</button>
+              <button onClick={() => setActiveTab('stats')} className={`px-4 py-2 rounded-md flex items-center gap-2 text-sm font-semibold transition-all ${activeTab === 'stats' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><BarChart2 size={16} /> Estadísticas</button>
+          </div>
+        </div>
+
+        {activeTab === 'deliveries' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Mis Entregas */}
+            <div className="bg-muted/50 rounded-xl p-4">
+              <h2 className="font-bold text-muted-foreground uppercase tracking-wider mb-4">Mis Entregas ({myDeliveries?.length || 0})</h2>
+              <div className="space-y-4">
+                {myDeliveriesLoading ? <Loader2 className="animate-spin mx-auto mt-10" /> :
+                  myDeliveries && myDeliveries.length > 0 ? (
+                    myDeliveries.map(order => <DeliveringCard key={order.id} order={order} onDeliver={handleOpenPinDialog} isUpdating={isUpdatingOrder === order.id} />)
+                  ) : (
+                    <p className="text-center text-muted-foreground py-10">No tienes entregas activas.</p>
+                  )}
+              </div>
+            </div>
+
+            {/* Pedidos Asignados */}
+            <div className="bg-muted/50 rounded-xl p-4">
+              <h2 className="font-bold text-muted-foreground uppercase tracking-wider mb-4">Pedidos Asignados ({assignedOrders?.length || 0})</h2>
+              <div className="space-y-4">
+                {assignedOrdersLoading ? <Loader2 className="animate-spin mx-auto mt-10" /> :
+                  assignedOrders && assignedOrders.length > 0 ? (
+                    assignedOrders.map(order => <OrderCard key={order.id} order={order} onAccept={handleStartDelivery} isUpdating={isUpdatingOrder === order.id} />)
+                  ) : (
+                    <p className="text-center text-muted-foreground py-10">No tienes pedidos asignados por ahora.</p>
+                  )}
+              </div>
             </div>
           </div>
-
-          {activeTab === 'deliveries' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Mis Entregas */}
-              <div className="bg-muted/50 rounded-xl p-4">
-                <h2 className="font-bold text-muted-foreground uppercase tracking-wider mb-4">Mis Entregas ({myDeliveries?.length || 0})</h2>
-                <div className="space-y-4">
-                  {myDeliveriesLoading ? <Loader2 className="animate-spin mx-auto mt-10" /> :
-                    myDeliveries && myDeliveries.length > 0 ? (
-                      myDeliveries.map(order => <DeliveringCard key={order.id} order={order} onDeliver={handleOpenPinDialog} isUpdating={isUpdatingOrder === order.id} />)
-                    ) : (
-                      <p className="text-center text-muted-foreground py-10">No tienes entregas activas.</p>
-                    )}
+        )}
+        
+        {activeTab === 'history' && (
+          <Card>
+            <CardHeader><CardTitle>Historial de Entregas</CardTitle></CardHeader>
+            <CardContent>
+              {pastDeliveriesLoading ? <div className="flex justify-center"><Loader2 className="animate-spin"/></div> : 
+               pastDeliveries && pastDeliveries.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className='border-b'><tr className='text-left text-sm text-muted-foreground'><th className='p-2'>Pedido</th><th className='p-2'>Fecha</th><th className='p-2'>Cliente</th><th className='p-2'>Propina</th><th className='p-2 text-right'>Ganancia Total</th></tr></thead>
+                    <tbody>
+                      {pastDeliveries.map(order => (
+                        <tr key={order.id} className='border-b'>
+                          <td className='p-2 font-mono text-primary'>#{order.id.slice(-6).toUpperCase()}</td>
+                          <td className='p-2 text-muted-foreground'>{order.orderDate?.toDate ? new Date(order.orderDate.toDate()).toLocaleDateString() : 'N/A'}</td>
+                          <td className='p-2'>{order.customerName}</td>
+                          <td className='p-2 text-green-600 font-medium'>{formatCurrency(order.tip || 0)}</td>
+                          <td className='p-2 text-right font-semibold'>{formatCurrency((order.deliveryFee || 0) + (order.tip || 0))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
+               ) : <p className="text-center text-muted-foreground py-10">No has completado ninguna entrega.</p>
+              }
+            </CardContent>
+          </Card>
+        )}
+        
+        {activeTab === 'stats' && (
+            <StatsPanel deliveries={pastDeliveries || []} />
+        )}
+      </main>
 
-              {/* Pedidos Asignados */}
-              <div className="bg-muted/50 rounded-xl p-4">
-                <h2 className="font-bold text-muted-foreground uppercase tracking-wider mb-4">Pedidos Asignados ({assignedOrders?.length || 0})</h2>
-                <div className="space-y-4">
-                  {assignedOrdersLoading ? <Loader2 className="animate-spin mx-auto mt-10" /> :
-                    assignedOrders && assignedOrders.length > 0 ? (
-                      assignedOrders.map(order => <OrderCard key={order.id} order={order} onAccept={handleStartDelivery} isUpdating={isUpdatingOrder === order.id} />)
-                    ) : (
-                      <p className="text-center text-muted-foreground py-10">No tienes pedidos asignados por ahora.</p>
-                    )}
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {activeTab === 'history' && (
-            <Card>
-              <CardHeader><CardTitle>Historial de Entregas</CardTitle></CardHeader>
-              <CardContent>
-                {pastDeliveriesLoading ? <div className="flex justify-center"><Loader2 className="animate-spin"/></div> : 
-                 pastDeliveries && pastDeliveries.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className='border-b'><tr className='text-left text-sm text-muted-foreground'><th className='p-2'>Pedido</th><th className='p-2'>Fecha</th><th className='p-2'>Cliente</th><th className='p-2'>Propina</th><th className='p-2 text-right'>Ganancia Total</th></tr></thead>
-                      <tbody>
-                        {pastDeliveries.map(order => (
-                          <tr key={order.id} className='border-b'>
-                            <td className='p-2 font-mono text-primary'>#{order.id.slice(-6).toUpperCase()}</td>
-                            <td className='p-2 text-muted-foreground'>{order.orderDate?.toDate ? new Date(order.orderDate.toDate()).toLocaleDateString() : 'N/A'}</td>
-                            <td className='p-2'>{order.customerName}</td>
-                            <td className='p-2 text-green-600 font-medium'>{formatCurrency(order.tip || 0)}</td>
-                            <td className='p-2 text-right font-semibold'>{formatCurrency((order.deliveryFee || 0) + (order.tip || 0))}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                 ) : <p className="text-center text-muted-foreground py-10">No has completado ninguna entrega.</p>
-                }
-              </CardContent>
-            </Card>
-          )}
-          
-          {activeTab === 'stats' && (
-              <StatsPanel deliveries={pastDeliveries || []} />
-          )}
-        </main>
-
-         <PinDialog 
-            open={!!pinOrder} 
-            onOpenChange={() => setPinOrder(null)} 
-            onSubmit={handleMarkAsDelivered}
-            isSubmitting={!!isUpdatingOrder && isUpdatingOrder === pinOrder?.id}
-            orderId={pinOrder?.id || null}
-          />
-      </div>
-    );
-  }
-
-  // Fallback to show while the useEffect redirection is happening
-  return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
+       <PinDialog 
+          open={!!pinOrder} 
+          onOpenChange={() => setPinOrder(null)} 
+          onSubmit={handleMarkAsDelivered}
+          isSubmitting={!!isUpdatingOrder && isUpdatingOrder === pinOrder?.id}
+          orderId={pinOrder?.id || null}
+        />
+    </div>
+  );
 }

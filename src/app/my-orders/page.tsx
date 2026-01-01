@@ -46,12 +46,12 @@ export default function MyOrdersPage() {
 }
 
 const statusConfig: Record<OrderStatus, { text: string; icon: React.ElementType; color: string; progress: string, badgeClasses: string }> = {
-  pending: { text: 'Pendiente', icon: Clock, color: 'text-orange-500', progress: 'w-1/6', badgeClasses: 'bg-orange-100 text-orange-700 border-orange-200' },
-  cooking: { text: 'En Preparación', icon: ChefHat, color: 'text-yellow-500', progress: 'w-2/6', badgeClasses: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
-  ready: { text: 'Listo para Retirar', icon: ShoppingBag, color: 'text-blue-500', progress: 'w-3/6', badgeClasses: 'bg-blue-100 text-blue-700 border-blue-200' },
-  delivering: { text: 'En Camino', icon: Truck, color: 'text-indigo-500', progress: 'w-4/6', badgeClasses: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
-  delivered: { text: 'Entregado', icon: CheckCircle2, color: 'text-green-600', progress: 'w-full', badgeClasses: 'bg-green-100 text-green-700 border-green-200' },
-  cancelled: { text: 'Cancelado', icon: Ban, color: 'text-red-500', progress: 'w-full bg-red-500', badgeClasses: 'bg-red-100 text-red-700 border-red-200' },
+  pending: { text: 'Pendiente', icon: Clock, color: 'text-orange-700', progress: 'w-1/6', badgeClasses: 'bg-orange-100 text-orange-700 border-orange-200' },
+  cooking: { text: 'En Preparación', icon: ChefHat, color: 'text-yellow-700', progress: 'w-2/6', badgeClasses: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+  ready: { text: 'Listo para Retirar', icon: ShoppingBag, color: 'text-blue-700', progress: 'w-3/6', badgeClasses: 'bg-blue-100 text-blue-700 border-blue-200' },
+  delivering: { text: 'En Camino', icon: Truck, color: 'text-indigo-700', progress: 'w-4/6', badgeClasses: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
+  delivered: { text: 'Entregado', icon: CheckCircle2, color: 'text-green-700', progress: 'w-full', badgeClasses: 'bg-green-100 text-green-700 border-green-200' },
+  cancelled: { text: 'Cancelado', icon: Ban, color: 'text-red-700', progress: 'w-full bg-red-500', badgeClasses: 'bg-red-100 text-red-700 border-red-200' },
 };
 
 const OrderCard = ({ 
@@ -285,12 +285,13 @@ function MyOrdersPageClient({ brandingConfig }: { brandingConfig: BrandingConfig
     }
   };
 
-  if (isLoading) {
-    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>
-  }
-  
-  if (!user) {
-    router.push('/login?redirect=/my-orders');
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push('/login?redirect=/my-orders');
+    }
+  }, [isLoading, user, router]);
+
+  if (isLoading || !user) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>
   }
 

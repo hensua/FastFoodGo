@@ -79,13 +79,14 @@ function ProfilePageClient({ brandingConfig }: { brandingConfig: BrandingConfig 
     }
   }
 
-  if (isLoading) {
-    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8"/> Cargando perfil...</div>;
-  }
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace('/login?redirect=/profile');
+    }
+  }, [isLoading, user, router]);
 
-  if (!user) {
-    router.replace('/login?redirect=/profile');
-    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8"/> Redirigiendo...</div>;
+  if (isLoading || !user) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8"/> Cargando perfil...</div>;
   }
 
   return (
