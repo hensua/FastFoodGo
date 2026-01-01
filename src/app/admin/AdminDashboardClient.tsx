@@ -105,7 +105,6 @@ const ProductForm = ({ product, onSave, onCancel, isSaving, categories }: { prod
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           {product ? 'Editar Producto' : 'Añadir Producto'}
-          <Button variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -239,7 +238,6 @@ const CategoryManager = ({ categories, onSave, onCancel, firestore, toast }: { c
                 <CardHeader>
                     <CardTitle className="flex items-center justify-between">
                         Gestionar Categorías
-                        <Button variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
                     </CardTitle>
                     <CardDescription>Añade, edita o elimina las categorías de productos.</CardDescription>
                 </CardHeader>
@@ -272,7 +270,6 @@ const CategoryManager = ({ categories, onSave, onCancel, firestore, toast }: { c
                     </div>
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2">
-                    <Button variant="ghost" onClick={onCancel}>Cerrar</Button>
                     <Button onClick={handleSaveChanges} disabled={isSaving || changedCategories.size === 0}>
                         {isSaving ? <Loader2 className="animate-spin" /> : 'Guardar Cambios'}
                     </Button>
@@ -665,7 +662,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
 
-  const [inventoryView, setInventoryView] = useState<'products' | null>('products');
+  const [inventoryView, setInventoryView] = useState<'products' | 'categories'>('products');
 
   const isFullAdmin = userDoc.role === 'admin';
 
@@ -808,7 +805,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
                     <ProductForm 
                         product={editingProduct} 
                         onSave={handleSaveProduct} 
-                        onCancel={() => setInventoryView(null)} 
+                        onCancel={() => setInventoryView('products')} 
                         isSaving={isSavingProduct}
                         categories={categories || []}
                     />
@@ -817,7 +814,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
                      <CategoryManager
                         categories={categories || []}
                         onSave={() => Promise.resolve()} // onSave is now managed internally
-                        onCancel={() => setInventoryView(null)}
+                        onCancel={() => setInventoryView('categories')}
                         firestore={firestore}
                         toast={toast}
                      />
