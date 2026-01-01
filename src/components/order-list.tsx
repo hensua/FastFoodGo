@@ -206,21 +206,18 @@ function KitchenView({ userDoc, brandingConfig }: { userDoc: AppUser; brandingCo
   
   const driversQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-
-    if (userDoc.role === 'host') {
-      return query(collection(firestore, 'users'), where('role', '==', 'driver'));
+    // Admins, developers, and hosts can all see the list of drivers
+    if (userDoc.role === 'admin' || userDoc.role === 'developer' || userDoc.role === 'host') {
+      return collection(firestore, 'users');
     }
-    
-    if (userDoc.role === 'admin' || userDoc.role === 'developer') {
-      return query(collection(firestore, 'users'), where('role', '==', 'driver'));
-    }
-
     return null;
   }, [firestore, userDoc.role]);
 
 
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
-  const { data: drivers, isLoading: driversLoading } = useCollection<AppUser>(driversQuery);
+  const { data: allUsers, isLoading: driversLoading } = useCollection<AppUser>(driversQuery);
+
+  const drivers = useMemo(() => allUsers?.filter(u => u.role === 'driver') || [], [allUsers]);
 
   const sendAutoChatMessage = async (order: Order) => {
     if (!firestore || !userDoc || !order.customerName) return;

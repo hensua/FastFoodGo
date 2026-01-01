@@ -30,13 +30,13 @@ service cloud.firestore {
       return isSignedIn() && getUserRole(request.auth.uid) == 'developer';
     }
 
-    function isAdminOrDev() {
-      let userRole = getUserRole(request.auth.uid);
-      return isSignedIn() && (userRole == 'admin' || userRole == 'developer');
-    }
-    
     function isHost() {
       return isSignedIn() && getUserRole(request.auth.uid) == 'host';
+    }
+
+    function isAdminOrDevOrHost() {
+      let userRole = getUserRole(request.auth.uid);
+      return isSignedIn() && (userRole == 'admin' || userRole == 'developer' || userRole == 'host');
     }
     
     function isDriver() {
@@ -57,7 +57,7 @@ service cloud.firestore {
      */
     match /products/{productId} {
       allow read: if true;
-      allow write: if isAdminOrDev();
+      allow write: if isAdminOrDevOrHost();
     }
     
     /**
@@ -69,10 +69,10 @@ service cloud.firestore {
      */
      match /users/{userId} {
         allow get: if isSignedIn();
-        allow list: if isAdminOrDev() || (isHost() && request.query.where.role in ['driver', 'customer']);
+        allow list: if isAdminOrDevOrHost();
         allow create: if isOwner(userId);
-        allow update: if isOwner(userId) || isAdminOrDev();
-        allow delete: if isAdminOrDev();
+        allow update: if isOwner(userId) || isAdminOrDevOrHost();
+        allow delete: if isAdminOrDevOrHost();
      }
 
     /**
@@ -87,24 +87,24 @@ service cloud.firestore {
         return isDriver() && getOrder().data.driverId == request.auth.uid;
       }
       
-      allow get: if isOwner(userId) || isAdminOrDev() || isHost() || isOrderDriver();
-      allow list: if isOwner(userId) || isAdminOrDev() || isHost();
+      allow get: if isOwner(userId) || isAdminOrDevOrHost() || isOrderDriver();
+      allow list: if isOwner(userId) || isAdminOrDevOrHost();
       allow create: if isOwner(userId);
       allow update: if 
             // The customer can only cancel their own order if it's 'pending'.
             (isOwner(userId) && request.resource.data.status == 'cancelled' && resource.data.status == 'pending') ||
             // Admin, Developer or Host can manage most order state transitions.
-            isAdminOrDev() || isHost() ||
+            isAdminOrDevOrHost() ||
             // An assigned driver can update the status to 'delivering' or 'delivered'.
             (isOrderDriver() && (
                   (resource.data.status == 'ready' && request.resource.data.status == 'delivering') ||
                   (resource.data.status == 'delivering' && request.resource.data.status == 'delivered' && resource.data.pin == request.resource.data.pin)
                 )
             );
-      allow delete: if isAdminOrDev();
+      allow delete: if isAdminOrDevOrHost();
 
       match /messages/{messageId} {
-        allow read, write: if isOwner(userId) || isAdminOrDev() || isHost() || isOrderDriver();
+        allow read, write: if isOwner(userId) || isAdminOrDevOrHost() || isOrderDriver();
       }
     }
     
@@ -115,9 +115,7 @@ service cloud.firestore {
      *   which is necessary for their respective panels.
      */
     match /{path=**}/orders/{orderId} {
-       allow list: if isAdminOrDev() || isHost() || isDriver();
+       allow list: if isAdminOrDevOrHost() || isDriver();
     }
   }
 }
-
-    
