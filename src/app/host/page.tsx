@@ -1,13 +1,13 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Header from '@/components/header';
 import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { Loader2, UtensilsCrossed, TrendingUp, ChefHat, Ban, Trophy, Crown, PackageCheck, Store } from 'lucide-react';
+import { Loader2, UtensilsCrossed, TrendingUp, ChefHat, Ban, Trophy, Crown, PackageCheck, Store, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { AppUser } from '@/lib/types';
+import type { AppUser, Order } from '@/lib/types';
 import { OrderList } from '@/components/order-list';
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useOrderStats } from '@/app/admin/AdminDashboardClient';
@@ -16,7 +16,8 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
 import { UserRound } from 'lucide-react';
 import { getBrandingConfig, type BrandingConfig } from '@/lib/branding-config';
-
+import { isToday, isThisWeek, isThisMonth, isThisYear, format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 export default function HostPage() {
     const [brandingConfig, setBrandingConfig] = useState<BrandingConfig | null>(null);
@@ -33,17 +34,65 @@ export default function HostPage() {
 }
 
 
+const CancelledOrdersHistory = ({ filter, orders: allCancelledOrders }: { filter: 'day' | 'week' | 'month' | 'year' | 'all'; orders: Order[] }) => {
+    const filteredOrders = useMemo(() => {
+        return allCancelledOrders.filter(o => {
+            if (!o.orderDate?.toDate) return false;
+            const date = o.orderDate.toDate();
+            if (filter === 'day') return isToday(date);
+            if (filter === 'week') return isThisWeek(date, { weekStartsOn: 1 });
+            if (filter === 'month') return isThisMonth(date);
+            if (filter === 'year') return isThisYear(date);
+            return true;
+        });
+    }, [filter, allCancelledOrders]);
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><XCircle className="text-destructive"/> Historial de Pedidos Cancelados</CardTitle>
+                <CardDescription>Un registro de todos los pedidos que han sido cancelados.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {filteredOrders.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-10">No hay pedidos cancelados en este período.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="border-b"><tr className="text-left text-sm text-muted-foreground">
+                                <th className="p-2">Pedido</th>
+                                <th className="p-2">Fecha</th>
+                                <th className="p-2">Cliente</th>
+                                <th className="p-2">Motivo</th>
+                            </tr></thead>
+                            <tbody>
+                                {filteredOrders.map(order => (
+                                    <tr key={order.id} className="border-b">
+                                        <td className="p-2 font-mono text-primary">#{order.id.slice(-6).toUpperCase()}</td>
+                                        <td className="p-2 text-muted-foreground">{order.orderDate?.toDate ? format(order.orderDate.toDate(), 'dd MMM yyyy, HH:mm', { locale: es }) : 'N/A'}</td>
+                                        <td className="p-2">{order.customerName}</td>
+                                        <td className="p-2 text-sm italic text-destructive-foreground/80">{order.cancellationReason || 'No especificado'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+};
+
 // Simplified dashboard for hosts
 const HostStatsDashboard = ({userDoc}: {userDoc: AppUser}) => {
     const [filter, setFilter] = useState < 'day' | 'week' | 'month' | 'year' | 'all' > ('day');
-    // The second argument is now `true` for admins, `false` for hosts, allowing the hook to adapt
-    const { stats, isLoading } = useOrderStats(filter, userDoc.role === 'admin');
+    const { stats, isLoading } = useOrderStats(filter, false);
 
     if (isLoading) {
         return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8" /> Cargando reportes...</div>;
     }
 
-    const { generalStats, productStats, customerStats } = stats;
+    const { generalStats, productStats, customerStats, cancelledOrdersHistory } = stats;
 
     return (
         <div className="space-y-6">
@@ -128,6 +177,8 @@ const HostStatsDashboard = ({userDoc}: {userDoc: AppUser}) => {
                 </Card>
                )}
             </div>
+
+            <CancelledOrdersHistory filter={filter} orders={cancelledOrdersHistory || []} />
 
             <Card>
                 <CardHeader>

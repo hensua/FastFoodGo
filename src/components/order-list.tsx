@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
@@ -25,13 +26,14 @@ import { Label } from './ui/label';
 import { ChatDialog } from './chat/ChatDialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import type { BrandingConfig } from '@/lib/branding-config';
+import { isToday } from 'date-fns';
 
 const statusConfig: Record<string, { title: string; icon: React.ElementType; color: string }> = {
   pending: { title: 'Pendientes', icon: Clock, color: 'border-l-4 border-yellow-500' },
   cooking: { title: 'En Preparación', icon: ChefHat, color: 'border-l-4 border-orange-500' },
   ready: { title: 'Listos', icon: PackageCheck, color: 'border-l-4 border-green-500' },
   delivering: { title: 'En Entrega', icon: Truck, color: 'border-l-4 border-blue-500' },
-  cancelled: { title: 'Cancelados', icon: XCircle, color: 'border-l-4 border-red-500' },
+  cancelled: { title: 'Cancelados (Hoy)', icon: XCircle, color: 'border-l-4 border-red-500' },
 };
 
 const OrderCard = ({ order, onStatusChange, onCancel, onChat, onAssignDriver, drivers, isUpdating }: { order: Order; onStatusChange: (order: Order, newStatus: OrderStatus, reason?: string) => void; onCancel: (order: Order) => void; onChat: (order: Order) => void; onAssignDriver: (order: Order, driverId: string) => void; drivers: AppUser[]; isUpdating: boolean }) => {
@@ -159,7 +161,7 @@ const CancelOrderDialog = ({
 
     return (
          <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-            <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
+            <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Cancelar Pedido #{order?.id.slice(-6).toUpperCase()}</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -310,7 +312,7 @@ function KitchenView({ userDoc, brandingConfig }: { userDoc: AppUser; brandingCo
     cooking: orders?.filter(o => o.status === 'cooking') || [],
     ready: orders?.filter(o => o.status === 'ready') || [],
     delivering: orders?.filter(o => o.status === 'delivering') || [],
-    cancelled: orders?.filter(o => o.status === 'cancelled') || [],
+    cancelled: orders?.filter(o => o.status === 'cancelled' && o.orderDate && isToday(o.orderDate.toDate())) || [],
   }), [orders]);
 
   return (

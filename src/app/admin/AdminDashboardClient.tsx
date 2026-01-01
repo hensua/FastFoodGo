@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { ChefHat, Package, Trash2, Edit, X, Users, Loader2, UtensilsCrossed, TrendingUp, Download, BarChart, ShoppingBag, Ban, Ticket, CircleDollarSign, XCircle, PackageCheck, Banknote, Landmark, Star, Crown, Trophy, UserRound, Store } from 'lucide-react';
+import { ChefHat, Package, Trash2, Edit, X, Users, Loader2, UtensilsCrossed, TrendingUp, Download, BarChart, ShoppingBag, Ban, Ticket, CircleDollarSign, XCircle, PackageCheck, Banknote, Landmark, Star, Crown, Trophy, UserRound, Store, Info, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/provider';
 import { Input } from '@/components/ui/input';
@@ -128,7 +128,7 @@ export const useOrderStats = (filter: TimeFilter, hasFullAccess: boolean) => {
         if (isLoading || !orders) {
             const zeroStats = { totalSales: 0, totalOrders: 0, deliveredOrders: 0, cancelledOrders: 0, avgTicket: 0, };
             const zeroMonthly = Array.from({ length: 12 }, (_, i) => ({ name: format(subMonths(new Date(), i), 'MMM yyyy', { locale: es }), Ventas: 0 })).reverse();
-            return { generalStats: zeroStats, monthlySales: zeroMonthly, paymentStats: { cashOrdersCount: 0, transferOrdersCount: 0, cashTotalAmount: 0, transferTotalAmount: 0, mostUsedPaymentMethod: '-' }, productStats: { topSeller: null, top5: [] }, customerStats: { top5: [] }, };
+            return { generalStats: zeroStats, monthlySales: zeroMonthly, paymentStats: { cashOrdersCount: 0, transferOrdersCount: 0, cashTotalAmount: 0, transferTotalAmount: 0, mostUsedPaymentMethod: '-' }, productStats: { topSeller: null, top5: [] }, customerStats: { top5: [] }, cancelledOrdersHistory: [] };
         }
 
         const filteredByTime = orders.filter(o => {
@@ -147,6 +147,8 @@ export const useOrderStats = (filter: TimeFilter, hasFullAccess: boolean) => {
         const avgTicket = deliveredOrders.length > 0 ? totalSales / deliveredOrders.length : 0;
 
         const generalStats = { totalSales, totalOrders: filteredByTime.length, deliveredOrders: deliveredOrders.length, cancelledOrders: filteredByTime.filter(o => o.status === 'cancelled').length, avgTicket, };
+        
+        const cancelledOrdersHistory = orders.filter(o => o.status === 'cancelled').sort((a,b) => b.orderDate.toDate() - a.orderDate.toDate());
 
         // Common stats for both admin and host
         const productCounts: { [name: string]: { count: number; imageUrl?: string } } = {};
@@ -171,7 +173,7 @@ export const useOrderStats = (filter: TimeFilter, hasFullAccess: boolean) => {
 
         // Admin-only stats
         if (!hasFullAccess) {
-             return { generalStats, monthlySales: null, paymentStats: null, productStats, customerStats };
+             return { generalStats, monthlySales: null, paymentStats: null, productStats, customerStats, cancelledOrdersHistory };
         }
 
         const salesByMonth: { [key: string]: number } = {};
@@ -197,7 +199,7 @@ export const useOrderStats = (filter: TimeFilter, hasFullAccess: boolean) => {
             mostUsedPaymentMethod: cashOrders.length >= transferOrders.length ? 'Efectivo' : 'Transferencia',
         };
 
-        return { generalStats, monthlySales, paymentStats, productStats, customerStats };
+        return { generalStats, monthlySales, paymentStats, productStats, customerStats, cancelledOrdersHistory };
     }, [orders, filter, isLoading, hasFullAccess]);
 
     return { stats, isLoading };
@@ -226,6 +228,55 @@ const TimeFilterControls = ({ filter, setFilter }: { filter: TimeFilter; setFilt
     );
 }
 
+const CancelledOrdersHistory = ({ filter, orders: allCancelledOrders }: { filter: TimeFilter; orders: Order[] }) => {
+    const filteredOrders = useMemo(() => {
+        return allCancelledOrders.filter(o => {
+            if (!o.orderDate?.toDate) return false;
+            const date = o.orderDate.toDate();
+            if (filter === 'day') return isToday(date);
+            if (filter === 'week') return isThisWeek(date, { weekStartsOn: 1 });
+            if (filter === 'month') return isThisMonth(date);
+            if (filter === 'year') return isThisYear(date);
+            return true;
+        });
+    }, [filter, allCancelledOrders]);
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><XCircle className="text-destructive"/> Historial de Pedidos Cancelados</CardTitle>
+                <CardDescription>Un registro de todos los pedidos que han sido cancelados.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {filteredOrders.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-10">No hay pedidos cancelados en este período.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="border-b"><tr className="text-left text-sm text-muted-foreground">
+                                <th className="p-2">Pedido</th>
+                                <th className="p-2">Fecha</th>
+                                <th className="p-2">Cliente</th>
+                                <th className="p-2">Motivo</th>
+                            </tr></thead>
+                            <tbody>
+                                {filteredOrders.map(order => (
+                                    <tr key={order.id} className="border-b">
+                                        <td className="p-2 font-mono text-primary">#{order.id.slice(-6).toUpperCase()}</td>
+                                        <td className="p-2 text-muted-foreground">{order.orderDate?.toDate ? format(order.orderDate.toDate(), 'dd MMM yyyy, HH:mm', { locale: es }) : 'N/A'}</td>
+                                        <td className="p-2">{order.customerName}</td>
+                                        <td className="p-2 text-sm italic text-destructive-foreground/80">{order.cancellationReason || 'No especificado'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+};
+
 // Full dashboard for admins
 const StatsDashboard = ({userDoc}: {userDoc: AppUser}) => {
     const [filter, setFilter] = useState<TimeFilter>('day');
@@ -250,7 +301,7 @@ const StatsDashboard = ({userDoc}: {userDoc: AppUser}) => {
         return <div className="flex justify-center items-center h-64"><Loader2 className="animate-spin h-8 w-8" /> Cargando reportes...</div>;
     }
     
-    const { generalStats, monthlySales, paymentStats, productStats, customerStats } = stats;
+    const { generalStats, monthlySales, paymentStats, productStats, customerStats, cancelledOrdersHistory } = stats;
 
     return (
         <div className="space-y-6">
@@ -398,6 +449,8 @@ const StatsDashboard = ({userDoc}: {userDoc: AppUser}) => {
                 </Card>
                )}
             </div>
+            
+            <CancelledOrdersHistory filter={filter} orders={cancelledOrdersHistory || []} />
         </div>
     );
 };
@@ -568,7 +621,7 @@ export default function AdminDashboardClient({ brandingConfig }: { brandingConfi
       return;
     }
     
-    if (userDoc && userDoc.role !== 'admin' && userDoc.role !== 'host') {
+    if (userDoc && userDoc.role !== 'admin' && userDoc.role !== 'host' && userDoc.role !== 'developer') {
        toast({
         variant: "destructive",
         title: "Acceso denegado",
@@ -582,7 +635,7 @@ export default function AdminDashboardClient({ brandingConfig }: { brandingConfi
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Verificando acceso...</div>;
   }
   
-  if (userDoc.role !== 'admin' && userDoc.role !== 'host') {
+  if (userDoc.role !== 'admin' && userDoc.role !== 'host' && userDoc.role !== 'developer') {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /> Redirigiendo...</div>;
   }
   
@@ -595,5 +648,3 @@ export default function AdminDashboardClient({ brandingConfig }: { brandingConfi
     </div>
   );
 }
-
-    
