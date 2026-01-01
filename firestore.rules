@@ -124,7 +124,7 @@ service cloud.firestore {
      *   but only writable by admin, developer or host.
      */
     match /categories/{categoryId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdminOrDevOrHost();
     }
   }
