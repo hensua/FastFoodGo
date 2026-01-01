@@ -141,7 +141,7 @@ const ProductForm = ({ product, onSave, onCancel, isSaving, categories }: { prod
 };
 
 
-const CategoryManager = ({ categories, onSave, onCancel, firestore, toast }: { categories: Category[], onSave: (categories: { id?: string, name: string }[]) => Promise<void>, onCancel: () => void, firestore: any, toast: any }) => {
+const CategoryManager = ({ categories, firestore, toast }: { categories: Category[], firestore: any, toast: any }) => {
     const [localCategories, setLocalCategories] = useState([...categories].sort((a,b) => a.name.localeCompare(b.name)));
     const [newCategoryName, setNewCategoryName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
@@ -780,10 +780,13 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
                                 ) : (
                                   <Tooltip>
                                     <TooltipTrigger>
-                                      <Badge variant="destructive">{p.category}</Badge>
+                                        <Badge variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20">
+                                            <Ban className="mr-1 h-3 w-3"/>
+                                            {p.category}
+                                        </Badge>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                      <p>¡La categoría no existe!</p>
+                                      <p className="text-destructive">¡La categoría no existe!</p>
                                     </TooltipContent>
                                   </Tooltip>
                                 )}
@@ -805,7 +808,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
             </Card>
           </div>
           <div>
-            <div className="bg-card border rounded-lg p-4 shadow-sm mb-4">
+             <div className="bg-card border rounded-lg p-4 shadow-sm mb-4">
               <div className="flex gap-1 p-1 bg-muted rounded-lg">
                   <button onClick={handleAddNewProductClick} className={`flex-1 px-4 py-2 rounded-md flex items-center justify-center gap-2 text-sm font-semibold transition-all ${inventoryView === 'products' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><PlusCircle size={16} /> Producto</button>
                   <button onClick={() => setInventoryView('categories')} className={`flex-1 px-4 py-2 rounded-md flex items-center justify-center gap-2 text-sm font-semibold transition-all ${inventoryView === 'categories' ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}><Edit size={16} /> Categorías</button>
@@ -818,7 +821,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
                     <ProductForm 
                         product={editingProduct} 
                         onSave={handleSaveProduct} 
-                        onCancel={() => setInventoryView('products')} 
+                        onCancel={() => {}}
                         isSaving={isSavingProduct}
                         categories={categories || []}
                     />
@@ -826,8 +829,6 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
                  {inventoryView === 'categories' && (
                      <CategoryManager
                         categories={categories || []}
-                        onSave={() => Promise.resolve()} // onSave is now managed internally
-                        onCancel={() => setInventoryView('categories')}
                         firestore={firestore}
                         toast={toast}
                      />
