@@ -567,9 +567,13 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
 
-  const [inventoryView, setInventoryView] = useState<'products' | 'categories'>('products');
+  const [inventoryView, setInventoryView] = useState<'products' | null>('products');
 
   const isFullAdmin = userDoc.role === 'admin';
+
+  const categoryNames = useMemo(() => {
+    return categories ? new Set(categories.map(c => c.name)) : new Set();
+  }, [categories]);
 
   const handleSaveCategories = async (categoriesToSave: { id?: string; name: string }[]) => {
     if (!firestore) return;
@@ -608,7 +612,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
         console.error("Error saving categories:", e);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron guardar las categorías.' });
     }
-};
+  };
 
   const handleSaveProduct = async (productData: Omit<Product, 'id'> | Product) => {
     if (!firestore) {
@@ -711,7 +715,11 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
                         products?.map(p => (
                           <tr key={p.id} className='border-b'>
                             <td className='p-2 font-medium'>{p.name}</td>
-                            <td className="p-2"><Badge variant="secondary">{p.category}</Badge></td>
+                            <td className="p-2">
+                              <Badge variant={categoryNames.has(p.category) ? "secondary" : "destructive"}>
+                                {p.category}
+                              </Badge>
+                            </td>
                             <td className="p-2">{formatCurrency(p.price)}</td>
                             <td className="p-2">{p.stockQuantity}</td>
                             <td className='flex justify-end gap-1 p-2'>
