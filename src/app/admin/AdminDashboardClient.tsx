@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, CartesianGrid } from 'recharts';
 import { format, subMonths, isToday, isThisWeek, isThisMonth, isThisYear } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Label } from '@/components/ui/label';
@@ -35,6 +35,7 @@ import Image from 'next/image';
 import { FirestorePermissionError, errorEmitter } from '@/firebase';
 import type { BrandingConfig } from '@/lib/branding-config';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const TeamManagement = lazy(() => import('@/components/team-management'));
 
@@ -553,7 +554,7 @@ const StatsDashboard = ({userDoc}: {userDoc: AppUser}) => {
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                                 <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${formatCurrency(value as number)}`} />
-                                <Tooltip formatter={(value: number) => [formatCurrency(value), "Ventas"]} cursor={{ fill: 'hsl(var(--muted))' }}/>
+                                <RechartsTooltip formatter={(value: number) => [formatCurrency(value), "Ventas"]} cursor={{ fill: 'hsl(var(--muted))' }}/>
                                 <Bar dataKey="Ventas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                             </RechartsBarChart>
                         </ResponsiveContainer>
@@ -739,7 +740,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
   };
 
   return (
-    <div>
+    <TooltipProvider>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-xl shadow-sm border mb-8">
         <h2 className="text-2xl font-bold flex items-center gap-2">
             <UtensilsCrossed className="text-primary" /> Panel de Control
@@ -768,22 +769,34 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
                     <thead className='border-b'><tr className='text-left text-sm text-muted-foreground'><th className='p-2'>Producto</th><th className='p-2'>Categoría</th><th className='p-2'>Precio</th><th className='p-2'>Stock</th><th className='p-2 text-right'>Acciones</th></tr></thead>
                     <tbody>
                       {productsLoading ? <tr><td colSpan={5} className="text-center p-4"><Loader2 className="animate-spin inline-block" /></td></tr> : (
-                        products?.map(p => (
-                          <tr key={p.id} className='border-b'>
-                            <td className='p-2 font-medium'>{p.name}</td>
-                            <td className="p-2">
-                              <Badge variant={categoryNames.has(p.category) ? "secondary" : "destructive"}>
-                                {p.category}
-                              </Badge>
-                            </td>
-                            <td className="p-2">{formatCurrency(p.price)}</td>
-                            <td className="p-2">{p.stockQuantity}</td>
-                            <td className='flex justify-end gap-1 p-2'>
-                              <Button variant="ghost" size="icon" onClick={() => handleEditClick(p)}><Edit className='h-4 w-4'/></Button>
-                              <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(p.id)}><Trash2 className='h-4 w-4 text-destructive'/></Button>
-                            </td>
-                          </tr>
-                        ))
+                        products?.map(p => {
+                          const categoryExists = categoryNames.has(p.category);
+                          return (
+                            <tr key={p.id} className='border-b'>
+                              <td className='p-2 font-medium'>{p.name}</td>
+                              <td className="p-2">
+                                {categoryExists ? (
+                                  <Badge variant="secondary">{p.category}</Badge>
+                                ) : (
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <Badge variant="destructive">{p.category}</Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>¡La categoría no existe!</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </td>
+                              <td className="p-2">{formatCurrency(p.price)}</td>
+                              <td className="p-2">{p.stockQuantity}</td>
+                              <td className='flex justify-end gap-1 p-2'>
+                                <Button variant="ghost" size="icon" onClick={() => handleEditClick(p)}><Edit className='h-4 w-4'/></Button>
+                                <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(p.id)}><Trash2 className='h-4 w-4 text-destructive'/></Button>
+                              </td>
+                            </tr>
+                          )
+                        })
                       )}
                     </tbody>
                   </table>
@@ -848,7 +861,7 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </TooltipProvider>
   );
 };
 
