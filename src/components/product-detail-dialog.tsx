@@ -55,7 +55,6 @@ export default function ProductDetailDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent
-      onOpenAutoFocus={(e) => e.preventDefault()} 
       className="
         p-0 gap-0 flex flex-col overflow-hidden
 
