@@ -140,7 +140,7 @@ const PinDialog = ({ open, onOpenChange, onSubmit, isSubmitting, orderId }: { op
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Confirmar Entrega</DialogTitle>
           <DialogDescription>

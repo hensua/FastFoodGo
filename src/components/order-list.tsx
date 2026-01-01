@@ -159,7 +159,7 @@ const CancelOrderDialog = ({
 
     return (
          <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-            <AlertDialogContent>
+            <AlertDialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
             <AlertDialogHeader>
                 <AlertDialogTitle>Cancelar Pedido #{order?.id.slice(-6).toUpperCase()}</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -204,14 +204,13 @@ function KitchenView({ userDoc, brandingConfig }: { userDoc: AppUser; brandingCo
     return query(collectionGroup(firestore, 'orders'), where('status', 'in', ['pending', 'cooking', 'ready', 'delivering', 'cancelled']));
   }, [firestore]);
   
-  const driversQuery = useMemoFirebase(() => {
+  const usersCollectionQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return collection(firestore, 'users');
-  }, [firestore, userDoc.role]);
-
+}, [firestore]);
 
   const { data: orders, isLoading: ordersLoading } = useCollection<Order>(ordersQuery);
-  const { data: allUsers, isLoading: driversLoading } = useCollection<AppUser>(driversQuery);
+  const { data: allUsers, isLoading: driversLoading } = useCollection<AppUser>(usersCollectionQuery);
 
   const drivers = useMemo(() => allUsers?.filter(u => u.role === 'driver') || [], [allUsers]);
 

@@ -27,7 +27,7 @@ export function ChatDialog({ order, user, isOpen, onOpenChange, brandingConfig }
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg h-[70vh] flex flex-col p-0">
+      <DialogContent onOpenAutoFocus={(e) => e.preventDefault()} className="sm:max-w-lg h-[70vh] flex flex-col p-0">
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="flex items-center gap-2">
             <MessageSquare /> Chat del Pedido #{order.id.slice(-6).toUpperCase()}
