@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { collection, doc, updateDoc, deleteDoc, setDoc, collectionGroup, query, writeBatch, serverTimestamp, getDocs, where } from 'firebase/firestore';
+import { collection, doc, updateDoc, deleteDoc, setDoc, collectionGroup, query, writeBatch, serverTimestamp, getDocs, where, addDoc } from 'firebase/firestore';
 import type { Order, Product, AppUser, Role, Category } from '@/lib/types';
 import Header from '@/components/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -71,6 +71,7 @@ const ProductForm = ({ product, onSave, onCancel, isSaving, categories }: { prod
   const [formData, setFormData] = useState<Omit<Product, 'id' | 'imageHint'>>(
     product || { name: '', description: '', price: 0, imageUrl: '', category: '', stockQuantity: 0 }
   );
+  const { toast } = useToast();
 
   useEffect(() => {
     if (product) {
@@ -140,65 +141,162 @@ const ProductForm = ({ product, onSave, onCancel, isSaving, categories }: { prod
 };
 
 
-const CategoryManager = ({ categories, onSave, onCancel }: { categories: Category[], onSave: (categories: { id?: string, name: string }[]) => Promise<void>, onCancel: () => void }) => {
+const CategoryManager = ({ categories, onSave, onCancel, firestore, toast }: { categories: Category[], onSave: (categories: { id?: string, name: string }[]) => Promise<void>, onCancel: () => void, firestore: any, toast: any }) => {
     const [localCategories, setLocalCategories] = useState([...categories].sort((a,b) => a.name.localeCompare(b.name)));
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const [isCreating, setIsCreating] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [changedCategories, setChangedCategories] = useState<Set<string>>(new Set());
+    const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    useEffect(() => {
+        setLocalCategories([...categories].sort((a,b) => a.name.localeCompare(b.name)));
+    }, [categories]);
 
     const handleNameChange = (id: string, newName: string) => {
         setLocalCategories(prev => prev.map(c => c.id === id ? { ...c, name: newName } : c));
-    };
-
-    const handleAddCategory = () => {
-        setLocalCategories(prev => [...prev, { id: `new-${Date.now()}`, name: '' }]);
+        const originalCategory = categories.find(c => c.id === id);
+        if (originalCategory && originalCategory.name !== newName) {
+            setChangedCategories(prev => new Set(prev).add(id));
+        } else {
+            setChangedCategories(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(id);
+                return newSet;
+            });
+        }
     };
     
-    const handleRemoveCategory = (id: string) => {
-        setLocalCategories(prev => prev.filter(c => c.id !== id));
+    const handleCreateCategory = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newCategoryName.trim() || !firestore) return;
+        
+        const nameExists = categories.some(c => c.name.toLowerCase() === newCategoryName.trim().toLowerCase());
+        if (nameExists) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Esa categoría ya existe.' });
+            return;
+        }
+
+        setIsCreating(true);
+        try {
+            const newDocRef = doc(collection(firestore, 'categories'));
+            await setDoc(newDocRef, { id: newDocRef.id, name: newCategoryName.trim() });
+            toast({ title: 'Categoría Creada', description: `'${newCategoryName.trim()}' ha sido añadida.` });
+            setNewCategoryName('');
+        } catch (error) {
+            console.error("Error creating category:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo crear la categoría.' });
+        } finally {
+            setIsCreating(false);
+        }
     };
 
-    const handleSave = async () => {
+    const handleDeleteCategory = async () => {
+        if (!deletingCategory || !firestore) return;
+
+        setIsDeleting(true);
+        try {
+            const docRef = doc(firestore, 'categories', deletingCategory.id);
+            await deleteDoc(docRef);
+            toast({ title: 'Categoría Eliminada', description: `'${deletingCategory.name}' ha sido eliminada.` });
+        } catch (error) {
+            console.error("Error deleting category:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar la categoría.' });
+        } finally {
+            setIsDeleting(false);
+            setDeletingCategory(null);
+        }
+    };
+
+    const handleSaveChanges = async () => {
+        if (!firestore || changedCategories.size === 0) return;
         setIsSaving(true);
-        const categoriesToSave = localCategories.map(c => ({
-            id: c.id.startsWith('new-') ? undefined : c.id,
-            name: c.name,
-        }));
-        await onSave(categoriesToSave);
-        setIsSaving(false);
+        
+        const batch = writeBatch(firestore);
+        localCategories.forEach(cat => {
+            if (changedCategories.has(cat.id)) {
+                const docRef = doc(firestore, 'categories', cat.id);
+                batch.update(docRef, { name: cat.name });
+            }
+        });
+
+        try {
+            await batch.commit();
+            toast({ title: 'Categorías Actualizadas', description: 'Los cambios se han guardado con éxito.' });
+            setChangedCategories(new Set());
+        } catch (error) {
+            console.error("Error saving categories:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron guardar las categorías.' });
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
-        <Card className="animate-fade-in">
-            <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                    Gestionar Categorías
-                    <Button variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
-                </CardTitle>
-                <CardDescription>Añade, edita o elimina las categorías de productos.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {localCategories.map(category => (
-                    <div key={category.id} className="flex items-center gap-2">
-                        <Input 
-                            value={category.name} 
-                            onChange={(e) => handleNameChange(category.id, e.target.value)}
-                            placeholder="Nombre de la categoría"
+        <>
+            <Card className="animate-fade-in">
+                <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                        Gestionar Categorías
+                        <Button variant="ghost" size="icon" onClick={onCancel}><X className="h-4 w-4" /></Button>
+                    </CardTitle>
+                    <CardDescription>Añade, edita o elimina las categorías de productos.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     <form onSubmit={handleCreateCategory} className="flex items-center gap-2">
+                         <Input 
+                            value={newCategoryName} 
+                            onChange={(e) => setNewCategoryName(e.target.value)}
+                            placeholder="Nombre de la nueva categoría"
+                            disabled={isCreating}
                         />
-                        <Button variant="ghost" size="icon" onClick={() => handleRemoveCategory(category.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive"/>
+                        <Button type="submit" disabled={isCreating || !newCategoryName.trim()}>
+                            {isCreating ? <Loader2 className="animate-spin h-4 w-4" /> : <PlusCircle className="h-4 w-4"/>}
                         </Button>
+                    </form>
+
+                    <div className="space-y-2 pt-4 border-t">
+                        {localCategories.map(category => (
+                            <div key={category.id} className="flex items-center gap-2">
+                                <Input 
+                                    value={category.name} 
+                                    onChange={(e) => handleNameChange(category.id, e.target.value)}
+                                    placeholder="Nombre de la categoría"
+                                />
+                                <Button variant="ghost" size="icon" onClick={() => setDeletingCategory(category)}>
+                                    <Trash2 className="h-4 w-4 text-destructive"/>
+                                </Button>
+                            </div>
+                        ))}
                     </div>
-                ))}
-                <Button variant="outline" onClick={handleAddCategory} className="w-full">
-                    <PlusCircle className="mr-2 h-4 w-4"/> Añadir Nueva Categoría
-                </Button>
-            </CardContent>
-            <CardFooter className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={onCancel}>Cancelar</Button>
-                <Button onClick={handleSave} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="animate-spin" /> : 'Guardar Cambios'}
-                </Button>
-            </CardFooter>
-        </Card>
+                </CardContent>
+                <CardFooter className="flex justify-end gap-2">
+                    <Button variant="ghost" onClick={onCancel}>Cerrar</Button>
+                    <Button onClick={handleSaveChanges} disabled={isSaving || changedCategories.size === 0}>
+                        {isSaving ? <Loader2 className="animate-spin" /> : 'Guardar Cambios'}
+                    </Button>
+                </CardFooter>
+            </Card>
+
+             <AlertDialog open={!!deletingCategory} onOpenChange={() => setDeletingCategory(null)}>
+                <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Confirmar eliminación?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Estás a punto de eliminar la categoría <span className="font-bold">{deletingCategory?.name}</span>. Esta acción no se puede deshacer.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteCategory} disabled={isDeleting} className="bg-destructive hover:bg-destructive/80">
+                         {isDeleting ? <Loader2 className="animate-spin mr-2"/> : null}
+                         Sí, eliminar
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 };
 
@@ -575,45 +673,6 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
     return categories ? new Set(categories.map(c => c.name)) : new Set();
   }, [categories]);
 
-  const handleSaveCategories = async (categoriesToSave: { id?: string; name: string }[]) => {
-    if (!firestore) return;
-    const batch = writeBatch(firestore);
-    const existingCategoryNames = (categories || []).map(c => c.name.toLowerCase());
-    
-    categoriesToSave.forEach(cat => {
-        if (!cat.name.trim()) return; // Skip empty names
-
-        if (cat.id && !cat.id.startsWith('new-')) {
-            // This is an existing category, update it
-            const docRef = doc(firestore, 'categories', cat.id);
-            batch.update(docRef, { name: cat.name });
-        } else {
-            // This is a new category, create it if name is unique
-            if (!existingCategoryNames.includes(cat.name.toLowerCase())) {
-                const newDocRef = doc(collection(firestore, 'categories'));
-                batch.set(newDocRef, { id: newDocRef.id, name: cat.name });
-            }
-        }
-    });
-
-    // Handle deletions
-    const categoriesToDelete = (categories || []).filter(
-        existingCat => !categoriesToSave.some(savingCat => savingCat.id === existingCat.id)
-    );
-    categoriesToDelete.forEach(cat => {
-        const docRef = doc(firestore, 'categories', cat.id);
-        batch.delete(docRef);
-    });
-
-    try {
-        await batch.commit();
-        toast({ title: 'Categorías actualizadas', description: 'Los cambios se han guardado con éxito.' });
-    } catch(e) {
-        console.error("Error saving categories:", e);
-        toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron guardar las categorías.' });
-    }
-  };
-
   const handleSaveProduct = async (productData: Omit<Product, 'id'> | Product) => {
     if (!firestore) {
       toast({ variant: "destructive", title: "Error", description: "La base de datos no está disponible."});
@@ -757,8 +816,10 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
                  {inventoryView === 'categories' && (
                      <CategoryManager
                         categories={categories || []}
-                        onSave={handleSaveCategories}
+                        onSave={() => Promise.resolve()} // onSave is now managed internally
                         onCancel={() => setInventoryView(null)}
+                        firestore={firestore}
+                        toast={toast}
                      />
                  )}
               </>
