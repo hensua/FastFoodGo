@@ -89,7 +89,7 @@ const CategoryCombobox = ({ value, onChange, categories, onCategoryCreate }: { v
                 <CommandItem
                   key={category.id}
                   value={category.name}
-                  onSelect={handleSelect}
+                  onSelect={() => handleSelect(category.name)}
                 >
                   <Check
                     className={cn(
