@@ -4,13 +4,13 @@
 import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { collection, doc, updateDoc, deleteDoc, setDoc, collectionGroup, query, writeBatch, serverTimestamp, getDocs, where } from 'firebase/firestore';
-import type { Order, Product, AppUser, Role } from '@/lib/types';
+import type { Order, Product, AppUser, Role, Category } from '@/lib/types';
 import Header from '@/components/header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { ChefHat, Package, Trash2, Edit, X, Users, Loader2, UtensilsCrossed, TrendingUp, Download, BarChart, ShoppingBag, Ban, Ticket, CircleDollarSign, XCircle, PackageCheck, Banknote, Landmark, Star, Crown, Trophy, UserRound, Store, Info, Calendar } from 'lucide-react';
+import { ChefHat, Package, Trash2, Edit, X, Users, Loader2, UtensilsCrossed, TrendingUp, Download, BarChart, ShoppingBag, Ban, Ticket, CircleDollarSign, XCircle, PackageCheck, Banknote, Landmark, Star, Crown, Trophy, UserRound, Store, Info, Calendar, ChevronsUpDown, Check } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/provider';
 import { Input } from '@/components/ui/input';
@@ -35,13 +35,84 @@ import { OrderList } from '@/components/order-list';
 import Image from 'next/image';
 import { FirestorePermissionError, errorEmitter } from '@/firebase';
 import type { BrandingConfig } from '@/lib/branding-config';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 
 const TeamManagement = lazy(() => import('@/components/team-management'));
 
+// Combobox for Categories
+const CategoryCombobox = ({ value, onChange, categories, onCategoryCreate }: { value: string, onChange: (value: string) => void, categories: Category[], onCategoryCreate: (name: string) => Promise<void> }) => {
+  const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+
+  const handleSelect = (currentValue: string) => {
+    onChange(currentValue);
+    setOpen(false);
+  };
+
+  const handleCreate = async () => {
+    if (inputValue && !categories.find(c => c.name.toLowerCase() === inputValue.toLowerCase())) {
+      await onCategoryCreate(inputValue);
+      onChange(inputValue); // Select the newly created category
+    }
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between"
+        >
+          {value || "Seleccionar categoría..."}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-full p-0">
+        <Command>
+          <CommandInput 
+            placeholder="Buscar o crear..."
+            onValueChange={setInputValue}
+          />
+          <CommandList>
+            <CommandEmpty>
+              <Button variant="outline" size="sm" onClick={handleCreate}>
+                Crear "{inputValue}"
+              </Button>
+            </CommandEmpty>
+            <CommandGroup>
+              {categories.map((category) => (
+                <CommandItem
+                  key={category.id}
+                  value={category.name}
+                  onSelect={handleSelect}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === category.name ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {category.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+
 // Inventory View Components
-const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product | null, onSave: (product: Omit<Product, 'id'> | Product) => void, onCancel: () => void, isSaving: boolean }) => {
+const ProductForm = ({ product, onSave, onCancel, isSaving, categories, onCategoryCreate }: { product: Product | null, onSave: (product: Omit<Product, 'id'> | Product) => void, onCancel: () => void, isSaving: boolean, categories: Category[], onCategoryCreate: (name: string) => Promise<void> }) => {
   const [formData, setFormData] = useState<Omit<Product, 'id' | 'imageHint'>>(
-    product || { name: '', description: '', price: 0, imageUrl: '', category: 'Otros', stockQuantity: 0 }
+    product || { name: '', description: '', price: 0, imageUrl: '', category: '', stockQuantity: 0 }
   );
 
   useEffect(() => {
@@ -49,7 +120,7 @@ const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product
       const { imageHint, ...rest } = product;
       setFormData(rest as Omit<Product, 'id' | 'imageHint'>);
     } else {
-      setFormData({ name: '', description: '', price: 0, imageUrl: '', category: 'Otros', stockQuantity: 0 });
+      setFormData({ name: '', description: '', price: 0, imageUrl: '', category: '', stockQuantity: 0 });
     }
   }, [product]);
 
@@ -64,6 +135,10 @@ const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.category) {
+      alert('Por favor, selecciona o crea una categoría.');
+      return;
+    }
     onSave(formData as Omit<Product, 'id'> | Product);
   };
 
@@ -89,14 +164,12 @@ const ProductForm = ({ product, onSave, onCancel, isSaving }: { product: Product
               <Input id="stockQuantity" name="stockQuantity" type="number" value={formData.stockQuantity || 0} onChange={handleChange} placeholder="" />
             </div>
           </div>
-          <Select name="category" value={formData.category} onValueChange={handleCategoryChange}>
-            <SelectTrigger><SelectValue placeholder="Categoría" /></SelectTrigger>
-            <SelectContent>
-              {['Hamburguesas', 'Pizzas', 'Acompañamientos', 'Bebidas', 'Otros'].map(cat => (
-                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CategoryCombobox 
+            value={formData.category} 
+            onChange={handleCategoryChange}
+            categories={categories}
+            onCategoryCreate={onCategoryCreate}
+          />
           <div className="space-y-2">
               <Label htmlFor="imageUrl">URL de la imagen</Label>
               <Input id="imageUrl" name="imageUrl" value={formData.imageUrl} onChange={handleChange} placeholder="https://example.com/image.png" required />
@@ -463,7 +536,10 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
   const { toast } = useToast();
   
   const productsCollection = useMemoFirebase(() => firestore ? collection(firestore, 'products') : null, [firestore]);
+  const categoriesCollection = useMemoFirebase(() => firestore ? collection(firestore, 'categories') : null, [firestore]);
+  
   const { data: products, isLoading: productsLoading } = useCollection<Product>(productsCollection);
+  const { data: categories, isLoading: categoriesLoading } = useCollection<Category>(categoriesCollection);
   
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
@@ -472,6 +548,14 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
 
   const isFullAdmin = userDoc.role === 'admin';
+
+  const handleCreateCategory = async (name: string) => {
+    if (!firestore || !name) return;
+    const newDocRef = doc(collection(firestore, 'categories'));
+    const newCategory: Category = { id: newDocRef.id, name };
+    await setDoc(newDocRef, newCategory);
+    toast({ title: "Categoría creada", description: `La categoría "${name}" ha sido creada.` });
+  };
 
   const handleSaveProduct = async (productData: Omit<Product, 'id'> | Product) => {
     if (!firestore) {
@@ -576,7 +660,18 @@ const AdminDashboard = ({ userDoc, brandingConfig }: { userDoc: AppUser; brandin
               </CardContent>
             </Card>
           </div>
-          <div><ProductForm product={editingProduct} onSave={handleSaveProduct} onCancel={() => setEditingProduct(null)} isSaving={isSavingProduct} /></div>
+          <div>
+            {categoriesLoading ? <Loader2 className='animate-spin'/> : (
+              <ProductForm 
+                product={editingProduct} 
+                onSave={handleSaveProduct} 
+                onCancel={() => setEditingProduct(null)} 
+                isSaving={isSavingProduct}
+                categories={categories || []}
+                onCategoryCreate={handleCreateCategory}
+              />
+            )}
+          </div>
         </div>
       )}
       
@@ -648,3 +743,4 @@ export default function AdminDashboardClient({ brandingConfig }: { brandingConfi
     </div>
   );
 }
+

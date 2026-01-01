@@ -20,12 +20,16 @@ interface OrderPageProps {
   brandingConfig: BrandingConfig;
 }
 
-const categories = ['Todas', 'Hamburguesas', 'Pizzas', 'Acompañamientos', 'Bebidas', 'Otros'];
-
 export default function OrderPage({ products, loading, brandingConfig }: OrderPageProps) {
   const [isCartOpen, setCartOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Todas');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  const categories = useMemo(() => {
+    if (loading || !products) return ['Todas'];
+    const uniqueCategories = new Set(products.map(p => p.category));
+    return ['Todas', ...Array.from(uniqueCategories)];
+  }, [products, loading]);
   
   const filteredProducts = useMemo(() => {
     if (loading) return [];

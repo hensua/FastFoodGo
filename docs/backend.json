@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Product": {
@@ -68,6 +69,16 @@
         }
       },
       "required": ["id", "customerId", "orderDate", "totalAmount", "deliveryAddress", "status", "pin", "items"]
+    },
+    "Category": {
+      "title": "Category",
+      "type": "object",
+      "description": "Represents a product category.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the category." },
+        "name": { "type": "string", "description": "Name of the category." }
+      },
+      "required": ["id", "name"]
     }
   },
   "auth": {
@@ -107,6 +118,14 @@
         "definition": {
           "schema": { "type": "object", "properties": {"uid": {"type": "string"}, "grantedAt": {"type": "string", "format": "date-time"}} },
           "description": "Manages admin roles. The existence of a document grants admin privileges to the user with the corresponding UID."
+        }
+      },
+      {
+        "path": "/categories/{categoryId}",
+        "definition": {
+          "entityName": "Category",
+          "schema": { "$ref": "#/entities/Category" },
+          "description": "Stores all product categories."
         }
       }
     ]

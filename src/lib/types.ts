@@ -1,3 +1,4 @@
+
 export type Product = {
   id: string;
   name: string;
@@ -62,4 +63,9 @@ export type ChatMessage = {
   senderName: string;
   senderRole: Role;
   timestamp: any;
+};
+
+export type Category = {
+  id: string;
+  name: string;
 };
