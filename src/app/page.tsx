@@ -1,3 +1,4 @@
+
 'use client';
 
 import { getBrandingConfig, type BrandingConfig } from '@/lib/branding-config';
@@ -75,8 +76,14 @@ function HomePageClient({ brandingConfig }: { brandingConfig: BrandingConfig }) 
   }, [products, isProductsLoading, firestore]);
 
   const productList = useMemo(() => {
-    return products || [];
-  }, [products]);
+    if (!products || !categories) return [];
+    
+    // Create a Set of valid category names for quick lookup
+    const validCategoryNames = new Set(categories.map(c => c.name));
+    
+    // Filter products to only include those with a valid category
+    return products.filter(product => validCategoryNames.has(product.category));
+  }, [products, categories]);
 
   const categoryList = useMemo(() => {
     return categories || [];
