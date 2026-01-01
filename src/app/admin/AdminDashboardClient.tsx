@@ -59,6 +59,10 @@ const CategoryCombobox = ({ value, onChange, categories, onCategoryCreate }: { v
     setOpen(false);
   };
 
+  const sortedCategories = useMemo(() => {
+    return [...categories].sort((a, b) => a.name.localeCompare(b.name));
+  }, [categories]);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -78,14 +82,14 @@ const CategoryCombobox = ({ value, onChange, categories, onCategoryCreate }: { v
             placeholder="Buscar o crear..."
             onValueChange={setInputValue}
           />
-          <CommandList>
+           <CommandList>
             <CommandEmpty>
-              <Button variant="outline" size="sm" onClick={handleCreate}>
-                Crear "{inputValue}"
+              <Button variant="outline" size="sm" onClick={handleCreate} className="w-full">
+                Crear nueva categoría: "{inputValue}"
               </Button>
             </CommandEmpty>
             <CommandGroup>
-              {categories.map((category) => (
+              {sortedCategories.map((category) => (
                 <CommandItem
                   key={category.id}
                   value={category.name}
