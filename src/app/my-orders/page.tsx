@@ -50,7 +50,7 @@ const statusConfig: Record<OrderStatus, { text: string; icon: React.ElementType;
   cooking: { text: 'En Preparación', icon: ChefHat, color: 'text-yellow-500', progress: 'w-2/6' },
   ready: { text: 'Listo para Retirar', icon: ShoppingBag, color: 'text-blue-500', progress: 'w-3/6' },
   delivering: { text: 'En Camino', icon: Truck, color: 'text-orange-500', progress: 'w-4/6' },
-  delivered: { text: 'Entregado', icon: CheckCircle2, color: 'text-green-500', progress: 'w-full' },
+  delivered: { text: 'Entregado', icon: CheckCircle2, color: 'text-green-600', progress: 'w-full' },
   cancelled: { text: 'Cancelado', icon: Ban, color: 'text-red-500', progress: 'w-full bg-red-500' },
 };
 
@@ -83,7 +83,15 @@ const OrderCard = ({
               </p>
                <p className="font-bold text-primary">{formatCurrency(order.totalAmount)}</p>
             </div>
-             <Badge variant={order.status === 'delivered' ? 'default' : 'secondary'} className={cn(`${config.color.replace('text-', 'bg-').replace('-500', '/10')} border ${config.color.replace('text-','border-')}`, 'self-start')}>
+             <Badge 
+                variant={order.status === 'delivered' ? 'secondary' : 'secondary'} 
+                className={cn(
+                  order.status === 'delivered'
+                    ? 'bg-green-100 text-green-700 border-green-200'
+                    : `${config.color.replace('text-', 'bg-').replace('-500', '/10')} border ${config.color.replace('text-','border-')}`,
+                  'self-start'
+                )}
+            >
               <config.icon className={`mr-2 ${config.color}`} size={16}/> {config.text}
             </Badge>
           </div>
